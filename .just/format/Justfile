@@ -1,0 +1,9 @@
+set working-directory := "../.."
+
+[private]
+default:
+    just --list --justfile {{source_file()}}
+
+# Format the CLI module
+cli:
+    golangci-lint fmt ./...
