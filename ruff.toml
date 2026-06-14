@@ -1,0 +1,53 @@
+line-length = 100
+indent-width = 4
+target-version = "py314"
+extend-exclude = [
+  ".eggs",
+  ".git",
+  ".venv",
+  "__pycache__",
+  "dist",
+  "build",
+]
+
+[lint]
+select = [
+  "E",
+  "F",
+  "W",
+  "I",
+  "UP",
+  "B",
+  "SIM",
+  "C4",
+  "PIE",
+  "T20",
+  "RET",
+  "ARG",
+  "PTH",
+  "PL",
+  "RUF",
+  "TID",
+]
+ignore = ["PLR0913", "PLR2004", "PLR0911", "PLR0912", "PLR0915"]
+fixable = ["ALL"]
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[lint.per-file-ignores]
+"__init__.py" = ["F403"]
+"tests/*.py" = ["ARG001", "ARG002", "PLR2004"]
+
+[lint.isort]
+known-first-party = ["agentsync"]
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+split-on-trailing-comma = true
+lines-after-imports = 2
+
+[format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[lint.flake8-tidy-imports]
+ban-relative-imports = "all"

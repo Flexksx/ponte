@@ -1,0 +1,2 @@
+[environment]
+root = ["apps/agentsync/src", "."]
