@@ -24,7 +24,7 @@ func ReadSystemPrompt() (systemprompt.SystemPrompt, error) {
 		return systemprompt.SystemPrompt{}, err
 	}
 	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
-		return systemprompt.SystemPrompt{}, nil
+		return systemprompt.SystemPrompt{}, systemprompt.ErrNoSystemPrompt
 	}
 	content, err := os.ReadFile(path)
 	if err != nil {
