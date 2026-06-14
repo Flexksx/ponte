@@ -5,7 +5,7 @@
       version = "0.1.0";
       src = ../.;
       subPackages = ["apps/agentsync"];
-      vendorHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+      vendorHash = "sha256-n58Qmiv3gik1qkuXQFbQ+soeOQtUz1dUocEAJepqp/E=";
     };
   };
 }
