@@ -6,12 +6,16 @@ type AgentEntry struct {
 	Enabled bool `toml:"enabled"`
 }
 
+const DefaultSystemPromptFile = "AGENTS.md"
+
 type Config struct {
-	Agents map[agentvendor.AgentVendorName]AgentEntry `toml:"agents"`
+	SystemPromptFile string                                     `toml:"system_prompt_file"`
+	Agents           map[agentvendor.AgentVendorName]AgentEntry `toml:"agents"`
 }
 
 func DefaultConfig() Config {
 	return Config{
+		SystemPromptFile: DefaultSystemPromptFile,
 		Agents: map[agentvendor.AgentVendorName]AgentEntry{
 			agentvendor.ClaudeCode:  {Enabled: true},
 			agentvendor.Codex:       {Enabled: true},

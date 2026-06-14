@@ -8,18 +8,16 @@ import (
 	"github.com/flexksx/agentsync/apps/agentsync/internal/systemprompt"
 )
 
-const systemPromptFileName = "system_prompt.md"
-
-func systemPromptPath() (string, error) {
+func systemPromptPath(filename string) (string, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(home, ".config", "agentsync", systemPromptFileName), nil
+	return filepath.Join(home, ".config", "agentsync", filename), nil
 }
 
-func ReadSystemPrompt() (systemprompt.SystemPrompt, error) {
-	path, err := systemPromptPath()
+func ReadSystemPromptFromFile(filename string) (systemprompt.SystemPrompt, error) {
+	path, err := systemPromptPath(filename)
 	if err != nil {
 		return systemprompt.SystemPrompt{}, err
 	}
@@ -33,8 +31,8 @@ func ReadSystemPrompt() (systemprompt.SystemPrompt, error) {
 	return systemprompt.SystemPrompt{Content: string(content)}, nil
 }
 
-func WriteSystemPrompt(prompt systemprompt.SystemPrompt) error {
-	path, err := systemPromptPath()
+func WriteSystemPromptToFile(filename string, prompt systemprompt.SystemPrompt) error {
+	path, err := systemPromptPath(filename)
 	if err != nil {
 		return err
 	}

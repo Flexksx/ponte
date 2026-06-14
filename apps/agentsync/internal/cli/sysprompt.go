@@ -5,7 +5,9 @@ import (
 
 	"github.com/spf13/cobra"
 
+	configadapter "github.com/flexksx/agentsync/apps/agentsync/internal/config/adapter"
 	"github.com/flexksx/agentsync/apps/agentsync/internal/sysprompt"
+	"github.com/flexksx/agentsync/apps/agentsync/internal/systemprompt"
 	promptadapter "github.com/flexksx/agentsync/apps/agentsync/internal/systemprompt/adapter"
 )
 
@@ -29,8 +31,15 @@ func newSyspromptSetCommand() *cobra.Command {
 				return fmt.Errorf("reading system prompt: %w", err)
 			}
 
+			cfg, err := configadapter.ReadConfig()
+			if err != nil {
+				return err
+			}
+
 			useCase := &sysprompt.SetUseCase{
-				WriteSystemPrompt: promptadapter.WriteSystemPrompt,
+				WriteSystemPrompt: func(prompt systemprompt.SystemPrompt) error {
+					return promptadapter.WriteSystemPromptToFile(cfg.SystemPromptFile, prompt)
+				},
 			}
 
 			if err := useCase.Execute(sysprompt.SetRequest{Content: content}); err != nil {

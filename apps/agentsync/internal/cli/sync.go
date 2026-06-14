@@ -27,6 +27,11 @@ func newSyncCommand() *cobra.Command {
 				return err
 			}
 
+			cfg, err := configadapter.ReadConfig()
+			if err != nil {
+				return err
+			}
+
 			var promptOverride *systemprompt.SystemPrompt
 			if globalInstructionsFlag != "" {
 				content, err := resolveContent(globalInstructionsFlag)
@@ -42,7 +47,9 @@ func newSyncCommand() *cobra.Command {
 			}
 
 			useCase := &sync.UseCase{
-				ReadSystemPrompt:      promptadapter.ReadSystemPrompt,
+				ReadSystemPrompt: func() (systemprompt.SystemPrompt, error) {
+					return promptadapter.ReadSystemPromptFromFile(cfg.SystemPromptFile)
+				},
 				ReadConfig:            configadapter.ReadConfig,
 				GetAgentConfiguration: vendoradapter.GetConfiguration,
 				WriteToAgent:          promptadapter.WriteToAgent,
@@ -84,13 +91,13 @@ func ensureConfigInitialized(cmd *cobra.Command) error {
 	if writeErr := configadapter.WriteConfig(config.DefaultConfig()); writeErr != nil {
 		return writeErr
 	}
-	if writeErr := promptadapter.WriteSystemPrompt(systemprompt.SystemPrompt{}); writeErr != nil {
+	if writeErr := promptadapter.WriteSystemPromptToFile(config.DefaultSystemPromptFile, systemprompt.SystemPrompt{}); writeErr != nil {
 		return writeErr
 	}
 
 	dir, _ := configadapter.ConfigDirectoryPath()
 	cmd.Printf("Initialized agentsync config at %s\n", dir)
 	cmd.Printf("  config.toml      — all agents enabled\n")
-	cmd.Printf("  system_prompt.md — empty\n\n")
+	cmd.Printf("  %s — empty\n\n", config.DefaultSystemPromptFile)
 	return nil
 }
