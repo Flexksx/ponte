@@ -10,6 +10,8 @@ import (
 	vendoradapter "github.com/flexksx/ponte/apps/ponte/internal/agentvendor/adapter"
 	"github.com/flexksx/ponte/apps/ponte/internal/config"
 	configadapter "github.com/flexksx/ponte/apps/ponte/internal/config/adapter"
+	skilladapter "github.com/flexksx/ponte/apps/ponte/internal/skill/adapter"
+	storeadapter "github.com/flexksx/ponte/apps/ponte/internal/store/adapter"
 	"github.com/flexksx/ponte/apps/ponte/internal/sync"
 	"github.com/flexksx/ponte/apps/ponte/internal/systemprompt"
 	promptadapter "github.com/flexksx/ponte/apps/ponte/internal/systemprompt/adapter"
@@ -21,7 +23,7 @@ func newSyncCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "sync",
-		Short: "Sync the system prompt to configured agent vendors",
+		Short: "Sync the system prompt and skills to configured agent vendors",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := ensureConfigInitialized(cmd); err != nil {
 				return err
@@ -46,25 +48,37 @@ func newSyncCommand() *cobra.Command {
 				targetAgents = append(targetAgents, agentvendor.AgentVendorName(name))
 			}
 
+			storeDir, err := storeadapter.StoreDirectoryPath()
+			if err != nil {
+				return fmt.Errorf("resolving store directory: %w", err)
+			}
+
+			gitCacheDir, err := skilladapter.GitCacheDirectoryPath()
+			if err != nil {
+				return fmt.Errorf("resolving skill cache directory: %w", err)
+			}
+
 			useCase := &sync.UseCase{
 				ReadSystemPrompt: func() (systemprompt.SystemPrompt, error) {
 					return promptadapter.ReadSystemPromptFromFile(cfg.SystemPromptFile)
 				},
 				ReadConfig:            configadapter.ReadConfig,
 				GetAgentConfiguration: vendoradapter.GetConfiguration,
-				WriteToAgent:          promptadapter.WriteToAgent,
+				ResolveSkill:          skilladapter.NewResolver(gitCacheDir),
+				BuildGeneration:       storeadapter.NewBuilder(storeDir),
+				ActivateForVendor:     storeadapter.Activate,
 			}
 
 			if err := useCase.Execute(sync.SyncRequest{
 				SystemPromptOverride: promptOverride,
 				TargetAgents:         targetAgents,
+				Skills:               cfg.Skills,
 			}); err != nil {
 				return err
 			}
 
 			targets := agentsFlag
 			if len(targets) == 0 {
-				cfg, _ := configadapter.ReadConfig()
 				for name, entry := range cfg.Agents {
 					if entry.Enabled {
 						targets = append(targets, string(name))
@@ -97,7 +111,7 @@ func ensureConfigInitialized(cmd *cobra.Command) error {
 
 	dir, _ := configadapter.ConfigDirectoryPath()
 	cmd.Printf("Initialized ponte config at %s\n", dir)
-	cmd.Printf("  config.toml      — all agents enabled\n")
+	cmd.Printf("  config.toml      — all agents enabled, no skills\n")
 	cmd.Printf("  %s — empty\n\n", config.DefaultSystemPromptFile)
 	return nil
 }

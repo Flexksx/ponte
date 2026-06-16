@@ -1,8 +1,12 @@
 package sync
 
 import (
+	"fmt"
+
 	"github.com/flexksx/ponte/apps/ponte/internal/agentvendor"
 	"github.com/flexksx/ponte/apps/ponte/internal/config"
+	"github.com/flexksx/ponte/apps/ponte/internal/skill"
+	"github.com/flexksx/ponte/apps/ponte/internal/store"
 	"github.com/flexksx/ponte/apps/ponte/internal/systemprompt"
 )
 
@@ -10,7 +14,9 @@ type UseCase struct {
 	ReadSystemPrompt      systemprompt.Reader
 	ReadConfig            config.ConfigReader
 	GetAgentConfiguration agentvendor.ConfigurationPort
-	WriteToAgent          systemprompt.AgentWriter
+	ResolveSkill          skill.Resolver
+	BuildGeneration       store.GenerationBuilder
+	ActivateForVendor     store.VendorActivator
 }
 
 func (u *UseCase) Execute(request SyncRequest) error {
@@ -24,12 +30,25 @@ func (u *UseCase) Execute(request SyncRequest) error {
 		return err
 	}
 
+	resolvedSkills, err := u.resolveSkills(request.Skills)
+	if err != nil {
+		return err
+	}
+
+	generation, err := u.BuildGeneration(store.BuildInput{
+		SystemPromptContent: prompt.Content,
+		Skills:              resolvedSkills,
+	})
+	if err != nil {
+		return err
+	}
+
 	for _, target := range targets {
 		vendorConfig, err := u.GetAgentConfiguration(target)
 		if err != nil {
 			return ErrUnknownAgent{Name: target}
 		}
-		if err := u.WriteToAgent(vendorConfig.GlobalInstructionFilePath, prompt); err != nil {
+		if err := u.ActivateForVendor(generation, vendorConfig.GlobalInstructionFilePath, vendorConfig.SkillsDirectoryPath); err != nil {
 			return err
 		}
 	}
@@ -61,4 +80,16 @@ func (u *UseCase) resolveSystemPrompt(override *systemprompt.SystemPrompt) (syst
 		return *override, nil
 	}
 	return u.ReadSystemPrompt()
+}
+
+func (u *UseCase) resolveSkills(entries []config.SkillEntry) ([]store.ResolvedSkill, error) {
+	resolved := make([]store.ResolvedSkill, 0, len(entries))
+	for _, entry := range entries {
+		dir, err := u.ResolveSkill(entry.Source)
+		if err != nil {
+			return nil, fmt.Errorf("resolving skill %q: %w", entry.Name, err)
+		}
+		resolved = append(resolved, store.ResolvedSkill{Name: entry.Name, SourceDir: dir})
+	}
+	return resolved, nil
 }

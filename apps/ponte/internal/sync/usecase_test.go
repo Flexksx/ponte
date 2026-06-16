@@ -6,6 +6,8 @@ import (
 
 	"github.com/flexksx/ponte/apps/ponte/internal/agentvendor"
 	"github.com/flexksx/ponte/apps/ponte/internal/config"
+	"github.com/flexksx/ponte/apps/ponte/internal/skill"
+	"github.com/flexksx/ponte/apps/ponte/internal/store"
 	"github.com/flexksx/ponte/apps/ponte/internal/systemprompt"
 )
 
@@ -24,10 +26,17 @@ func workingUseCase() UseCase {
 		GetAgentConfiguration: func(name agentvendor.AgentVendorName) (agentvendor.AgentVendorConfiguration, error) {
 			return agentvendor.AgentVendorConfiguration{
 				VendorName:                name,
-				GlobalInstructionFilePath: "/fake/" + string(name),
+				GlobalInstructionFilePath: "/fake/" + string(name) + "/instruction",
+				SkillsDirectoryPath:       "/fake/" + string(name) + "/skills",
 			}, nil
 		},
-		WriteToAgent: func(_ string, _ systemprompt.SystemPrompt) error {
+		ResolveSkill: func(source skill.SkillSource) (string, error) {
+			return "/fake/skills/" + string(source.Type), nil
+		},
+		BuildGeneration: func(input store.BuildInput) (store.Generation, error) {
+			return store.Generation{Hash: "testhash", RootPath: "/fake/store/testhash"}, nil
+		},
+		ActivateForVendor: func(_ store.Generation, _, _ string) error {
 			return nil
 		},
 	}
@@ -55,7 +64,7 @@ func TestExecute_WithExplicitTargets_SkipsConfig(t *testing.T) {
 
 func TestExecute_WithNoTargets_UsesEnabledAgentsFromConfig(t *testing.T) {
 	t.Parallel()
-	writtenPaths := map[string]bool{}
+	activatedVendors := map[string]bool{}
 	useCase := workingUseCase()
 	useCase.ReadConfig = func() (config.Config, error) {
 		return config.Config{
@@ -66,8 +75,8 @@ func TestExecute_WithNoTargets_UsesEnabledAgentsFromConfig(t *testing.T) {
 			},
 		}, nil
 	}
-	useCase.WriteToAgent = func(path string, _ systemprompt.SystemPrompt) error {
-		writtenPaths[path] = true
+	useCase.ActivateForVendor = func(_ store.Generation, instructionPath, _ string) error {
+		activatedVendors[instructionPath] = true
 		return nil
 	}
 
@@ -75,17 +84,17 @@ func TestExecute_WithNoTargets_UsesEnabledAgentsFromConfig(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(writtenPaths) != 2 {
-		t.Errorf("expected 2 writes, got %d: %v", len(writtenPaths), writtenPaths)
+	if len(activatedVendors) != 2 {
+		t.Errorf("expected 2 activations, got %d: %v", len(activatedVendors), activatedVendors)
 	}
-	if !writtenPaths["/fake/claude-code"] {
-		t.Error("expected write to claude-code")
+	if !activatedVendors["/fake/claude-code/instruction"] {
+		t.Error("expected activation for claude-code")
 	}
-	if !writtenPaths["/fake/gemini-cli"] {
-		t.Error("expected write to gemini-cli")
+	if !activatedVendors["/fake/gemini-cli/instruction"] {
+		t.Error("expected activation for gemini-cli")
 	}
-	if writtenPaths["/fake/codex"] {
-		t.Error("must not write to disabled agent codex")
+	if activatedVendors["/fake/codex/instruction"] {
+		t.Error("must not activate disabled agent codex")
 	}
 }
 
@@ -116,10 +125,10 @@ func TestExecute_WithPromptOverride_WritesOverrideAndSkipsStore(t *testing.T) {
 		storeCalled = true
 		return systemprompt.SystemPrompt{Content: "stored"}, nil
 	}
-	var writtenPrompt systemprompt.SystemPrompt
-	useCase.WriteToAgent = func(_ string, prompt systemprompt.SystemPrompt) error {
-		writtenPrompt = prompt
-		return nil
+	var builtWith store.BuildInput
+	useCase.BuildGeneration = func(input store.BuildInput) (store.Generation, error) {
+		builtWith = input
+		return store.Generation{Hash: "h", RootPath: "/fake/store/h"}, nil
 	}
 	override := systemprompt.SystemPrompt{Content: "override"}
 
@@ -133,8 +142,8 @@ func TestExecute_WithPromptOverride_WritesOverrideAndSkipsStore(t *testing.T) {
 	if storeCalled {
 		t.Error("ReadSystemPrompt must not be called when override is provided")
 	}
-	if writtenPrompt.Content != "override" {
-		t.Errorf("expected override content, got %q", writtenPrompt.Content)
+	if builtWith.SystemPromptContent != "override" {
+		t.Errorf("expected override content in build input, got %q", builtWith.SystemPromptContent)
 	}
 }
 
@@ -144,10 +153,10 @@ func TestExecute_WithoutPromptOverride_UsesStoredPrompt(t *testing.T) {
 	useCase.ReadSystemPrompt = func() (systemprompt.SystemPrompt, error) {
 		return systemprompt.SystemPrompt{Content: "stored"}, nil
 	}
-	var writtenPrompt systemprompt.SystemPrompt
-	useCase.WriteToAgent = func(_ string, prompt systemprompt.SystemPrompt) error {
-		writtenPrompt = prompt
-		return nil
+	var builtWith store.BuildInput
+	useCase.BuildGeneration = func(input store.BuildInput) (store.Generation, error) {
+		builtWith = input
+		return store.Generation{Hash: "h", RootPath: "/fake/store/h"}, nil
 	}
 
 	err := useCase.Execute(SyncRequest{
@@ -156,8 +165,8 @@ func TestExecute_WithoutPromptOverride_UsesStoredPrompt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if writtenPrompt.Content != "stored" {
-		t.Errorf("expected stored content, got %q", writtenPrompt.Content)
+	if builtWith.SystemPromptContent != "stored" {
+		t.Errorf("expected stored content in build input, got %q", builtWith.SystemPromptContent)
 	}
 }
 
@@ -181,20 +190,37 @@ func TestExecute_WhenAgentConfigurationFails_ReturnsErrUnknownAgent(t *testing.T
 	}
 }
 
-func TestExecute_WhenWriteFails_PropagatesError(t *testing.T) {
+func TestExecute_WhenActivationFails_PropagatesError(t *testing.T) {
 	t.Parallel()
-	writeErr := errors.New("disk full")
+	activateErr := errors.New("symlink failed")
 	useCase := workingUseCase()
-	useCase.WriteToAgent = func(_ string, _ systemprompt.SystemPrompt) error {
-		return writeErr
+	useCase.ActivateForVendor = func(_ store.Generation, _, _ string) error {
+		return activateErr
 	}
 
 	err := useCase.Execute(SyncRequest{
 		TargetAgents: []agentvendor.AgentVendorName{agentvendor.ClaudeCode},
 	})
 
-	if !errors.Is(err, writeErr) {
-		t.Errorf("expected write error to be propagated, got %v", err)
+	if !errors.Is(err, activateErr) {
+		t.Errorf("expected activation error to be propagated, got %v", err)
+	}
+}
+
+func TestExecute_WhenBuildGenerationFails_PropagatesError(t *testing.T) {
+	t.Parallel()
+	buildErr := errors.New("disk full")
+	useCase := workingUseCase()
+	useCase.BuildGeneration = func(_ store.BuildInput) (store.Generation, error) {
+		return store.Generation{}, buildErr
+	}
+
+	err := useCase.Execute(SyncRequest{
+		TargetAgents: []agentvendor.AgentVendorName{agentvendor.ClaudeCode},
+	})
+
+	if !errors.Is(err, buildErr) {
+		t.Errorf("expected build error to be propagated, got %v", err)
 	}
 }
 
@@ -230,12 +256,12 @@ func TestExecute_WhenSystemPromptReadFails_PropagatesError(t *testing.T) {
 	}
 }
 
-func TestExecute_WithMultipleTargets_WritesToEachAgent(t *testing.T) {
+func TestExecute_WithMultipleTargets_ActivatesEachVendor(t *testing.T) {
 	t.Parallel()
-	var writtenPaths []string
+	var activatedPaths []string
 	useCase := workingUseCase()
-	useCase.WriteToAgent = func(path string, _ systemprompt.SystemPrompt) error {
-		writtenPaths = append(writtenPaths, path)
+	useCase.ActivateForVendor = func(_ store.Generation, instructionPath, _ string) error {
+		activatedPaths = append(activatedPaths, instructionPath)
 		return nil
 	}
 
@@ -245,7 +271,61 @@ func TestExecute_WithMultipleTargets_WritesToEachAgent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(writtenPaths) != 2 {
-		t.Errorf("expected 2 writes, got %d: %v", len(writtenPaths), writtenPaths)
+	if len(activatedPaths) != 2 {
+		t.Errorf("expected 2 activations, got %d: %v", len(activatedPaths), activatedPaths)
+	}
+}
+
+func TestExecute_WithSkills_ResolvesAndBuildsWithSkills(t *testing.T) {
+	t.Parallel()
+	useCase := workingUseCase()
+	var resolvedSources []skill.SkillSource
+	useCase.ResolveSkill = func(source skill.SkillSource) (string, error) {
+		resolvedSources = append(resolvedSources, source)
+		return "/resolved/" + string(source.Type), nil
+	}
+	var builtWith store.BuildInput
+	useCase.BuildGeneration = func(input store.BuildInput) (store.Generation, error) {
+		builtWith = input
+		return store.Generation{Hash: "h", RootPath: "/fake/store/h"}, nil
+	}
+
+	err := useCase.Execute(SyncRequest{
+		TargetAgents: []agentvendor.AgentVendorName{agentvendor.ClaudeCode},
+		Skills: []config.SkillEntry{
+			{Name: "my-skill", Source: skill.SkillSource{Type: skill.LocalSourceType, LocalPath: "/src/my-skill"}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(resolvedSources) != 1 {
+		t.Errorf("expected 1 skill resolved, got %d", len(resolvedSources))
+	}
+	if len(builtWith.Skills) != 1 || builtWith.Skills[0].Name != "my-skill" {
+		t.Errorf("expected skill in build input, got %v", builtWith.Skills)
+	}
+	if builtWith.Skills[0].SourceDir != "/resolved/local" {
+		t.Errorf("expected resolved source dir, got %q", builtWith.Skills[0].SourceDir)
+	}
+}
+
+func TestExecute_WhenSkillResolutionFails_PropagatesError(t *testing.T) {
+	t.Parallel()
+	resolveErr := errors.New("skill not found")
+	useCase := workingUseCase()
+	useCase.ResolveSkill = func(_ skill.SkillSource) (string, error) {
+		return "", resolveErr
+	}
+
+	err := useCase.Execute(SyncRequest{
+		TargetAgents: []agentvendor.AgentVendorName{agentvendor.ClaudeCode},
+		Skills: []config.SkillEntry{
+			{Name: "bad-skill", Source: skill.SkillSource{Type: skill.LocalSourceType, LocalPath: "/missing"}},
+		},
+	})
+
+	if !errors.Is(err, resolveErr) {
+		t.Errorf("expected skill resolution error to be propagated, got %v", err)
 	}
 }

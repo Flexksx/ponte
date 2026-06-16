@@ -10,6 +10,7 @@ import (
 	"testing"
 )
 
+
 // harness is the per-test fixture: an isolated $HOME, a precomputed set of
 // paths the CLI is expected to read and write, and a way to invoke the binary
 // without leaking environment from the developer's machine.
@@ -25,6 +26,19 @@ type harness struct {
 func newHarness(t *testing.T) *harness {
 	t.Helper()
 	home := t.TempDir()
+
+	// The ponte store makes its directories and files read-only (0o555/0o444) for
+	// immutability. t.TempDir()'s RemoveAll cleanup cannot delete read-only paths,
+	// so we register a cleanup that restores write permissions first. Cleanups run
+	// in LIFO order, so this registered-after cleanup runs before TempDir's own.
+	t.Cleanup(func() {
+		_ = filepath.Walk(home, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return nil
+			}
+			return os.Chmod(path, 0o755)
+		})
+	})
 
 	// On Windows os.UserHomeDir() prefers %USERPROFILE%; on Unix it reads $HOME.
 	// We set both so the same harness works regardless of GOOS. We also wipe
@@ -131,6 +145,53 @@ func (h *harness) vendorPaths() map[string]string {
 		"gemini-cli":   filepath.Join(h.home, ".gemini", "GEMINI.md"),
 		"cursor-agent": filepath.Join(h.home, ".cursor", "rules", "global.mdc"),
 	}
+}
+
+// vendorSkillsDirs returns the per-vendor skills directory path.
+func (h *harness) vendorSkillsDirs() map[string]string {
+	if runtime.GOOS == "windows" {
+		roaming := filepath.Join(h.home, "AppData", "Roaming")
+		return map[string]string{
+			"claude-code":  filepath.Join(roaming, "Claude", "skills"),
+			"codex":        filepath.Join(roaming, "Codex", "skills"),
+			"gemini-cli":   filepath.Join(roaming, "Gemini", "skills"),
+			"cursor-agent": filepath.Join(roaming, "Cursor", "skills"),
+		}
+	}
+	return map[string]string{
+		"claude-code":  filepath.Join(h.home, ".claude", "skills"),
+		"codex":        filepath.Join(h.home, ".codex", "skills"),
+		"gemini-cli":   filepath.Join(h.home, ".gemini", "skills"),
+		"cursor-agent": filepath.Join(h.home, ".cursor", "skills"),
+	}
+}
+
+// vendorSkillPath returns the path to a named skill inside a vendor's skills directory.
+func (h *harness) vendorSkillPath(vendor, skillName string) string {
+	return filepath.Join(h.vendorSkillsDirs()[vendor], skillName)
+}
+
+// storePath returns the path to the ponte store under the isolated home.
+func (h *harness) storePath() string {
+	return filepath.Join(h.home, ".local", "share", "ponte", "store")
+}
+
+// storeIsSymlink asserts that path is a symlink pointing into the ponte store.
+func (h *harness) assertIsStoreSymlink(path string) {
+	h.t.Helper()
+	target, err := os.Readlink(path)
+	if err != nil {
+		h.t.Fatalf("expected %s to be a symlink, got: %v", path, err)
+	}
+	if !strings.HasPrefix(target, h.storePath()) {
+		h.t.Errorf("expected symlink target to be inside store %s, got %s", h.storePath(), target)
+	}
+}
+
+// writeSkillFixture creates a minimal skill directory at the given path.
+func (h *harness) writeSkillFixture(skillDir, content string) {
+	h.t.Helper()
+	h.writeFile(filepath.Join(skillDir, "SKILL.md"), content)
 }
 
 // readFile reads a file and fails the test on error.

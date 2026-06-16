@@ -9,6 +9,7 @@ import (
 	"github.com/BurntSushi/toml"
 
 	"github.com/flexksx/ponte/apps/ponte/internal/config"
+	"github.com/flexksx/ponte/apps/ponte/internal/skill"
 )
 
 const configFileName = "config.toml"
@@ -37,7 +38,16 @@ func ReadConfig() (config.Config, error) {
 	if cfg.SystemPromptFile == "" {
 		cfg.SystemPromptFile = config.DefaultSystemPromptFile
 	}
+	expandLocalSkillPaths(&cfg, dir)
 	return cfg, nil
+}
+
+func expandLocalSkillPaths(cfg *config.Config, configDir string) {
+	for i, entry := range cfg.Skills {
+		if entry.Source.Type == skill.LocalSourceType && !filepath.IsAbs(entry.Source.LocalPath) {
+			cfg.Skills[i].Source.LocalPath = filepath.Join(configDir, entry.Source.LocalPath)
+		}
+	}
 }
 
 func WriteConfig(cfg config.Config) error {

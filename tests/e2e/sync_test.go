@@ -111,12 +111,10 @@ func TestSync_GlobalInstructionsFlag_FileOverride(t *testing.T) {
 // directly to assert the config is actually consulted.
 func TestSync_DisabledVendor_IsSkipped(t *testing.T) {
 	h := newHarness(t)
-	h.mustRun("sync") // bootstrap
+	h.mustRun("sync") // bootstrap — all vendors activated with empty prompt
 	h.mustRun("sysprompt", "set", samplePrompt)
 
-	// Disable codex by rewriting config.toml. Keeping it surgical to prove
-	// the CLI honours the persisted state. The encoder uses 2-space + 4-space
-	// indent under the [agents] table.
+	// Disable codex by rewriting config.toml.
 	cfg := h.readFile(h.configFile())
 	cfg = strings.Replace(cfg,
 		"[agents.codex]\n    enabled = true",
@@ -126,16 +124,16 @@ func TestSync_DisabledVendor_IsSkipped(t *testing.T) {
 	}
 	h.writeFile(h.configFile(), cfg)
 
-	// Stamp codex with a sentinel so we can prove the disabled-vendor sync
-	// genuinely leaves the file alone rather than overwriting it.
-	paths := h.vendorPaths()
-	const sentinel = "DISABLED-SENTINEL"
-	h.writeFile(paths["codex"], sentinel)
-
 	h.mustRun("sync")
 
+	paths := h.vendorPaths()
+	// Enabled vendors receive the new prompt.
 	h.assertFileEquals(paths["claude-code"], samplePrompt)
-	h.assertFileEquals(paths["codex"], sentinel)
+	h.assertFileEquals(paths["gemini-cli"], samplePrompt)
+	h.assertFileEquals(paths["cursor-agent"], samplePrompt)
+	// Disabled vendor's symlink was not updated; it still points at the
+	// bootstrap generation which contained an empty prompt.
+	h.assertFileEquals(paths["codex"], "")
 }
 
 // Disabling all vendors and running sync without -a must fail with a clear
