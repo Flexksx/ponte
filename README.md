@@ -14,6 +14,50 @@ nix profile install github:flexksx/ponte
 go install github.com/flexksx/ponte/apps/ponte@latest
 ```
 
+### Home-manager module
+
+ponte ships a home-manager module that installs the binary and generates
+`~/.config/ponte/config.toml` declaratively. The system prompt file
+(`AGENTS.md`) is intentionally left unmanaged so `ponte sysprompt set` keeps
+working, and `ponte sync` is never run automatically — run it yourself after a
+rebuild.
+
+```nix
+# flake.nix
+{
+  inputs.ponte.url = "github:flexksx/ponte";
+}
+```
+
+```nix
+# home configuration
+{ inputs, ... }: {
+  imports = [ inputs.ponte.homeManagerModules.ponte ];
+
+  programs.ponte = {
+    enable = true;
+
+    # Toggle individual vendors; unset vendors default to enabled.
+    agents."gemini-cli".enable = false;
+
+    skills = [
+      {
+        name = "my-skill";
+        source = {
+          type = "git";
+          url = "https://github.com/me/skills";
+          ref = "main";
+          subdir = "my-skill";
+        };
+      }
+    ];
+  };
+}
+```
+
+Unmodeled config keys can be passed through `programs.ponte.settings`, which is
+merged into `config.toml` and takes precedence over generated values.
+
 ## Quick start
 
 ```sh
