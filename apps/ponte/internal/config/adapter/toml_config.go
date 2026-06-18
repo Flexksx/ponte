@@ -38,15 +38,22 @@ func ReadConfig() (config.Config, error) {
 	if cfg.SystemPromptFile == "" {
 		cfg.SystemPromptFile = config.DefaultSystemPromptFile
 	}
-	expandLocalSkillPaths(&cfg, dir)
+	expandLocalSourcePaths(&cfg, dir)
 	return cfg, nil
 }
 
-func expandLocalSkillPaths(cfg *config.Config, configDir string) {
-	for i, entry := range cfg.Skills {
-		if entry.Source.Type == skill.LocalSourceType && !filepath.IsAbs(entry.Source.LocalPath) {
-			cfg.Skills[i].Source.LocalPath = filepath.Join(configDir, entry.Source.LocalPath)
-		}
+func expandLocalSourcePaths(cfg *config.Config, configDir string) {
+	for i := range cfg.Skills {
+		expandLocalSource(&cfg.Skills[i].Source, configDir)
+	}
+	for i := range cfg.Subagents {
+		expandLocalSource(&cfg.Subagents[i].Source, configDir)
+	}
+}
+
+func expandLocalSource(source *skill.SkillSource, configDir string) {
+	if source.Type == skill.LocalSourceType && !filepath.IsAbs(source.LocalPath) {
+		source.LocalPath = filepath.Join(configDir, source.LocalPath)
 	}
 }
 

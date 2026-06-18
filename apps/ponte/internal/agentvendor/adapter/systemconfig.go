@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	skillsDir    = "skills"
-	subagentsDir = "subagents"
+	skillsDir = "skills"
+	agentsDir = "agents"
 
 	claudePackageName      = "claude"
 	codexPackageName       = "codex"
@@ -60,28 +60,28 @@ func posixConfigurations() map[agentvendor.AgentVendorName]agentvendor.AgentVend
 			PackageName:               claudePackageName,
 			GlobalInstructionFilePath: filepath.Join(claudeRoot, claudeInstructionFile),
 			SkillsDirectoryPath:       filepath.Join(claudeRoot, skillsDir),
-			SubagentsDirectoryPath:    filepath.Join(claudeRoot, subagentsDir),
+			SubagentsDirectoryPath:    filepath.Join(claudeRoot, agentsDir),
 		},
 		agentvendor.Codex: {
 			VendorName:                agentvendor.Codex,
 			PackageName:               codexPackageName,
 			GlobalInstructionFilePath: filepath.Join(codexRoot, codexInstructionFile),
 			SkillsDirectoryPath:       filepath.Join(codexRoot, skillsDir),
-			SubagentsDirectoryPath:    filepath.Join(codexRoot, subagentsDir),
+			SubagentsDirectoryPath:    filepath.Join(codexRoot, agentsDir),
 		},
 		agentvendor.GeminiCLI: {
 			VendorName:                agentvendor.GeminiCLI,
 			PackageName:               geminiPackageName,
 			GlobalInstructionFilePath: filepath.Join(geminiRoot, geminiInstructionFile),
 			SkillsDirectoryPath:       filepath.Join(geminiRoot, skillsDir),
-			SubagentsDirectoryPath:    filepath.Join(geminiRoot, subagentsDir),
+			SubagentsDirectoryPath:    filepath.Join(geminiRoot, agentsDir),
 		},
 		agentvendor.CursorAgent: {
 			VendorName:                agentvendor.CursorAgent,
 			PackageName:               cursorPackageName,
 			GlobalInstructionFilePath: filepath.Join(cursorRoot, cursorRulesDir, cursorInstructionFile),
 			SkillsDirectoryPath:       filepath.Join(cursorRoot, skillsDir),
-			SubagentsDirectoryPath:    filepath.Join(cursorRoot, subagentsDir),
+			SubagentsDirectoryPath:    filepath.Join(cursorRoot, agentsDir),
 		},
 	}
 }
@@ -99,28 +99,28 @@ func windowsConfigurations() map[agentvendor.AgentVendorName]agentvendor.AgentVe
 			PackageName:               claudePackageName,
 			GlobalInstructionFilePath: filepath.Join(claudeRoot, claudeInstructionFile),
 			SkillsDirectoryPath:       filepath.Join(claudeRoot, skillsDir),
-			SubagentsDirectoryPath:    filepath.Join(claudeRoot, subagentsDir),
+			SubagentsDirectoryPath:    filepath.Join(claudeRoot, agentsDir),
 		},
 		agentvendor.Codex: {
 			VendorName:                agentvendor.Codex,
 			PackageName:               codexPackageName,
 			GlobalInstructionFilePath: filepath.Join(codexRoot, codexInstructionFile),
 			SkillsDirectoryPath:       filepath.Join(codexRoot, skillsDir),
-			SubagentsDirectoryPath:    filepath.Join(codexRoot, subagentsDir),
+			SubagentsDirectoryPath:    filepath.Join(codexRoot, agentsDir),
 		},
 		agentvendor.GeminiCLI: {
 			VendorName:                agentvendor.GeminiCLI,
 			PackageName:               geminiPackageName,
 			GlobalInstructionFilePath: filepath.Join(geminiRoot, geminiInstructionFile),
 			SkillsDirectoryPath:       filepath.Join(geminiRoot, skillsDir),
-			SubagentsDirectoryPath:    filepath.Join(geminiRoot, subagentsDir),
+			SubagentsDirectoryPath:    filepath.Join(geminiRoot, agentsDir),
 		},
 		agentvendor.CursorAgent: {
 			VendorName:                agentvendor.CursorAgent,
 			PackageName:               cursorAgentPackageName,
 			GlobalInstructionFilePath: filepath.Join(cursorRoot, cursorRulesDir, cursorInstructionFile),
 			SkillsDirectoryPath:       filepath.Join(cursorRoot, skillsDir),
-			SubagentsDirectoryPath:    filepath.Join(cursorRoot, subagentsDir),
+			SubagentsDirectoryPath:    filepath.Join(cursorRoot, agentsDir),
 		},
 	}
 }

@@ -35,9 +35,15 @@ func (u *UseCase) Execute(request SyncRequest) error {
 		return err
 	}
 
+	resolvedSubagents, err := u.resolveSubagents(request.Subagents)
+	if err != nil {
+		return err
+	}
+
 	generation, err := u.BuildGeneration(store.BuildInput{
 		SystemPromptContent: prompt.Content,
 		Skills:              resolvedSkills,
+		Subagents:           resolvedSubagents,
 	})
 	if err != nil {
 		return err
@@ -48,7 +54,7 @@ func (u *UseCase) Execute(request SyncRequest) error {
 		if err != nil {
 			return ErrUnknownAgent{Name: target}
 		}
-		if err := u.ActivateForVendor(generation, vendorConfig.GlobalInstructionFilePath, vendorConfig.SkillsDirectoryPath); err != nil {
+		if err := u.ActivateForVendor(generation, vendorConfig.GlobalInstructionFilePath, vendorConfig.SkillsDirectoryPath, vendorConfig.SubagentsDirectoryPath); err != nil {
 			return err
 		}
 	}
@@ -90,6 +96,18 @@ func (u *UseCase) resolveSkills(entries []config.SkillEntry) ([]store.ResolvedSk
 			return nil, fmt.Errorf("resolving skill %q: %w", entry.Name, err)
 		}
 		resolved = append(resolved, store.ResolvedSkill{Name: entry.Name, SourceDir: dir})
+	}
+	return resolved, nil
+}
+
+func (u *UseCase) resolveSubagents(entries []config.SubagentEntry) ([]store.ResolvedSubagent, error) {
+	resolved := make([]store.ResolvedSubagent, 0, len(entries))
+	for _, entry := range entries {
+		dir, err := u.ResolveSkill(entry.Source)
+		if err != nil {
+			return nil, fmt.Errorf("resolving subagent %q: %w", entry.Name, err)
+		}
+		resolved = append(resolved, store.ResolvedSubagent{Name: entry.Name, SourceDir: dir})
 	}
 	return resolved, nil
 }

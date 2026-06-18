@@ -10,4 +10,5 @@ type SyncRequest struct {
 	SystemPromptOverride *systemprompt.SystemPrompt
 	TargetAgents         []agentvendor.AgentVendorName
 	Skills               []config.SkillEntry
+	Subagents            []config.SubagentEntry
 }

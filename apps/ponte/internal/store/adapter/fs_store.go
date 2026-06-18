@@ -15,6 +15,7 @@ import (
 const (
 	instructionFileName = "instruction"
 	skillsDirName       = "skills"
+	subagentsDirName    = "subagents"
 )
 
 func StoreDirectoryPath() (string, error) {
@@ -31,12 +32,20 @@ func NewBuilder(storeDir string) store.GenerationBuilder {
 	}
 }
 
-func Activate(gen store.Generation, instructionFilePath string, skillsDirPath string) error {
+func Activate(gen store.Generation, instructionFilePath, skillsDirPath, subagentsDirPath string) error {
 	storePath := filepath.Join(gen.RootPath, instructionFileName)
 	if err := atomicSymlink(storePath, instructionFilePath); err != nil {
 		return fmt.Errorf("linking instruction file: %w", err)
 	}
 
+	if err := linkSkills(gen, skillsDirPath); err != nil {
+		return err
+	}
+
+	return linkSubagents(gen, subagentsDirPath)
+}
+
+func linkSkills(gen store.Generation, skillsDirPath string) error {
 	skillsInStore := filepath.Join(gen.RootPath, skillsDirName)
 	entries, err := os.ReadDir(skillsInStore)
 	if err != nil {
@@ -61,6 +70,38 @@ func Activate(gen store.Generation, instructionFilePath string, skillsDirPath st
 		}
 	}
 	return nil
+}
+
+// linkSubagents flattens every file under the generation's subagents tree into
+// the vendor agents directory, keyed by basename. The store nests files under
+// subagents/<name>/, but vendors expect flat agent files, so the grouping is
+// dropped on activation.
+func linkSubagents(gen store.Generation, subagentsDirPath string) error {
+	subagentsInStore := filepath.Join(gen.RootPath, subagentsDirName)
+	if _, err := os.Stat(subagentsInStore); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	if err := os.MkdirAll(subagentsDirPath, 0o755); err != nil {
+		return err
+	}
+
+	return filepath.WalkDir(subagentsInStore, func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if d.IsDir() {
+			return nil
+		}
+		vendorAgentPath := filepath.Join(subagentsDirPath, d.Name())
+		if err := atomicSymlink(path, vendorAgentPath); err != nil {
+			return fmt.Errorf("linking subagent %q: %w", d.Name(), err)
+		}
+		return nil
+	})
 }
 
 func build(storeDir string, input store.BuildInput) (store.Generation, error) {
@@ -101,6 +142,21 @@ func build(storeDir string, input store.BuildInput) (store.Generation, error) {
 		}
 	}
 
+	if len(input.Subagents) > 0 {
+		subagentsPath := filepath.Join(tmpPath, subagentsDirName)
+		if err := os.MkdirAll(subagentsPath, 0o755); err != nil {
+			_ = os.RemoveAll(tmpPath)
+			return store.Generation{}, err
+		}
+		for _, s := range input.Subagents {
+			destSubagentPath := filepath.Join(subagentsPath, s.Name)
+			if err := copyDir(s.SourceDir, destSubagentPath); err != nil {
+				_ = os.RemoveAll(tmpPath)
+				return store.Generation{}, fmt.Errorf("copying subagent %q: %w", s.Name, err)
+			}
+		}
+	}
+
 	if err := os.Rename(tmpPath, genPath); err != nil {
 		_ = os.RemoveAll(tmpPath)
 		return store.Generation{}, err
@@ -117,18 +173,30 @@ func computeHash(input store.BuildInput) (string, error) {
 	h := sha256.New()
 
 	promptHash := sha256.Sum256([]byte(input.SystemPromptContent))
-	fmt.Fprintf(h, "systemprompt:%s\n", hex.EncodeToString(promptHash[:]))
+	_, _ = fmt.Fprintf(h, "systemprompt:%s\n", hex.EncodeToString(promptHash[:]))
 
-	sorted := make([]store.ResolvedSkill, len(input.Skills))
-	copy(sorted, input.Skills)
-	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Name < sorted[j].Name })
+	sortedSkills := make([]store.ResolvedSkill, len(input.Skills))
+	copy(sortedSkills, input.Skills)
+	sort.Slice(sortedSkills, func(i, j int) bool { return sortedSkills[i].Name < sortedSkills[j].Name })
 
-	for _, s := range sorted {
+	for _, s := range sortedSkills {
 		dirHash, err := hashDir(s.SourceDir)
 		if err != nil {
 			return "", fmt.Errorf("hashing skill %q: %w", s.Name, err)
 		}
-		fmt.Fprintf(h, "skill:%s:%s\n", s.Name, dirHash)
+		_, _ = fmt.Fprintf(h, "skill:%s:%s\n", s.Name, dirHash)
+	}
+
+	sortedSubagents := make([]store.ResolvedSubagent, len(input.Subagents))
+	copy(sortedSubagents, input.Subagents)
+	sort.Slice(sortedSubagents, func(i, j int) bool { return sortedSubagents[i].Name < sortedSubagents[j].Name })
+
+	for _, s := range sortedSubagents {
+		dirHash, err := hashDir(s.SourceDir)
+		if err != nil {
+			return "", fmt.Errorf("hashing subagent %q: %w", s.Name, err)
+		}
+		_, _ = fmt.Fprintf(h, "subagent:%s:%s\n", s.Name, dirHash)
 	}
 
 	return hex.EncodeToString(h.Sum(nil))[:32], nil
@@ -149,7 +217,7 @@ func hashDir(dirPath string) (string, error) {
 			return err
 		}
 		fileHash := sha256.Sum256(data)
-		fmt.Fprintf(h, "%s:%s\n", rel, hex.EncodeToString(fileHash[:]))
+		_, _ = fmt.Fprintf(h, "%s:%s\n", rel, hex.EncodeToString(fileHash[:]))
 		return nil
 	})
 	if err != nil {

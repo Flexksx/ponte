@@ -1,8 +1,12 @@
 # ponte
 
-Sync AI agent instructions and skills across vendors — Claude Code, Codex, Gemini CLI, Cursor — from a single config.
+Sync AI agent instructions, skills, and subagents across vendors —
+Claude Code, Codex, Gemini CLI, Cursor — from a single config.
 
-Instead of managing separate dotfiles per tool, declare your system prompt and skills once. `ponte sync` builds an immutable artifact in a content-addressed store and activates it via symlinks, so edits to your source never silently affect a running agent.
+Instead of managing separate dotfiles per tool, declare your system
+prompt, skills, and subagents once. `ponte sync` builds an immutable
+artifact in a content-addressed store and activates it via symlinks, so
+edits to your source never silently affect a running agent.
 
 ## Install
 
@@ -37,6 +41,10 @@ rebuild.
   programs.ponte = {
     enable = true;
 
+    # Read the system prompt from an absolute path (e.g. a config repo) instead
+    # of ~/.config/ponte/AGENTS.md. A bare filename stays relative to that dir.
+    systemPromptFile = "/home/me/config/ai_agents/AGENTS.md";
+
     # Toggle individual vendors; unset vendors default to enabled.
     agents."gemini-cli".enable = false;
 
@@ -48,6 +56,18 @@ rebuild.
           url = "https://github.com/me/skills";
           ref = "main";
           subdir = "my-skill";
+        };
+      }
+    ];
+
+    # Subagents: each source resolves to a directory of agent files that are
+    # flattened into every enabled vendor's agents directory on sync.
+    subagents = [
+      {
+        name = "claude";
+        source = {
+          type = "local";
+          path = "/home/me/config/ai_agents/subagents/claude";
         };
       }
     ];

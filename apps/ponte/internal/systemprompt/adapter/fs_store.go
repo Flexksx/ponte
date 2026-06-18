@@ -9,6 +9,9 @@ import (
 )
 
 func systemPromptPath(filename string) (string, error) {
+	if filepath.IsAbs(filename) {
+		return filename, nil
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err

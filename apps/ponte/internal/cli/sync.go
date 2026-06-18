@@ -23,7 +23,7 @@ func newSyncCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "sync",
-		Short: "Sync the system prompt and skills to configured agent vendors",
+		Short: "Sync the system prompt, skills, and subagents to configured agent vendors",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := ensureConfigInitialized(cmd); err != nil {
 				return err
@@ -73,6 +73,7 @@ func newSyncCommand() *cobra.Command {
 				SystemPromptOverride: promptOverride,
 				TargetAgents:         targetAgents,
 				Skills:               cfg.Skills,
+				Subagents:            cfg.Subagents,
 			}); err != nil {
 				return err
 			}

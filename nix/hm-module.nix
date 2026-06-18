@@ -84,6 +84,14 @@
             source = mkSource skill.source;
           })
           cfg.skills;
+      }
+      // lib.optionalAttrs (cfg.subagents != []) {
+        subagents =
+          map (subagent: {
+            inherit (subagent) name;
+            source = mkSource subagent.source;
+          })
+          cfg.subagents;
       };
 
     settings = lib.recursiveUpdate generated cfg.settings;
@@ -101,10 +109,13 @@
       systemPromptFile = lib.mkOption {
         type = lib.types.str;
         default = "AGENTS.md";
+        example = "/home/me/config/ai_agents/AGENTS.md";
         description = ''
-          Filename, within ~/.config/ponte, that ponte reads the global system
-          prompt from. The file itself is left unmanaged so `ponte sysprompt set`
-          keeps working; only its name is declared here.
+          Where ponte reads the global system prompt from. A bare filename
+          resolves within ~/.config/ponte; an absolute path is read as-is, so a
+          config repo can own the prompt directly. Relative-path files are left
+          unmanaged so `ponte sysprompt set` keeps working; only the name is
+          declared here.
         '';
       };
 
@@ -132,6 +143,27 @@
           ]
         '';
         description = "Skills to declare in config.toml.";
+      };
+
+      subagents = lib.mkOption {
+        type = lib.types.listOf skillModule;
+        default = [];
+        example = lib.literalExpression ''
+          [
+            {
+              name = "claude";
+              source = {
+                type = "local";
+                path = "/home/me/config/ai_agents/subagents/claude";
+              };
+            }
+          ]
+        '';
+        description = ''
+          Subagents to declare in config.toml. Each entry's source resolves to a
+          directory of agent definition files; on sync those files are flattened
+          into every enabled vendor's agents directory.
+        '';
       };
 
       settings = lib.mkOption {

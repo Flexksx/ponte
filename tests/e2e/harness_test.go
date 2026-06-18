@@ -10,7 +10,6 @@ import (
 	"testing"
 )
 
-
 // harness is the per-test fixture: an isolated $HOME, a precomputed set of
 // paths the CLI is expected to read and write, and a way to invoke the binary
 // without leaking environment from the developer's machine.
@@ -34,7 +33,7 @@ func newHarness(t *testing.T) *harness {
 	t.Cleanup(func() {
 		_ = filepath.Walk(home, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
-				return nil
+				return nil //nolint:nilerr // best-effort cleanup: skip unreadable paths
 			}
 			return os.Chmod(path, 0o755)
 		})
@@ -171,6 +170,30 @@ func (h *harness) vendorSkillPath(vendor, skillName string) string {
 	return filepath.Join(h.vendorSkillsDirs()[vendor], skillName)
 }
 
+// vendorAgentsDirs returns the per-vendor subagents (agents) directory path.
+func (h *harness) vendorAgentsDirs() map[string]string {
+	if runtime.GOOS == "windows" {
+		roaming := filepath.Join(h.home, "AppData", "Roaming")
+		return map[string]string{
+			"claude-code":  filepath.Join(roaming, "Claude", "agents"),
+			"codex":        filepath.Join(roaming, "Codex", "agents"),
+			"gemini-cli":   filepath.Join(roaming, "Gemini", "agents"),
+			"cursor-agent": filepath.Join(roaming, "Cursor", "agents"),
+		}
+	}
+	return map[string]string{
+		"claude-code":  filepath.Join(h.home, ".claude", "agents"),
+		"codex":        filepath.Join(h.home, ".codex", "agents"),
+		"gemini-cli":   filepath.Join(h.home, ".gemini", "agents"),
+		"cursor-agent": filepath.Join(h.home, ".cursor", "agents"),
+	}
+}
+
+// vendorAgentPath returns the path to a named subagent file inside a vendor's agents directory.
+func (h *harness) vendorAgentPath(vendor, agentFile string) string {
+	return filepath.Join(h.vendorAgentsDirs()[vendor], agentFile)
+}
+
 // storePath returns the path to the ponte store under the isolated home.
 func (h *harness) storePath() string {
 	return filepath.Join(h.home, ".local", "share", "ponte", "store")
@@ -186,12 +209,6 @@ func (h *harness) assertIsStoreSymlink(path string) {
 	if !strings.HasPrefix(target, h.storePath()) {
 		h.t.Errorf("expected symlink target to be inside store %s, got %s", h.storePath(), target)
 	}
-}
-
-// writeSkillFixture creates a minimal skill directory at the given path.
-func (h *harness) writeSkillFixture(skillDir, content string) {
-	h.t.Helper()
-	h.writeFile(filepath.Join(skillDir, "SKILL.md"), content)
 }
 
 // readFile reads a file and fails the test on error.

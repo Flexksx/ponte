@@ -36,7 +36,7 @@ func workingUseCase() UseCase {
 		BuildGeneration: func(input store.BuildInput) (store.Generation, error) {
 			return store.Generation{Hash: "testhash", RootPath: "/fake/store/testhash"}, nil
 		},
-		ActivateForVendor: func(_ store.Generation, _, _ string) error {
+		ActivateForVendor: func(_ store.Generation, _, _, _ string) error {
 			return nil
 		},
 	}
@@ -75,7 +75,7 @@ func TestExecute_WithNoTargets_UsesEnabledAgentsFromConfig(t *testing.T) {
 			},
 		}, nil
 	}
-	useCase.ActivateForVendor = func(_ store.Generation, instructionPath, _ string) error {
+	useCase.ActivateForVendor = func(_ store.Generation, instructionPath, _, _ string) error {
 		activatedVendors[instructionPath] = true
 		return nil
 	}
@@ -194,7 +194,7 @@ func TestExecute_WhenActivationFails_PropagatesError(t *testing.T) {
 	t.Parallel()
 	activateErr := errors.New("symlink failed")
 	useCase := workingUseCase()
-	useCase.ActivateForVendor = func(_ store.Generation, _, _ string) error {
+	useCase.ActivateForVendor = func(_ store.Generation, _, _, _ string) error {
 		return activateErr
 	}
 
@@ -260,7 +260,7 @@ func TestExecute_WithMultipleTargets_ActivatesEachVendor(t *testing.T) {
 	t.Parallel()
 	var activatedPaths []string
 	useCase := workingUseCase()
-	useCase.ActivateForVendor = func(_ store.Generation, instructionPath, _ string) error {
+	useCase.ActivateForVendor = func(_ store.Generation, instructionPath, _, _ string) error {
 		activatedPaths = append(activatedPaths, instructionPath)
 		return nil
 	}
@@ -307,6 +307,60 @@ func TestExecute_WithSkills_ResolvesAndBuildsWithSkills(t *testing.T) {
 	}
 	if builtWith.Skills[0].SourceDir != "/resolved/local" {
 		t.Errorf("expected resolved source dir, got %q", builtWith.Skills[0].SourceDir)
+	}
+}
+
+func TestExecute_WithSubagents_ResolvesAndBuildsWithSubagents(t *testing.T) {
+	t.Parallel()
+	useCase := workingUseCase()
+	var resolvedSources []skill.SkillSource
+	useCase.ResolveSkill = func(source skill.SkillSource) (string, error) {
+		resolvedSources = append(resolvedSources, source)
+		return "/resolved/" + string(source.Type), nil
+	}
+	var builtWith store.BuildInput
+	useCase.BuildGeneration = func(input store.BuildInput) (store.Generation, error) {
+		builtWith = input
+		return store.Generation{Hash: "h", RootPath: "/fake/store/h"}, nil
+	}
+
+	err := useCase.Execute(SyncRequest{
+		TargetAgents: []agentvendor.AgentVendorName{agentvendor.ClaudeCode},
+		Subagents: []config.SubagentEntry{
+			{Name: "claude", Source: skill.SkillSource{Type: skill.LocalSourceType, LocalPath: "/src/agents"}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(resolvedSources) != 1 {
+		t.Errorf("expected 1 subagent resolved, got %d", len(resolvedSources))
+	}
+	if len(builtWith.Subagents) != 1 || builtWith.Subagents[0].Name != "claude" {
+		t.Errorf("expected subagent in build input, got %v", builtWith.Subagents)
+	}
+	if builtWith.Subagents[0].SourceDir != "/resolved/local" {
+		t.Errorf("expected resolved subagent source dir, got %q", builtWith.Subagents[0].SourceDir)
+	}
+}
+
+func TestExecute_WhenSubagentResolutionFails_PropagatesError(t *testing.T) {
+	t.Parallel()
+	resolveErr := errors.New("subagent not found")
+	useCase := workingUseCase()
+	useCase.ResolveSkill = func(_ skill.SkillSource) (string, error) {
+		return "", resolveErr
+	}
+
+	err := useCase.Execute(SyncRequest{
+		TargetAgents: []agentvendor.AgentVendorName{agentvendor.ClaudeCode},
+		Subagents: []config.SubagentEntry{
+			{Name: "bad", Source: skill.SkillSource{Type: skill.LocalSourceType, LocalPath: "/missing"}},
+		},
+	})
+
+	if !errors.Is(err, resolveErr) {
+		t.Errorf("expected subagent resolution error to be propagated, got %v", err)
 	}
 }
 

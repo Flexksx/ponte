@@ -10,7 +10,12 @@ type AgentEntry struct {
 }
 
 type SkillEntry struct {
-	Name   string           `toml:"name"`
+	Name   string            `toml:"name"`
+	Source skill.SkillSource `toml:"source"`
+}
+
+type SubagentEntry struct {
+	Name   string            `toml:"name"`
 	Source skill.SkillSource `toml:"source"`
 }
 
@@ -20,6 +25,7 @@ type Config struct {
 	SystemPromptFile string                                     `toml:"system_prompt_file"`
 	Agents           map[agentvendor.AgentVendorName]AgentEntry `toml:"agents"`
 	Skills           []SkillEntry                               `toml:"skills"`
+	Subagents        []SubagentEntry                            `toml:"subagents"`
 }
 
 func DefaultConfig() Config {

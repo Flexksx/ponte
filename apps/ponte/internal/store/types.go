@@ -10,7 +10,13 @@ type ResolvedSkill struct {
 	SourceDir string
 }
 
+type ResolvedSubagent struct {
+	Name      string
+	SourceDir string
+}
+
 type BuildInput struct {
 	SystemPromptContent string
 	Skills              []ResolvedSkill
+	Subagents           []ResolvedSubagent
 }
