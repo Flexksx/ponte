@@ -35,18 +35,20 @@ func (u *UseCase) Execute() (Report, error) {
 		return Report{}, err
 	}
 
-	input, err := sync.ResolveBuildInput(prompt, cfg.Skills, cfg.Subagents, u.ResolveSkill)
-	if err != nil {
-		return Report{}, err
-	}
-
-	wouldBeHash, err := u.ComputeHash(input)
-	if err != nil {
-		return Report{}, err
-	}
-
-	report := Report{WouldBeHash: wouldBeHash}
+	report := Report{}
 	for _, name := range u.KnownVendors {
+		input, err := sync.ResolveBuildInput(prompt, cfg.Skills, cfg.Subagents, name, u.ResolveSkill)
+		if err != nil {
+			return Report{}, err
+		}
+		wouldBeHash, err := u.ComputeHash(input)
+		if err != nil {
+			return Report{}, err
+		}
+		if report.WouldBeHash == "" {
+			report.WouldBeHash = wouldBeHash
+		}
+
 		vendorConfig, err := u.GetAgentConfiguration(name)
 		if err != nil {
 			return Report{}, err
@@ -57,7 +59,7 @@ func (u *UseCase) Execute() (Report, error) {
 		}
 		report.Vendors = append(report.Vendors, VendorStatus{
 			Name:       name,
-			Enabled:    cfg.Agents[name].Enabled,
+			Enabled:    cfg.Vendors[name].Enabled,
 			ActiveHash: activeHash,
 			HasActive:  hasActive,
 		})

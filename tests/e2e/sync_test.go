@@ -117,9 +117,9 @@ func TestSync_DisabledVendor_IsSkipped(t *testing.T) {
 	// Disable codex by rewriting config.toml.
 	cfg := h.readFile(h.configFile())
 	cfg = strings.Replace(cfg,
-		"[agents.codex]\n    enabled = true",
-		"[agents.codex]\n    enabled = false", 1)
-	if !strings.Contains(cfg, "[agents.codex]\n    enabled = false") {
+		"[vendors.codex]\n    enabled = true",
+		"[vendors.codex]\n    enabled = false", 1)
+	if !strings.Contains(cfg, "[vendors.codex]\n    enabled = false") {
 		t.Fatalf("failed to disable codex via TOML rewrite, config now:\n%s", cfg)
 	}
 	h.writeFile(h.configFile(), cfg)

@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	configadapter "github.com/flexksx/ponte/apps/ponte/internal/config/adapter"
+	"github.com/flexksx/ponte/apps/ponte/internal/skill"
 )
 
 func newSkillsCommand() *cobra.Command {
@@ -17,8 +18,8 @@ func newSkillsCommand() *cobra.Command {
 				return err
 			}
 			entries := make([]configEntry, 0, len(cfg.Skills))
-			for _, skillEntry := range cfg.Skills {
-				entries = append(entries, configEntry{name: skillEntry.Name, source: skillEntry.Source})
+			for name, skillEntry := range cfg.Skills {
+				entries = append(entries, configEntry{name: name, source: skill.ParseSource(skillEntry.Source, skillEntry.Ref, skillEntry.Subdir)})
 			}
 			printConfigEntries(cmd, "skills", entries)
 			return nil

@@ -16,14 +16,14 @@ func instructionPath(name agentvendor.AgentVendorName) string {
 }
 
 func workingUseCase(active map[string]string, enabled map[agentvendor.AgentVendorName]bool) UseCase {
-	agents := map[agentvendor.AgentVendorName]config.AgentEntry{}
+	vendors := map[agentvendor.AgentVendorName]config.AgentEntry{}
 	for name, on := range enabled {
-		agents[name] = config.AgentEntry{Enabled: on}
+		vendors[name] = config.AgentEntry{Enabled: on}
 	}
 	return UseCase{
 		KnownVendors: agentvendor.AllVendorNames(),
 		ReadConfig: func() (config.Config, error) {
-			return config.Config{Agents: agents}, nil
+			return config.Config{Vendors: vendors}, nil
 		},
 		ReadSystemPrompt: func() (systemprompt.SystemPrompt, error) {
 			return systemprompt.SystemPrompt{Content: "prompt"}, nil
@@ -106,8 +106,8 @@ func TestExecute_WhenSkillResolutionFails_PropagatesError(t *testing.T) {
 	useCase := workingUseCase(map[string]string{}, map[agentvendor.AgentVendorName]bool{agentvendor.ClaudeCode: true})
 	useCase.ReadConfig = func() (config.Config, error) {
 		return config.Config{
-			Agents: map[agentvendor.AgentVendorName]config.AgentEntry{agentvendor.ClaudeCode: {Enabled: true}},
-			Skills: []config.SkillEntry{{Name: "bad", Source: skill.SkillSource{Type: skill.LocalSourceType}}},
+			Vendors: map[agentvendor.AgentVendorName]config.AgentEntry{agentvendor.ClaudeCode: {Enabled: true}},
+			Skills:  map[string]config.SkillEntry{"bad": {Source: "/bad"}},
 		}, nil
 	}
 	useCase.ResolveSkill = func(_ skill.SkillSource) (string, error) {

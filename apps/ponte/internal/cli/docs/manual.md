@@ -50,82 +50,81 @@ All configuration lives in `~/.config/ponte/config.toml`. Running
 # own the prompt. Defaults to AGENTS.md when omitted.
 system_prompt_file = "AGENTS.md"
 
-# Per-vendor toggles. Omitting a vendor defaults to enabled = true.
-[agents.claude-code]
-enabled = true
+# Per-vendor toggles. Each key must be a known vendor name.
+[vendors]
+claude-code   = { enabled = true }
+codex         = { enabled = true }
+gemini-cli    = { enabled = true }
+cursor-agent  = { enabled = false }
 
-[agents.codex]
-enabled = true
-
-[agents.gemini-cli]
-enabled = true
-
-[agents.cursor-agent]
-enabled = false
-
-# Skills — zero or more entries.
+# Skills — one [skills.<name>] section per skill.
 # Each skill is a directory containing a SKILL.md file plus any supporting files.
-# Synced to every enabled vendor's skills directory.
+# Synced to every enabled vendor unless a per-vendor override disables it.
 
-[[skills]]
-name = "software-engineering"
-[skills.source]
-type = "local"
-path = "skills/software-engineering"   # relative to ~/.config/ponte/
+[skills.software-engineering]
+source = "skills/software-engineering"   # relative to ~/.config/ponte/
 
-[[skills]]
-name = "ast-grep"
-[skills.source]
-type = "git"
-url   = "https://github.com/example/ast-grep-skill"
-ref   = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"   # full commit SHA recommended
+[skills.ast-grep]
+source = "https://github.com/example/ast-grep-skill"
+ref    = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"   # full commit SHA recommended
 subdir = ""   # optional: subdirectory inside the repo that contains the skill
 
-# Subagents — zero or more entries.
+# Per-vendor override — disable a skill for a specific vendor only.
+[skills.ast-grep.vendors.gemini-cli]
+enabled = false
+
+# Subagents — one [subagents.<name>] section per subagent.
 # Each subagent source resolves to a directory of agent definition files.
 # Those files are flattened into every enabled vendor's agents directory.
-# Source uses the same schema as skills (local or git).
 
-[[subagents]]
-name = "claude"
-[subagents.source]
-type = "local"
-path = "subagents/claude"   # relative to ~/.config/ponte/
+[subagents.claude]
+source = "subagents/claude"   # relative to ~/.config/ponte/
 ```
 
 ### Skill source types
 
-#### `local`
+#### Local
 
 ```toml
-[skills.source]
-type = "local"
-path = "skills/my-skill"
+[skills.my-skill]
+source = "skills/my-skill"
 ```
 
-`path` is relative to `~/.config/ponte/` when it does not start with
-`/`. Absolute paths are used as-is. The path must be a directory.
+`source` is a filesystem path. Relative paths resolve against `~/.config/ponte/`. Absolute paths are used as-is. The path must be a directory containing a `SKILL.md` file.
 
-#### `git`
+#### Git
 
 ```toml
-[skills.source]
-type = "git"
-url  = "https://github.com/owner/repo"
-ref  = "v1.2.0"
+[skills.my-skill]
+source = "https://github.com/owner/repo"
+ref    = "v1.2.0"
 subdir = "skills/my-skill"   # optional
 ```
 
-ponte clones the repo into `~/.cache/ponte/sources/` and checks out
-`ref` on every sync. `ref` can be a branch name, tag, or commit SHA.
-**Prefer full commit SHAs** — branch names move; a changed ref changes
-the store hash and forces a rebuild.
+`source` is treated as a git URL when it starts with `https://`, `http://`, `git@`, or `file://`. ponte clones the repo into `~/.cache/ponte/sources/` and checks out `ref` on every sync. `ref` can be a branch name, tag, or commit SHA. **Prefer full commit SHAs** — branch names move; a changed ref changes the store hash and forces a rebuild.
 
 The `subdir` field scopes the skill to a subdirectory of the repo. Omit
 it to use the repo root.
 
 Note: two skills from the same repo at different refs are not supported
 in v1. Use distinct repos or distinct commits for independent skills.
+
+### Per-vendor skill overrides
+
+A skill is synced to all enabled vendors by default. To restrict a skill to specific vendors, add `[skills.<name>.vendors.<vendor>]` sections:
+
+```toml
+[skills.java-dev]
+source = "skills/java-dev"
+
+[skills.java-dev.vendors.codex]
+enabled = false
+
+[skills.java-dev.vendors.cursor-agent]
+enabled = false
+```
+
+This syncs `java-dev` to `claude-code` and `gemini-cli` only.
 
 ### Skill directory layout
 
@@ -325,11 +324,8 @@ ponte sync                            # activate
 Add to `~/.config/ponte/config.toml`:
 
 ```toml
-[[skills]]
-name = "my-skill"
-[skills.source]
-type = "local"
-path = "skills/my-skill"
+[skills.my-skill]
+source = "skills/my-skill"
 ```
 
 Create `~/.config/ponte/skills/my-skill/SKILL.md`, then:
@@ -339,6 +335,25 @@ ponte sync
 ```
 
 The skill appears at `~/.claude/skills/my-skill`, `~/.codex/skills/my-skill`, etc.
+
+### Declare a git-backed skill
+
+```toml
+[skills.external-skill]
+source = "https://github.com/owner/skills-repo"
+ref    = "abc123def456"
+subdir = "external-skill"
+```
+
+### Disable a skill for a specific vendor
+
+```toml
+[skills.java-dev]
+source = "skills/java-dev"
+
+[skills.java-dev.vendors.codex]
+enabled = false
+```
 
 ### Sync to a specific vendor only
 
@@ -352,11 +367,11 @@ ponte sync -a claude-code
 ponte sync -g "Temporary debugging instructions"
 ```
 
-### Disable a vendor
+### Disable a vendor entirely
 
 ```toml
-[agents.codex]
-enabled = false
+[vendors]
+codex = { enabled = false }
 ```
 
 ```sh

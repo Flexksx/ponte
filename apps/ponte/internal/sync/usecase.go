@@ -39,30 +39,34 @@ func (u *UseCase) Execute(request SyncRequest) (SyncResult, error) {
 		return SyncResult{}, err
 	}
 
-	input, err := ResolveBuildInput(prompt, request.Skills, request.Subagents, u.ResolveSkill)
-	if err != nil {
-		return SyncResult{}, err
-	}
-
-	if request.DryRun {
-		hash, err := u.ComputeHash(input)
+	var lastHash string
+	for _, vendor := range vendors {
+		input, err := ResolveBuildInput(prompt, request.Skills, request.Subagents, vendor.name, u.ResolveSkill)
 		if err != nil {
 			return SyncResult{}, err
 		}
-		return SyncResult{GenerationHash: hash, Targets: targetNames, DryRun: true}, nil
-	}
 
-	generation, err := u.BuildGeneration(input)
-	if err != nil {
-		return SyncResult{}, err
-	}
+		if request.DryRun {
+			hash, err := u.ComputeHash(input)
+			if err != nil {
+				return SyncResult{}, err
+			}
+			lastHash = hash
+			continue
+		}
 
-	for _, vendor := range vendors {
+		generation, err := u.BuildGeneration(input)
+		if err != nil {
+			return SyncResult{}, err
+		}
+		lastHash = generation.Hash
+
 		if err := u.ActivateForVendor(generation, vendor.config.GlobalInstructionFilePath, vendor.config.SkillsDirectoryPath, vendor.config.SubagentsDirectoryPath); err != nil {
 			return SyncResult{}, err
 		}
 	}
-	return SyncResult{GenerationHash: generation.Hash, Targets: targetNames, DryRun: false}, nil
+
+	return SyncResult{GenerationHash: lastHash, Targets: targetNames, DryRun: request.DryRun}, nil
 }
 
 func (u *UseCase) resolveTargets(requested []agentvendor.AgentVendorName) ([]agentvendor.AgentVendorName, error) {
@@ -74,7 +78,7 @@ func (u *UseCase) resolveTargets(requested []agentvendor.AgentVendorName) ([]age
 		return nil, err
 	}
 	var enabled []agentvendor.AgentVendorName
-	for name, entry := range cfg.Agents {
+	for name, entry := range cfg.Vendors {
 		if entry.Enabled {
 			enabled = append(enabled, name)
 		}
@@ -85,8 +89,6 @@ func (u *UseCase) resolveTargets(requested []agentvendor.AgentVendorName) ([]age
 	return enabled, nil
 }
 
-// resolveVendors validates every target up front so an unknown agent fails
-// before anything is built — true for a dry run as much as a real sync.
 func (u *UseCase) resolveVendors(names []agentvendor.AgentVendorName) ([]resolvedVendor, error) {
 	vendors := make([]resolvedVendor, 0, len(names))
 	for _, name := range names {

@@ -9,7 +9,7 @@ import (
 type SyncRequest struct {
 	SystemPromptOverride *systemprompt.SystemPrompt
 	TargetAgents         []agentvendor.AgentVendorName
-	Skills               []config.SkillEntry
-	Subagents            []config.SubagentEntry
+	Skills               map[string]config.SkillEntry
+	Subagents            map[string]config.SubagentEntry
 	DryRun               bool
 }

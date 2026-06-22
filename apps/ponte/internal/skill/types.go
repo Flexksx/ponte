@@ -1,5 +1,7 @@
 package skill
 
+import "strings"
+
 type SourceType string
 
 const (
@@ -8,9 +10,23 @@ const (
 )
 
 type SkillSource struct {
-	Type      SourceType `toml:"type"`
-	LocalPath string     `toml:"path"`
-	GitURL    string     `toml:"url"`
-	GitRef    string     `toml:"ref"`
-	Subdir    string     `toml:"subdir"`
+	Type      SourceType
+	LocalPath string
+	GitURL    string
+	GitRef    string
+	Subdir    string
+}
+
+func ParseSource(source, ref, subdir string) SkillSource {
+	if IsGitSource(source) {
+		return SkillSource{Type: GitSourceType, GitURL: source, GitRef: ref, Subdir: subdir}
+	}
+	return SkillSource{Type: LocalSourceType, LocalPath: source}
+}
+
+func IsGitSource(source string) bool {
+	return strings.HasPrefix(source, "https://") ||
+		strings.HasPrefix(source, "http://") ||
+		strings.HasPrefix(source, "git@") ||
+		strings.HasPrefix(source, "file://")
 }

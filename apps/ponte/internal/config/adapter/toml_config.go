@@ -43,17 +43,17 @@ func ReadConfig() (config.Config, error) {
 }
 
 func expandLocalSourcePaths(cfg *config.Config, configDir string) {
-	for i := range cfg.Skills {
-		expandLocalSource(&cfg.Skills[i].Source, configDir)
+	for name, entry := range cfg.Skills {
+		if !skill.IsGitSource(entry.Source) && !filepath.IsAbs(entry.Source) {
+			entry.Source = filepath.Join(configDir, entry.Source)
+			cfg.Skills[name] = entry
+		}
 	}
-	for i := range cfg.Subagents {
-		expandLocalSource(&cfg.Subagents[i].Source, configDir)
-	}
-}
-
-func expandLocalSource(source *skill.SkillSource, configDir string) {
-	if source.Type == skill.LocalSourceType && !filepath.IsAbs(source.LocalPath) {
-		source.LocalPath = filepath.Join(configDir, source.LocalPath)
+	for name, entry := range cfg.Subagents {
+		if !skill.IsGitSource(entry.Source) && !filepath.IsAbs(entry.Source) {
+			entry.Source = filepath.Join(configDir, entry.Source)
+			cfg.Subagents[name] = entry
+		}
 	}
 }
 

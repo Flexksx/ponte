@@ -2,36 +2,42 @@ package config
 
 import (
 	"github.com/flexksx/ponte/apps/ponte/internal/agentvendor"
-	"github.com/flexksx/ponte/apps/ponte/internal/skill"
 )
 
-type AgentEntry struct {
-	Enabled bool `toml:"enabled"`
+type VendorSkillConfig struct {
+	Enabled *bool `toml:"enabled"`
 }
 
 type SkillEntry struct {
-	Name   string            `toml:"name"`
-	Source skill.SkillSource `toml:"source"`
+	Source  string                                            `toml:"source"`
+	Ref     string                                           `toml:"ref,omitempty"`
+	Subdir  string                                           `toml:"subdir,omitempty"`
+	Vendors map[agentvendor.AgentVendorName]VendorSkillConfig `toml:"vendors,omitempty"`
 }
 
 type SubagentEntry struct {
-	Name   string            `toml:"name"`
-	Source skill.SkillSource `toml:"source"`
+	Source string `toml:"source"`
+	Ref    string `toml:"ref,omitempty"`
+	Subdir string `toml:"subdir,omitempty"`
+}
+
+type AgentEntry struct {
+	Enabled bool `toml:"enabled"`
 }
 
 const DefaultSystemPromptFile = "AGENTS.md"
 
 type Config struct {
 	SystemPromptFile string                                     `toml:"system_prompt_file"`
-	Agents           map[agentvendor.AgentVendorName]AgentEntry `toml:"agents"`
-	Skills           []SkillEntry                               `toml:"skills"`
-	Subagents        []SubagentEntry                            `toml:"subagents"`
+	Vendors          map[agentvendor.AgentVendorName]AgentEntry `toml:"vendors"`
+	Skills           map[string]SkillEntry                      `toml:"skills"`
+	Subagents        map[string]SubagentEntry                   `toml:"subagents"`
 }
 
 func DefaultConfig() Config {
 	return Config{
 		SystemPromptFile: DefaultSystemPromptFile,
-		Agents: map[agentvendor.AgentVendorName]AgentEntry{
+		Vendors: map[agentvendor.AgentVendorName]AgentEntry{
 			agentvendor.ClaudeCode:  {Enabled: true},
 			agentvendor.Codex:       {Enabled: true},
 			agentvendor.GeminiCLI:   {Enabled: true},

@@ -18,7 +18,7 @@ func workingUseCase() UseCase {
 		},
 		ReadConfig: func() (config.Config, error) {
 			return config.Config{
-				Agents: map[agentvendor.AgentVendorName]config.AgentEntry{
+				Vendors: map[agentvendor.AgentVendorName]config.AgentEntry{
 					agentvendor.ClaudeCode: {Enabled: true},
 				},
 			}, nil
@@ -71,7 +71,7 @@ func TestExecute_WithNoTargets_UsesEnabledAgentsFromConfig(t *testing.T) {
 	useCase := workingUseCase()
 	useCase.ReadConfig = func() (config.Config, error) {
 		return config.Config{
-			Agents: map[agentvendor.AgentVendorName]config.AgentEntry{
+			Vendors: map[agentvendor.AgentVendorName]config.AgentEntry{
 				agentvendor.ClaudeCode: {Enabled: true},
 				agentvendor.Codex:      {Enabled: false},
 				agentvendor.GeminiCLI:  {Enabled: true},
@@ -106,7 +106,7 @@ func TestExecute_WithNoTargets_NoEnabledAgents_ReturnsErrNoAgentsConfigured(t *t
 	useCase := workingUseCase()
 	useCase.ReadConfig = func() (config.Config, error) {
 		return config.Config{
-			Agents: map[agentvendor.AgentVendorName]config.AgentEntry{
+			Vendors: map[agentvendor.AgentVendorName]config.AgentEntry{
 				agentvendor.ClaudeCode: {Enabled: false},
 			},
 		}, nil
@@ -295,8 +295,8 @@ func TestExecute_WithSkills_ResolvesAndBuildsWithSkills(t *testing.T) {
 
 	_, err := useCase.Execute(SyncRequest{
 		TargetAgents: []agentvendor.AgentVendorName{agentvendor.ClaudeCode},
-		Skills: []config.SkillEntry{
-			{Name: "my-skill", Source: skill.SkillSource{Type: skill.LocalSourceType, LocalPath: "/src/my-skill"}},
+		Skills: map[string]config.SkillEntry{
+			"my-skill": {Source: "/src/my-skill"},
 		},
 	})
 	if err != nil {
@@ -329,8 +329,8 @@ func TestExecute_WithSubagents_ResolvesAndBuildsWithSubagents(t *testing.T) {
 
 	_, err := useCase.Execute(SyncRequest{
 		TargetAgents: []agentvendor.AgentVendorName{agentvendor.ClaudeCode},
-		Subagents: []config.SubagentEntry{
-			{Name: "claude", Source: skill.SkillSource{Type: skill.LocalSourceType, LocalPath: "/src/agents"}},
+		Subagents: map[string]config.SubagentEntry{
+			"claude": {Source: "/src/agents"},
 		},
 	})
 	if err != nil {
@@ -357,8 +357,8 @@ func TestExecute_WhenSubagentResolutionFails_PropagatesError(t *testing.T) {
 
 	_, err := useCase.Execute(SyncRequest{
 		TargetAgents: []agentvendor.AgentVendorName{agentvendor.ClaudeCode},
-		Subagents: []config.SubagentEntry{
-			{Name: "bad", Source: skill.SkillSource{Type: skill.LocalSourceType, LocalPath: "/missing"}},
+		Subagents: map[string]config.SubagentEntry{
+			"bad": {Source: "/missing"},
 		},
 	})
 
@@ -433,12 +433,47 @@ func TestExecute_WhenSkillResolutionFails_PropagatesError(t *testing.T) {
 
 	_, err := useCase.Execute(SyncRequest{
 		TargetAgents: []agentvendor.AgentVendorName{agentvendor.ClaudeCode},
-		Skills: []config.SkillEntry{
-			{Name: "bad-skill", Source: skill.SkillSource{Type: skill.LocalSourceType, LocalPath: "/missing"}},
+		Skills: map[string]config.SkillEntry{
+			"bad-skill": {Source: "/missing"},
 		},
 	})
 
 	if !errors.Is(err, resolveErr) {
 		t.Errorf("expected skill resolution error to be propagated, got %v", err)
+	}
+}
+
+func TestExecute_WithVendorDisabledSkill_SkipsSkillForThatVendor(t *testing.T) {
+	t.Parallel()
+	useCase := workingUseCase()
+	var resolvedSources []skill.SkillSource
+	useCase.ResolveSkill = func(source skill.SkillSource) (string, error) {
+		resolvedSources = append(resolvedSources, source)
+		return "/resolved/" + string(source.Type), nil
+	}
+	var builtWith store.BuildInput
+	useCase.BuildGeneration = func(input store.BuildInput) (store.Generation, error) {
+		builtWith = input
+		return store.Generation{Hash: "h", RootPath: "/fake/store/h"}, nil
+	}
+
+	disabled := false
+	_, err := useCase.Execute(SyncRequest{
+		TargetAgents: []agentvendor.AgentVendorName{agentvendor.ClaudeCode},
+		Skills: map[string]config.SkillEntry{
+			"always-on":    {Source: "/src/always-on"},
+			"claude-off":   {Source: "/src/claude-off", Vendors: map[agentvendor.AgentVendorName]config.VendorSkillConfig{
+				agentvendor.ClaudeCode: {Enabled: &disabled},
+			}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(resolvedSources) != 1 {
+		t.Errorf("expected 1 skill resolved (disabled one skipped), got %d", len(resolvedSources))
+	}
+	if len(builtWith.Skills) != 1 || builtWith.Skills[0].Name != "always-on" {
+		t.Errorf("expected only always-on skill in build input, got %v", builtWith.Skills)
 	}
 }

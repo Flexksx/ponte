@@ -3,6 +3,7 @@ package sync
 import (
 	"fmt"
 
+	"github.com/flexksx/ponte/apps/ponte/internal/agentvendor"
 	"github.com/flexksx/ponte/apps/ponte/internal/config"
 	"github.com/flexksx/ponte/apps/ponte/internal/skill"
 	"github.com/flexksx/ponte/apps/ponte/internal/store"
@@ -15,11 +16,12 @@ import (
 // always matches what a real sync produces.
 func ResolveBuildInput(
 	prompt systemprompt.SystemPrompt,
-	skills []config.SkillEntry,
-	subagents []config.SubagentEntry,
+	skills map[string]config.SkillEntry,
+	subagents map[string]config.SubagentEntry,
+	target agentvendor.AgentVendorName,
 	resolveSkill skill.Resolver,
 ) (store.BuildInput, error) {
-	resolvedSkills, err := resolveSkills(skills, resolveSkill)
+	resolvedSkills, err := resolveSkills(skills, target, resolveSkill)
 	if err != nil {
 		return store.BuildInput{}, err
 	}
@@ -34,26 +36,37 @@ func ResolveBuildInput(
 	}, nil
 }
 
-func resolveSkills(entries []config.SkillEntry, resolveSkill skill.Resolver) ([]store.ResolvedSkill, error) {
+func resolveSkills(entries map[string]config.SkillEntry, target agentvendor.AgentVendorName, resolveSkill skill.Resolver) ([]store.ResolvedSkill, error) {
 	resolved := make([]store.ResolvedSkill, 0, len(entries))
-	for _, entry := range entries {
-		dir, err := resolveSkill(entry.Source)
-		if err != nil {
-			return nil, fmt.Errorf("resolving skill %q: %w", entry.Name, err)
+	for name, entry := range entries {
+		if vendorCfg, ok := entry.Vendors[target]; ok && vendorCfg.Enabled != nil && !*vendorCfg.Enabled {
+			continue
 		}
-		resolved = append(resolved, store.ResolvedSkill{Name: entry.Name, SourceDir: dir})
+		dir, err := resolveSkill(skillSourceFrom(entry))
+		if err != nil {
+			return nil, fmt.Errorf("resolving skill %q: %w", name, err)
+		}
+		resolved = append(resolved, store.ResolvedSkill{Name: name, SourceDir: dir})
 	}
 	return resolved, nil
 }
 
-func resolveSubagents(entries []config.SubagentEntry, resolveSkill skill.Resolver) ([]store.ResolvedSubagent, error) {
+func resolveSubagents(entries map[string]config.SubagentEntry, resolveSkill skill.Resolver) ([]store.ResolvedSubagent, error) {
 	resolved := make([]store.ResolvedSubagent, 0, len(entries))
-	for _, entry := range entries {
-		dir, err := resolveSkill(entry.Source)
+	for name, entry := range entries {
+		dir, err := resolveSkill(subagentSourceFrom(entry))
 		if err != nil {
-			return nil, fmt.Errorf("resolving subagent %q: %w", entry.Name, err)
+			return nil, fmt.Errorf("resolving subagent %q: %w", name, err)
 		}
-		resolved = append(resolved, store.ResolvedSubagent{Name: entry.Name, SourceDir: dir})
+		resolved = append(resolved, store.ResolvedSubagent{Name: name, SourceDir: dir})
 	}
 	return resolved, nil
+}
+
+func skillSourceFrom(entry config.SkillEntry) skill.SkillSource {
+	return skill.ParseSource(entry.Source, entry.Ref, entry.Subdir)
+}
+
+func subagentSourceFrom(entry config.SubagentEntry) skill.SkillSource {
+	return skill.ParseSource(entry.Source, entry.Ref, entry.Subdir)
 }

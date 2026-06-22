@@ -14,14 +14,14 @@ import (
 func writeConfigWithLocalSkill(t *testing.T, h *harness, skillName, skillDirPath string) {
 	t.Helper()
 	cfg := h.readFile(h.configFile())
-	skillEntry := fmt.Sprintf("\n[[skills]]\nname = %q\n[skills.source]\ntype = \"local\"\npath = %q\n", skillName, skillDirPath)
+	skillEntry := fmt.Sprintf("\n[skills.%s]\nsource = %q\n", skillName, skillDirPath)
 	h.writeFile(h.configFile(), cfg+skillEntry)
 }
 
 func writeConfigWithGitSkill(t *testing.T, h *harness, skillName, repoURL, ref string) {
 	t.Helper()
 	cfg := h.readFile(h.configFile())
-	skillEntry := fmt.Sprintf("\n[[skills]]\nname = %q\n[skills.source]\ntype = \"git\"\nurl = %q\nref = %q\n", skillName, repoURL, ref)
+	skillEntry := fmt.Sprintf("\n[skills.%s]\nsource = %q\nref = %q\n", skillName, repoURL, ref)
 	h.writeFile(h.configFile(), cfg+skillEntry)
 }
 

@@ -8,49 +8,58 @@
     cfg = config.programs.ponte;
     tomlFormat = pkgs.formats.toml {};
 
-    sourceModule = lib.types.submodule {
-      options = {
-        type = lib.mkOption {
-          type = lib.types.enum ["local" "git"];
-          description = "Skill source kind.";
-        };
-        path = lib.mkOption {
-          type = lib.types.str;
-          default = "";
-          description = "Filesystem path for a local source. Relative paths resolve against ~/.config/ponte.";
-        };
-        url = lib.mkOption {
-          type = lib.types.str;
-          default = "";
-          description = "Git remote URL for a git source.";
-        };
-        ref = lib.mkOption {
-          type = lib.types.str;
-          default = "";
-          description = "Git ref (branch, tag, commit) for a git source.";
-        };
-        subdir = lib.mkOption {
-          type = lib.types.str;
-          default = "";
-          description = "Subdirectory within the source that holds the skill.";
-        };
+    vendorSkillModule = lib.types.submodule {
+      options.enable = lib.mkOption {
+        type = lib.types.nullOr lib.types.bool;
+        default = null;
+        description = "Override enabled state for this skill on this vendor. null = inherit global vendor setting.";
       };
     };
 
     skillModule = lib.types.submodule {
       options = {
-        name = lib.mkOption {
-          type = lib.types.str;
-          description = "Skill name.";
-        };
         source = lib.mkOption {
-          type = sourceModule;
-          description = "Where the skill is fetched from.";
+          type = lib.types.str;
+          description = "Local path or git URL. Git URLs start with https://, http://, git@, or file://.";
+        };
+        ref = lib.mkOption {
+          type = lib.types.str;
+          default = "";
+          description = "Git ref (branch, tag, commit SHA) for a git source.";
+        };
+        subdir = lib.mkOption {
+          type = lib.types.str;
+          default = "";
+          description = "Subdirectory within the git repo that contains the skill.";
+        };
+        vendors = lib.mkOption {
+          type = lib.types.attrsOf vendorSkillModule;
+          default = {};
+          description = "Per-vendor overrides for this skill.";
         };
       };
     };
 
-    mkAgent = name:
+    subagentModule = lib.types.submodule {
+      options = {
+        source = lib.mkOption {
+          type = lib.types.str;
+          description = "Local path or git URL. Git URLs start with https://, http://, git@, or file://.";
+        };
+        ref = lib.mkOption {
+          type = lib.types.str;
+          default = "";
+          description = "Git ref (branch, tag, commit SHA) for a git source.";
+        };
+        subdir = lib.mkOption {
+          type = lib.types.str;
+          default = "";
+          description = "Subdirectory within the git repo that contains the subagent.";
+        };
+      };
+    };
+
+    mkVendor = name:
       lib.mkOption {
         type = lib.types.submodule {
           options.enable = lib.mkOption {
@@ -60,38 +69,34 @@
           };
         };
         default = {};
-        description = "Configuration for the ${name} agent vendor.";
+        description = "Configuration for the ${name} vendor.";
       };
 
-    mkSource = src:
-      {type = src.type;}
-      // lib.optionalAttrs (src.path != "") {path = src.path;}
-      // lib.optionalAttrs (src.url != "") {url = src.url;}
-      // lib.optionalAttrs (src.ref != "") {ref = src.ref;}
-      // lib.optionalAttrs (src.subdir != "") {subdir = src.subdir;};
+    mkSkillEntry = skill:
+      {source = skill.source;}
+      // lib.optionalAttrs (skill.ref != "") {ref = skill.ref;}
+      // lib.optionalAttrs (skill.subdir != "") {subdir = skill.subdir;}
+      // lib.optionalAttrs (skill.vendors != {}) {
+        vendors =
+          lib.mapAttrs (_: v: {enabled = v.enable;})
+          (lib.filterAttrs (_: v: v.enable != null) skill.vendors);
+      };
+
+    mkSubagentEntry = sub:
+      {source = sub.source;}
+      // lib.optionalAttrs (sub.ref != "") {ref = sub.ref;}
+      // lib.optionalAttrs (sub.subdir != "") {subdir = sub.subdir;};
 
     generated =
       {
         system_prompt_file = cfg.systemPromptFile;
-        agents = lib.mapAttrs (_: agent: {enabled = agent.enable;}) cfg.agents;
+        vendors = lib.mapAttrs (_: vendor: {enabled = vendor.enable;}) cfg.vendors;
       }
-      # cfg.agents is a fixed set of known vendors; each survives toggling
-      # independently, unlike an attrsOf whose defaults vanish on first define.
-      // lib.optionalAttrs (cfg.skills != []) {
-        skills =
-          map (skill: {
-            inherit (skill) name;
-            source = mkSource skill.source;
-          })
-          cfg.skills;
+      // lib.optionalAttrs (cfg.skills != {}) {
+        skills = lib.mapAttrs (_: mkSkillEntry) cfg.skills;
       }
-      // lib.optionalAttrs (cfg.subagents != []) {
-        subagents =
-          map (subagent: {
-            inherit (subagent) name;
-            source = mkSource subagent.source;
-          })
-          cfg.subagents;
+      // lib.optionalAttrs (cfg.subagents != {}) {
+        subagents = lib.mapAttrs (_: mkSubagentEntry) cfg.subagents;
       };
 
     settings = lib.recursiveUpdate generated cfg.settings;
@@ -119,51 +124,47 @@
         '';
       };
 
-      agents = {
-        "claude-code" = mkAgent "Claude Code";
-        "codex" = mkAgent "Codex";
-        "gemini-cli" = mkAgent "Gemini CLI";
-        "cursor-agent" = mkAgent "Cursor";
+      vendors = {
+        "claude-code" = mkVendor "Claude Code";
+        "codex" = mkVendor "Codex";
+        "gemini-cli" = mkVendor "Gemini CLI";
+        "cursor-agent" = mkVendor "Cursor";
       };
 
       skills = lib.mkOption {
-        type = lib.types.listOf skillModule;
-        default = [];
+        type = lib.types.attrsOf skillModule;
+        default = {};
         example = lib.literalExpression ''
-          [
-            {
-              name = "my-skill";
-              source = {
-                type = "git";
-                url = "https://github.com/me/skills";
-                ref = "main";
-                subdir = "my-skill";
-              };
-            }
-          ]
+          {
+            "my-skill" = {
+              source = "https://github.com/me/skills";
+              ref = "abc123";
+              subdir = "my-skill";
+            };
+            "local-skill" = {
+              source = "/path/to/local-skill";
+            };
+            "claude-only" = {
+              source = "/path/to/claude-only";
+              vendors."gemini-cli".enable = false;
+              vendors."codex".enable = false;
+            };
+          }
         '';
-        description = "Skills to declare in config.toml.";
+        description = "Skills to sync to enabled vendors. The attribute name is the skill name.";
       };
 
       subagents = lib.mkOption {
-        type = lib.types.listOf skillModule;
-        default = [];
+        type = lib.types.attrsOf subagentModule;
+        default = {};
         example = lib.literalExpression ''
-          [
-            {
-              name = "claude";
-              source = {
-                type = "local";
-                path = "/home/me/config/ai_agents/subagents/claude";
-              };
-            }
-          ]
+          {
+            "claude" = {
+              source = "/home/me/config/ai_agents/subagents/claude";
+            };
+          }
         '';
-        description = ''
-          Subagents to declare in config.toml. Each entry's source resolves to a
-          directory of agent definition files; on sync those files are flattened
-          into every enabled vendor's agents directory.
-        '';
+        description = "Subagents to sync to enabled vendors. The attribute name is the subagent name.";
       };
 
       settings = lib.mkOption {

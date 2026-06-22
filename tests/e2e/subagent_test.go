@@ -13,7 +13,7 @@ import (
 func writeConfigWithLocalSubagent(t *testing.T, h *harness, name, sourceDirPath string) {
 	t.Helper()
 	cfg := h.readFile(h.configFile())
-	entry := fmt.Sprintf("\n[[subagents]]\nname = %q\n[subagents.source]\ntype = \"local\"\npath = %q\n", name, sourceDirPath)
+	entry := fmt.Sprintf("\n[subagents.%s]\nsource = %q\n", name, sourceDirPath)
 	h.writeFile(h.configFile(), cfg+entry)
 }
 

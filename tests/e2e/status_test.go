@@ -55,8 +55,8 @@ func TestStatus_DisabledVendorReported(t *testing.T) {
 
 	cfg := h.readFile(h.configFile())
 	cfg = strings.Replace(cfg,
-		"[agents.codex]\n    enabled = true",
-		"[agents.codex]\n    enabled = false", 1)
+		"[vendors.codex]\n    enabled = true",
+		"[vendors.codex]\n    enabled = false", 1)
 	h.writeFile(h.configFile(), cfg)
 
 	stdout, _ := h.mustRun("status")
