@@ -127,8 +127,10 @@
       vendors = {
         "claude-code" = mkVendor "Claude Code";
         "codex" = mkVendor "Codex";
-        "gemini-cli" = mkVendor "Gemini CLI";
+        "antigravity-cli" = mkVendor "Antigravity CLI";
         "cursor-agent" = mkVendor "Cursor";
+        "opencode" = mkVendor "OpenCode";
+        "pi-agent" = mkVendor "Pi Agent";
       };
 
       skills = lib.mkOption {
@@ -146,7 +148,7 @@
             };
             "claude-only" = {
               source = "/path/to/claude-only";
-              vendors."gemini-cli".enable = false;
+              vendors."antigravity-cli".enable = false;
               vendors."codex".enable = false;
             };
           }
