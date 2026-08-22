@@ -9,23 +9,43 @@
       "language_servers": ["gopls"],
       "format_on_save": "on",
       "code_actions_on_format": {
-        "source.organizeImports": true,
+        "source.organizeImports": true
       },
       "formatter": {
         "external": {
           "command": "gofumpt",
-          "arguments": [],
-        },
-      },
+          "arguments": []
+        }
+      }
     },
+    "TypeScript": {
+      "format_on_save": "on",
+      "tab_size": 2,
+      "formatter": {
+        "external": {
+          "command": "biome",
+          "arguments": ["format", "--write"]
+        }
+      }
+    },
+    "JavaScript": {
+      "format_on_save": "on",
+      "tab_size": 2,
+      "formatter": {
+        "external": {
+          "command": "biome",
+          "arguments": ["format", "--write"]
+        }
+      }
+    }
   },
   "lsp": {
     "gopls": {
       "initialization_options": {
         "gofumpt": true,
-        "staticcheck": true,
-      },
-    },
+        "staticcheck": true
+      }
+    }
   },
   "file_scan_exclusions": [
     "**/.git",
@@ -34,6 +54,6 @@
     "**/CVS",
     "**/.DS_Store",
     "**/Thumbs.db",
-    "**/vendor",
-  ],
+    "**/vendor"
+  ]
 }

@@ -4,13 +4,13 @@ set working-directory := "../.."
 default:
     just --list --justfile {{source_file()}}
 
-# Run CLI unit tests
-cli:
-    go test -race -count=1 ./apps/...
+# Run the unit + integration test suite
+unit:
+    bun test ./apps/ponte/tests
 
-# Run end-to-end tests (compiles the binary and exercises the CLI per-platform)
+# Run the end-to-end suite (spawns the compiled CLI against isolated homes)
 e2e:
-    go test -count=1 -timeout=5m ./tests/e2e/...
+    bun test ./apps/ponte/tests/e2e
 
 # Run everything
-all: cli e2e
+all: unit e2e

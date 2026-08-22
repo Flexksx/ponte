@@ -33,8 +33,8 @@ Because the store is immutable and content-addressed:
 # Nix
 nix profile install github:flexksx/ponte
 
-# Go
-go install github.com/flexksx/ponte/apps/ponte@latest
+# From source (Bun)
+bun build ./apps/ponte/src/index.ts --compile --outfile ./out/ponte
 ```
 
 A [home-manager module](#nix--home-manager-reference) is also available.
@@ -74,11 +74,8 @@ To add a skill, declare it in `~/.config/ponte/config.toml` and run
 `~/.codex/skills/<name>`, and every other enabled vendor at once.
 
 ```toml
-[[skills]]
-name = "my-skill"
-[skills.source]
-type = "local"
-path = "skills/my-skill"
+[skills.my-skill]
+source = "skills/my-skill"   # relative to ~/.config/ponte/
 ```
 
 See [MANUAL.md](MANUAL.md) for the full CLI reference and usage guide.
@@ -101,64 +98,57 @@ All configuration lives in `~/.config/ponte/config.toml`. The first
 system_prompt_file = "AGENTS.md"
 
 # Per-vendor toggles. Omitting a vendor defaults to enabled = true.
-[agents.claude-code]
+[vendors.claude-code]
 enabled = true
 
-[agents.codex]
+[vendors.codex]
 enabled = true
 
-[agents.gemini-cli]
+[vendors.gemini-cli]
 enabled = true
 
-[agents.cursor-agent]
+[vendors.cursor-agent]
 enabled = false
 
-# Skills — zero or more entries. Each is a directory containing a
-# SKILL.md plus supporting files, synced to every enabled vendor.
+# Skills — one [skills.<name>] section per skill. Each is a directory
+# containing a SKILL.md file plus supporting files, synced to every
+# enabled vendor.
 
-[[skills]]
-name = "software-engineering"
-[skills.source]
-type = "local"
-path = "skills/software-engineering"   # relative to ~/.config/ponte/
+[skills.software-engineering]
+source = "skills/software-engineering"   # relative to ~/.config/ponte/
 
-[[skills]]
-name = "ast-grep"
-[skills.source]
-type = "git"
-url    = "https://github.com/example/ast-grep-skill"
-ref    = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"   # full SHA recommended
-subdir = ""   # optional: subdirectory inside the repo holding the skill
+[skills.ast-grep]
+source = "https://github.com/example/ast-grep-skill"
+ref    = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"   # full commit SHA preferred
+subdir = ""   # optional: subdirectory inside the repo that contains the skill
 
-# Subagents — zero or more entries. Each source resolves to a directory
-# of agent definition files, flattened into every enabled vendor's
-# agents directory. Same source schema as skills.
+# Per-vendor override — disable a skill for a specific vendor only.
+[skills.ast-grep.vendors.gemini-cli]
+enabled = false
 
-[[subagents]]
-name = "claude"
-[subagents.source]
-type = "local"
-path = "subagents/claude"   # relative to ~/.config/ponte/
+# Subagents — one [subagents.<name>] section per subagent. Each source
+# resolves to a directory of agent definition files, flattened into
+# every enabled vendor's agents directory. Same source schema as skills.
+
+[subagents.claude]
+source = "subagents/claude"   # relative to the config directory
 ```
 
 | Key | Type | Default | Meaning |
 |-----|------|---------|---------|
 | `system_prompt_file` | string | `AGENTS.md` | System prompt path. Bare name → relative to `~/.config/ponte/`; absolute → read as-is. |
-| `[agents.<vendor>].enabled` | bool | `true` | Whether sync targets that vendor. Vendors: `claude-code`, `codex`, `gemini-cli`, `cursor-agent`. |
-| `[[skills]].name` | string | — | Skill name; becomes the synced directory name. |
-| `[[skills]].source` | table | — | Where the skill is fetched from (see below). |
-| `[[subagents]].name` | string | — | Subagent group name. |
-| `[[subagents]].source` | table | — | Directory of agent files; same schema as a skill source. |
+| `[vendors.<vendor>].enabled` | bool | `true` | Whether sync targets that vendor. Vendors: `claude-code`, `codex`, `gemini-cli`, `cursor-agent`. |
+| `[skills.<name>].source` | string | — | Local directory path, or a git URL (with `ref`/`subdir`). |
+| `[skills.<name>].ref` | string | — | For git only: branch, tag, or commit. Prefer full commit SHAs. |
+| `[skills.<name>].subdir` | string | — | Optional subdirectory inside the git repo that holds the skill. |
+| `[skills.<name>].vendors.<vendor>` | table | — | Per-vendor override: `enabled = false` hides the skill from that vendor. |
+| `[subagents.<name>].source` | string | — | Directory of agent files, or a git URL; same schema as a skill source. |
+| `[subagents.<name>].ref` | string | — | For git only: branch, tag, or commit. Prefer full commit SHAs. |
+| `[subagents.<name>].subdir` | string | — | Optional subdirectory inside the git repo. |
 
-**Source tables** (`[skills.source]` / `[subagents.source]`):
-
-| Field | Used by | Meaning |
-|-------|---------|---------|
-| `type` | both | `"local"` or `"git"`. |
-| `path` | `local` | Directory path. Relative resolves against `~/.config/ponte/`; absolute used as-is. |
-| `url` | `git` | Remote URL. Cloned into `~/.cache/ponte/sources/`. |
-| `ref` | `git` | Branch, tag, or commit. **Prefer full commit SHAs** — a moving ref changes the store hash and forces rebuilds. |
-| `subdir` | `git` | Optional subdirectory inside the repo. Omit for the repo root. |
+`source` detection: a string starting with `https://`, `http://`, `git@`, or
+`file://` is a git source; any other string is a local directory path. Local
+paths resolve against `~/.config/ponte/`; absolute paths are used as-is.
 
 ### Nix / home-manager reference
 

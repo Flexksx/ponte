@@ -4,6 +4,7 @@ set working-directory := "../.."
 default:
     just --list --justfile {{source_file()}}
 
-# Build the CLI binary
+# Build the ponte CLi binary
 cli:
-    go build -o out/ponte ./apps/ponte/
+    mkdir -p out
+    bun build ./apps/ponte/src/index.ts --compile --outfile ./out/ponte

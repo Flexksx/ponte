@@ -1,0 +1,10 @@
+{
+  "name": "ponte",
+  "module": "src/index.ts",
+  "type": "module",
+  "dev": true,
+  "trust": [],
+  "dependencies": {
+    "@types/node": "^24.0.0"
+  }
+}

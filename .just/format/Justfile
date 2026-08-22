@@ -4,6 +4,9 @@ set working-directory := "../.."
 default:
     just --list --justfile {{source_file()}}
 
-# Format the CLI module
-cli:
-    golangci-lint fmt ./...
+# Format the Bun/TS source under apps/ponte/src
+typecheck:
+    biome format --write ./apps/ponte/src
+
+# Format everything
+all: typecheck
