@@ -1,13 +1,9 @@
 import { createHash } from "node:crypto";
 
-export const sha256Hex = (s: string): string =>
-  createHash("sha256").update(s).digest("hex");
+export const sha256Hex = (s: string): string => createHash("sha256").update(s).digest("hex");
 
-export const shortHash = (hash: string): string =>
-  hash.length <= 12 ? hash : hash.slice(0, 12);
+export const shortHash = (hash: string): string => (hash.length <= 12 ? hash : hash.slice(0, 12));
 
-// firstPathSegment returns the hash segment under the store from an absolute
-// store path, or null when the path is not inside the store.
 export function hashFromStorePath(storeDir: string, target: string): string | null {
   const sep = process.platform === "win32" ? "\\" : "/";
   const prefix = storeDir.endsWith(sep) ? storeDir : storeDir + sep;

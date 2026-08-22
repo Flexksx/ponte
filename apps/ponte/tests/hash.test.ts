@@ -5,10 +5,6 @@ import { computeHash, hashEntries } from "../src/hash-core";
 const sha256 = (s: string) =>
   createHash("sha256").update(s).digest("hex");
 
-// Golden values derived directly from Go's algorithm (documented in
-// PORT_PLAN.md section 12). These lock the exact byte format so the TS and Go
-// stores stay compatible for migration.
-
 describe("hashEntries", () => {
   it("hashes one entry with a trailing newline and full hex", () => {
     const file: readonly [string, string] = ["b.txt", "hello"];

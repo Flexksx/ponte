@@ -6,9 +6,6 @@ import { newHarness } from "./harness";
 const isWindows = () => process.platform === "win32";
 
 describe("subagent sync", () => {
-  // A local subagent source is a directory of agent files; each file must
-  // appear, flattened, inside every enabled vendor's agents directory after
-  // sync.
   it("flattens local subagent files into every vendor agents dir", async () => {
     if (isWindows()) return; // symlink assertions require Unix
     const h = await newHarness();
@@ -29,8 +26,6 @@ describe("subagent sync", () => {
     await h.close();
   });
 
-  // Subagent files must be symlinks into the store, not copies, so agents
-  // cannot modify them.
   it("symlinks subagent files from the store", async () => {
     if (isWindows()) return;
     const h = await newHarness();
@@ -45,8 +40,6 @@ describe("subagent sync", () => {
     await h.close();
   });
 
-  // Adding a subagent changes the store generation: the instruction symlink
-  // moves to a new generation that also contains the subagent files.
   it("creates a new generation when a subagent is added", async () => {
     if (isWindows()) return;
     const h = await newHarness();
@@ -68,8 +61,6 @@ describe("subagent sync", () => {
     await h.close();
   });
 
-  // The instruction file must round-trip from an absolute system_prompt_file
-  // path outside ~/.config/ponte, so a config repo can own the prompt directly.
   it("reads the prompt from an absolute path outside the config dir", async () => {
     const h = await newHarness();
     await h.mustRun("sync"); // bootstrap

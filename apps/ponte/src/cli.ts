@@ -23,10 +23,14 @@ import {
   removeGeneration,
 } from "./store";
 import { shortHash } from "./hash-helpers";
-import { storeDirectoryPath, gitCacheDirectoryPath, homeDirectory, configDirectoryPath } from "./paths";
+import { isGitSource } from "./sources";
+import {
+  storeDirectoryPath,
+  gitCacheDirectoryPath,
+  homeDirectory,
+  configDirectoryPath,
+} from "./paths";
 import manualText from "./manual.md" with { type: "text" };
-
-// ---- source resolution into a BuildInput --------------------------------------
 
 async function buildInputFor(
   cfg: Config,
@@ -39,26 +43,18 @@ async function buildInputFor(
     if (!isSkillEnabledForVendor(entry, vendor)) continue;
     skills.push({
       name,
-      sourceDir: await resolveSource(
-        parseSource(entry.source, entry.ref, entry.subdir),
-        gitCache,
-      ),
+      sourceDir: await resolveSource(parseSource(entry.source, entry.ref, entry.subdir), gitCache),
     });
   }
   const subagents = [];
   for (const [name, entry] of Object.entries(cfg.subagents)) {
     subagents.push({
       name,
-      sourceDir: await resolveSource(
-        parseSource(entry.source, entry.ref, entry.subdir),
-        gitCache,
-      ),
+      sourceDir: await resolveSource(parseSource(entry.source, entry.ref, entry.subdir), gitCache),
     });
   }
   return { prompt, skills, subagents };
 }
-
-// ---- commands ------------------------------------------------------------------
 
 async function runSync(args: string[]): Promise<void> {
   const { values, positionals } = parseArgs({
@@ -70,9 +66,7 @@ async function runSync(args: string[]): Promise<void> {
     },
     allowPositionals: true,
   });
-  if (positionals.length > 0) {
-    throw new Error(`unexpected argument for sync: ${positionals[0]}`);
-  }
+  if (positionals.length > 0) throw new Error(`unexpected argument for sync: ${positionals[0]}`);
 
   let cfg = await readConfig();
   if (cfg === null) {
@@ -85,12 +79,11 @@ async function runSync(args: string[]): Promise<void> {
   }
 
   const override = values["global-instructions"];
-  const prompt = typeof override === "string"
-    ? await resolveContent(override)
-    : await readPrompt(cfg.systemPromptFile);
-  if (prompt === null) {
-    throw new Error(`system prompt not found: ${cfg.systemPromptFile}`);
-  }
+  const prompt =
+    typeof override === "string"
+      ? await resolveContent(override)
+      : await readPrompt(cfg.systemPromptFile);
+  if (prompt === null) throw new Error(`system prompt not found: ${cfg.systemPromptFile}`);
 
   const requested = values.agents;
   let targets: VendorName[];
@@ -110,50 +103,41 @@ async function runSync(args: string[]): Promise<void> {
     }
   }
 
-  const gitCache = gitCacheDirectoryPath();
-  const storeDir = storeDirectoryPath();
   const layouts = vendorLayouts(homeDirectory(), platform());
   const dry = values["dry-run"] === true;
 
   let lastHash = "";
   for (const vendor of targets) {
-    const input = await buildInputFor(cfg, prompt, vendor, gitCache);
+    const input = await buildInputFor(cfg, prompt, vendor, gitCacheDirectoryPath());
     if (dry) {
       lastHash = await hashBuildInput(input);
     } else {
-      const gen = await buildGeneration(input, storeDir);
+      const gen = await buildGeneration(input, storeDirectoryPath());
       lastHash = gen.hash;
       const layout = layouts[vendor];
       await activate(gen, layout.instruction, layout.skills, layout.agents);
     }
   }
 
-  if (dry) {
-    process.stdout.write(
-      `Dry run - would build generation ${shortHash(lastHash)} and sync to: ${targets.join(", ")}\n`,
-    );
-  } else {
-    process.stdout.write(
-      `Synced generation ${shortHash(lastHash)} to: ${targets.join(", ")}\n`,
-    );
-  }
+  const verb = dry ? "Dry run - would " : "";
+  process.stdout.write(
+    `${verb}build generation ${shortHash(lastHash)} and sync to: ${targets.join(", ")}\n`,
+  );
 }
 
 async function runStatus(args: string[]): Promise<void> {
   if (args.length > 0) throw new Error(`unexpected argument for status: ${args[0]}`);
-  const cfg = await readConfig();
-  if (cfg === null) throw new Error("config not initialized - run `ponte sync` first");
+  const cfg = await requireConfig();
   const prompt = await readPrompt(cfg.systemPromptFile);
   if (prompt === null) throw new Error(`system prompt not found: ${cfg.systemPromptFile}`);
 
-  const gitCache = gitCacheDirectoryPath();
-  const storeDir = storeDirectoryPath();
   const layouts = vendorLayouts(homeDirectory(), platform());
+  const storeDir = storeDirectoryPath();
 
   let wouldBe = "";
   const rows = [];
   for (const vendor of VENDORS) {
-    const input = await buildInputFor(cfg, prompt, vendor, gitCache);
+    const input = await buildInputFor(cfg, prompt, vendor, gitCacheDirectoryPath());
     const hash = await hashBuildInput(input);
     if (wouldBe === "") wouldBe = hash;
     const active = await readActiveHash(storeDir, layouts[vendor].instruction);
@@ -167,13 +151,13 @@ async function runStatus(args: string[]): Promise<void> {
 
   process.stdout.write(`Would-be generation: ${shortHash(wouldBe)}\n\n`);
   const header = ["VENDOR", "ENABLED", "ACTIVE", "STATE"];
-  process.stdout.write(`${header[0].padEnd(12)}  ${header[1].padEnd(7)}  ${header[2].padEnd(12)}  ${header[3]}\n`);
+  const [v, e, ac] = header.map((h, i) => h.padEnd([12, 7, 12, 1][i]));
+  process.stdout.write(`${v}  ${e}  ${ac}  ${header[3]}\n`);
   for (const row of rows) {
-    const state = classify(row.enabled, row.hasActive, row.activeHash, wouldBe);
     const enabled = row.enabled ? "yes" : "no";
     const active = row.hasActive ? shortHash(row.activeHash) : "—";
     process.stdout.write(
-      `${row.name.padEnd(12)}  ${enabled.padEnd(7)}  ${active.padEnd(12)}  ${state}\n`,
+      `${row.name.padEnd(12)}  ${enabled.padEnd(7)}  ${active.padEnd(12)}  ${classify(row.enabled, row.hasActive, row.activeHash, wouldBe)}\n`,
     );
   }
 }
@@ -196,8 +180,7 @@ async function runGc(args: string[]): Promise<void> {
   const generations = await listGenerations(storeDir);
   const { remove, keep } = planGc(generations, activeHashes);
 
-  const dry = values["dry-run"] === true;
-  if (!dry) {
+  if (values["dry-run"] !== true) {
     for (const gen of remove) await removeGeneration(gen);
   }
 
@@ -205,32 +188,27 @@ async function runGc(args: string[]): Promise<void> {
     process.stdout.write(`Nothing to remove; ${keep.length} generation(s) in use.\n`);
     return;
   }
-  const verb = dry ? "Would remove" : "Removed";
+  const verb = values["dry-run"] === true ? "Would remove" : "Removed";
   process.stdout.write(`${verb} ${remove.length} generation(s), kept ${keep.length} in use:\n`);
   for (const gen of remove) process.stdout.write(`  ${shortHash(gen.hash)}\n`);
 }
 
 async function runSkills(args: string[]): Promise<void> {
   if (args.length > 0) throw new Error(`unexpected argument for skills: ${args[0]}`);
-  const cfg = await requireConfig();
-  printEntries("skills", Object.entries(cfg.skills));
+  printEntries("skills", await requireConfig());
 }
 
 async function runSubagents(args: string[]): Promise<void> {
   if (args.length > 0) throw new Error(`unexpected argument for subagents: ${args[0]}`);
-  const cfg = await requireConfig();
-  printEntries("subagents", Object.entries(cfg.subagents));
+  printEntries("subagents", await requireConfig());
 }
 
 async function runSysprompt(args: string[]): Promise<void> {
   const cfg = await requireConfig();
   const [sub, arg] = args;
   if (sub === "set") {
-    if (arg === undefined) {
-      throw new Error("missing argument for sysprompt set <file-or-string>");
-    }
-    const content = await resolveContent(arg);
-    await writePrompt(cfg.systemPromptFile, content);
+    if (arg === undefined) throw new Error("missing argument for sysprompt set <file-or-string>");
+    await writePrompt(cfg.systemPromptFile, await resolveContent(arg));
     process.stdout.write("System prompt updated.\n");
     return;
   }
@@ -247,20 +225,21 @@ async function runManual(): Promise<void> {
   process.stdout.write(manualText);
 }
 
-// ---- pure helpers ---------------------------------------------------------------
-
-export const classify = (
+const classify = (
   enabled: boolean,
   hasActive: boolean,
   activeHash: string,
   wouldBe: string,
-): string => {
-  if (!enabled) return "disabled";
-  if (!hasActive) return "not synced";
-  return activeHash === wouldBe ? "in sync" : "drifted";
-};
+): string =>
+  enabled
+    ? hasActive
+      ? activeHash === wouldBe
+        ? "in sync"
+        : "drifted"
+      : "not synced"
+    : "disabled";
 
-const formatSource = (entry: SkillEntry | SubagentEntry): string => {
+const sourceText = (entry: SkillEntry | SubagentEntry): string => {
   const source = parseSource(entry.source, entry.ref, entry.subdir);
   if (source.type === "local") return source.path;
   let desc = source.url;
@@ -269,29 +248,25 @@ const formatSource = (entry: SkillEntry | SubagentEntry): string => {
   return desc;
 };
 
-const printEntries = (
-  noun: string,
-  entries: Array<[string, SkillEntry | SubagentEntry]>,
-): void => {
+const printEntries = (noun: string, cfg: Config): void => {
+  const entries = Object.entries(cfg[noun as "skills"]);
   if (entries.length === 0) {
     process.stdout.write(`No ${noun} configured.\n`);
     return;
   }
   const rows = entries.map(([name, entry]) => ({
     name,
-    type: /^(https?:\/\/|git@|file:\/\/)/.test(entry.source) ? "git" : "local",
-    source: formatSource(entry),
+    type: isGitSource(entry.source) ? "git" : "local",
+    source: sourceText(entry),
   }));
-  const nameWidth = Math.max(4, ...rows.map((r) => r.name.length));
-  process.stdout.write(`${"NAME".padEnd(nameWidth)}  TYPE  SOURCE\n`);
+  const width = Math.max(4, ...rows.map(r => r.name.length));
+  process.stdout.write(`${"NAME".padEnd(width)}  TYPE  SOURCE\n`);
   for (const row of rows) {
-    process.stdout.write(`${row.name.padEnd(nameWidth)}  ${row.type.padEnd(5)}  ${row.source}\n`);
+    process.stdout.write(`${row.name.padEnd(width)}  ${row.type.padEnd(5)}  ${row.source}\n`);
   }
 };
 
-// ---- dispatch -------------------------------------------------------------------
-
-const requireConfig = async () => {
+const requireConfig = async (): Promise<Config> => {
   const cfg = await readConfig();
   if (cfg === null) throw new Error("config not initialized - run `ponte sync` first");
   return cfg;
@@ -310,8 +285,12 @@ const commands: Record<string, (args: string[]) => Promise<void>> = {
 const printUsage = (): void => {
   process.stdout.write("Usage: ponte <command>\n\n");
   process.stdout.write("Commands:\n");
-  process.stdout.write("  sync       Sync the system prompt, skills, and subagents to configured vendors\n");
-  process.stdout.write("  status     Show the active generation per vendor and whether sources have drifted\n");
+  process.stdout.write(
+    "  sync       Sync the system prompt, skills, and subagents to configured vendors\n",
+  );
+  process.stdout.write(
+    "  status     Show the active generation per vendor and whether sources have drifted\n",
+  );
   process.stdout.write("  gc         Remove store generations no vendor points to\n");
   process.stdout.write("  skills     List the skills declared in config.toml\n");
   process.stdout.write("  subagents  List the subagents declared in config.toml\n");
@@ -319,16 +298,12 @@ const printUsage = (): void => {
   process.stdout.write("  manual     Show the full configuration and usage guide\n");
 };
 
-const formatError = (error: unknown): string => {
-  if (error instanceof Error) return error.message;
-  return String(error);
-};
+const formatError = (error: unknown): string =>
+  error instanceof Error ? error.message : String(error);
 
-// run dispatches a command and returns a process exit code. All command errors
-// are caught here, printed to stderr, and turned into a non-zero exit.
 export async function run(argv: string[]): Promise<number> {
   const [commandName, ...args] = argv;
-  if (commandName === undefined || commandName === "help" || commandName === "--help" || commandName === "-h") {
+  if (!commandName || commandName === "help" || commandName === "--help" || commandName === "-h") {
     printUsage();
     return 0;
   }

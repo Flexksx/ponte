@@ -20,8 +20,6 @@ const writeConfigWithGitSkill = async (
 };
 
 describe("skill sync", () => {
-  // A local skill declared in config must appear as a symlink inside every
-  // enabled vendor's skills directory after sync.
   it("appears in every vendor skills dir after sync", async () => {
     if (isWindows()) return; // symlink assertions require Unix
     const h = await newHarness();
@@ -40,7 +38,6 @@ describe("skill sync", () => {
     await h.close();
   });
 
-  // Vendor skill entries must be symlinks pointing into the store, not copies.
   it("symlinks the skill from the store", async () => {
     if (isWindows()) return;
     const h = await newHarness();
@@ -55,7 +52,6 @@ describe("skill sync", () => {
     await h.close();
   });
 
-  // Instruction files must also be symlinks into the store after sync.
   it("symlinks the instruction file from the store", async () => {
     if (isWindows()) return;
     const h = await newHarness();
@@ -65,8 +61,6 @@ describe("skill sync", () => {
     await h.close();
   });
 
-  // Two syncs with identical inputs produce the same store generation: the
-  // symlink target does not change.
   it("reuses the store generation on identical inputs", async () => {
     if (isWindows()) return;
     const h = await newHarness();
@@ -84,8 +78,6 @@ describe("skill sync", () => {
     await h.close();
   });
 
-  // Adding a skill changes the store generation: the symlink target moves to
-  // a new generation that contains the skill.
   it("creates a new generation when a skill is added", async () => {
     if (isWindows()) return;
     const h = await newHarness();
@@ -106,8 +98,6 @@ describe("skill sync", () => {
     await h.close();
   });
 
-  // A git-backed skill is cloned, checked out at the given ref, and symlinked
-  // into vendor skill directories.
   it("clones and links a git skill", async () => {
     if (isWindows()) return;
     const h = await newHarness();
@@ -135,9 +125,6 @@ async function appendConfigWithSkill(
   await h.writeFile(h.configPath("config.toml"), cfg + entry);
 }
 
-// createLocalGitSkillRepo initialises a non-bare git repo containing a skill
-// directory and returns the repo path and the HEAD commit SHA. A local repo
-// stands in for a remote so the test needs no network.
 async function createLocalGitSkillRepo(): Promise<{ repoPath: string; commitSHA: string }> {
   const repoPath = join(osTmpdir(), `ponte-git-skill-${Math.random().toString(36).slice(2, 8)}`);
   await mkdir(repoPath, { recursive: true });

@@ -1,7 +1,3 @@
-// Development-only type declarations for Bun globals and Node modules.
-// Bun provides these at runtime; these keep the editor's type-checker happy.
-// They carry no runtime cost. They mirror the JSON API of the node:* builtins.
-
 declare namespace process {
   export const env: Record<string, string>;
   const platform: string;

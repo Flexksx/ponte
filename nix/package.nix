@@ -6,8 +6,6 @@
       name = "ponte";
       version = "0.1.0";
 
-      # Source the repo root. A Bun build needs apps/ponte/src,
-      # apps/ponte/package.json, and apps/ponte/globals.d.ts.
       src = ../.;
 
       strictDeps = true;

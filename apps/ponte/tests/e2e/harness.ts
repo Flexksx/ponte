@@ -3,12 +3,9 @@ import { join, dirname } from "node:path";
 import { mkdir, writeFile, readFile, readlink, chmod, rm } from "node:fs/promises";
 import { tmpdir as osTmpdir } from "node:os";
 
-// binaryUnderTest is the compiled ponte binary. Tests run this as a real
-// subprocess against an isolated $HOME. When unset, it is compiled on demand.
 let binaryUnderTest = "";
 let binaryResolve: Promise<string> | null = null;
 
-// resolveBinary compiles the CLI once and caches the binary path.
 function resolveBinary(): Promise<string> {
   if (binaryUnderTest) return Promise.resolve(binaryUnderTest);
   if (binaryResolve) return binaryResolve;
@@ -37,8 +34,6 @@ export function binaryPath(): string {
   return binaryUnderTest;
 }
 
-// newHarness creates an isolated $HOME owned by one test. The on-disk store is
-// read-only, so the harness restores write permissions before removal.
 export async function newHarness(): Promise<Home> {
   const home = join(await osTmpdir(), `ponte-e2e-${randId()}`);
   await mkdir(home, { recursive: true });
@@ -90,8 +85,6 @@ export class Home {
     return res;
   }
 
-  // bootstrap runs `sync` once to initialise the on-disk config, then discards
-  // the output.
   async bootstrap(): Promise<void> {
     await this.mustRun("sync");
   }
@@ -112,7 +105,6 @@ export class Home {
     }
   }
 
-  // vendorPaths maps each vendor to its instruction file path (posix).
   vendorPaths(): Record<string, string> {
     return {
       "claude-code": join(this.home, ".claude", "CLAUDE.md"),
@@ -161,7 +153,6 @@ export class Home {
     }
   }
 
-  // fixturePath returns the absolute path to a fixture under tests/e2e/fixtures.
   fixturePath(name: string): string {
     const here = new URL(import.meta.url).pathname;
     const slash = here.lastIndexOf("/");
@@ -169,7 +160,6 @@ export class Home {
     return join(dir, "fixtures", name);
   }
 
-  // fixtureDir returns the absolute path to a fixture directory under tests/e2e/fixtures.
   fixtureDir(name: string): string {
     const here = new URL(import.meta.url).pathname;
     const slash = here.lastIndexOf("/");
@@ -177,13 +167,11 @@ export class Home {
     return join(dir, "fixtures", name);
   }
 
-  // register a cleanup for a temp dir the test created (e.g. a git repo).
   cleanup(fn: () => Promise<void>): void {
     this.cleanups.push(fn);
   }
 
   async close(): Promise<void> {
-    // The store is read-only; restore write perms before removing it.
     await makeWritable(this.home);
     for (const fn of this.cleanups.reverse()) {
       await fn();
@@ -192,7 +180,6 @@ export class Home {
   }
 }
 
-// makeWritable restores write perms on a tree so it can be removed. Best-effort.
 const makeWritable = async (root: string): Promise<void> => {
   const { readdir } = await import("node:fs/promises");
   try {
@@ -202,11 +189,11 @@ const makeWritable = async (root: string): Promise<void> => {
       try {
         await chmod(abs, 0o755);
       } catch {
-        // non-fatal; best-effort cleanup
+        void 0;
       }
     }
     await chmod(root, 0o755);
   } catch {
-    // non-fatal; best-effort cleanup
+    void 0;
   }
 };

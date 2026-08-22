@@ -61,10 +61,8 @@ describe("hashDir", () => {
     await writeFile(join(dir, "a.txt"), "world");
     const got = await hashDir(dir);
     expect(got).toHaveLength(64);
-    // Deterministic regardless of directory enumeration order.
     const again = await hashDir(dir);
     expect(got).toBe(again);
-    // Any change to contents changes the hash.
     await writeFile(join(dir, "a.txt"), "changed");
     expect(await hashDir(dir)).not.toBe(got);
   });

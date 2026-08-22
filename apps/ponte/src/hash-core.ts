@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
+import { sha256Hex } from "./hash-helpers";
 
-// ConfigError reports every problem found while decoding config.toml at once,
-// rather than stopping at the first one.
 export class ConfigError extends Error {
   readonly problems: readonly string[];
   constructor(problems: readonly string[]) {
@@ -10,23 +9,11 @@ export class ConfigError extends Error {
   }
 }
 
-const sha256Hex = (s: string): string =>
-  createHash("sha256").update(s).digest("hex");
-
-// hashEntries reproduces Go's hashDir for a directory given as (relative path,
-// contents) pairs. The caller supplies the pairs in lexical walk order.
-export function hashEntries(
-  files: ReadonlyArray<readonly [rel: string, content: string]>,
-): string {
-  const body =
-    files
-      .map(([rel, content]) => `${rel}:${sha256Hex(content)}`)
-      .join("\n") + "\n";
+export function hashEntries(files: ReadonlyArray<readonly [rel: string, content: string]>): string {
+  const body = files.map(([rel, content]) => `${rel}:${sha256Hex(content)}`).join("\n") + "\n";
   return sha256Hex(body);
 }
 
-// computeHash reproduces Go's ComputeHash. It receives already-computed
-// directory hashes so it stays pure.
 export function computeHash(
   prompt: string,
   skills: ReadonlyArray<readonly [name: string, dirHash: string]>,

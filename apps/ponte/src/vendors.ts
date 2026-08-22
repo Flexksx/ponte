@@ -1,16 +1,10 @@
 import { join } from "./paths";
 
-export const VENDORS = [
-  "claude-code",
-  "codex",
-  "gemini-cli",
-  "cursor-agent",
-] as const;
+export const VENDORS = ["claude-code", "codex", "gemini-cli", "cursor-agent"] as const;
 
 export type VendorName = (typeof VENDORS)[number];
 
-export const isVendor = (s: string): s is VendorName =>
-  (VENDORS as readonly string[]).includes(s);
+export const isVendor = (s: string): s is VendorName => (VENDORS as readonly string[]).includes(s);
 
 export type Platform = "posix" | "win32";
 
@@ -43,18 +37,10 @@ const WIN_SPECS: Record<VendorName, VendorSpec> = {
   "cursor-agent": { root: "Cursor", instruction: "rules/global.mdc" },
 };
 
-// vendorLayouts computes every vendor's on-disk targets. On posix the vendor
-// roots live directly under $HOME; on windows under AppData/Roaming.
-export function vendorLayouts(
-  home: string,
-  pf: Platform,
-): Record<VendorName, VendorLayout> {
+export function vendorLayouts(home: string, pf: Platform): Record<VendorName, VendorLayout> {
   const specs = pf === "win32" ? WIN_SPECS : POSIX_SPECS;
   const base = pf === "win32" ? join(home, "AppData", "Roaming") : home;
-  const out: Record<VendorName, VendorLayout> = {} as Record<
-    VendorName,
-    VendorLayout
-  >;
+  const out: Record<VendorName, VendorLayout> = {} as Record<VendorName, VendorLayout>;
   for (const name of VENDORS) {
     const root = join(base, specs[name].root);
     out[name] = {
