@@ -4,7 +4,8 @@
   "type": "module",
   "dev": true,
   "trust": [],
-  "dependencies": {
-    "@types/node": "^24.0.0"
+  "dependencies": {},
+  "devDependencies": {
+    "@types/bun": "latest"
   }
 }

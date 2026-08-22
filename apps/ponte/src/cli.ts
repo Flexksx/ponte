@@ -150,9 +150,15 @@ async function runStatus(args: string[]): Promise<void> {
   }
 
   process.stdout.write(`Would-be generation: ${shortHash(wouldBe)}\n\n`);
-  const header = ["VENDOR", "ENABLED", "ACTIVE", "STATE"];
-  const [v, e, ac] = header.map((h, i) => h.padEnd([12, 7, 12, 1][i]));
-  process.stdout.write(`${v}  ${e}  ${ac}  ${header[3]}\n`);
+  process.stdout.write(
+    "VENDOR".padEnd(12) +
+      "  " +
+      "ENABLED".padEnd(7) +
+      "  " +
+      "ACTIVE".padEnd(12) +
+      "  " +
+      "STATE\n",
+  );
   for (const row of rows) {
     const enabled = row.enabled ? "yes" : "no";
     const active = row.hasActive ? shortHash(row.activeHash) : "—";
