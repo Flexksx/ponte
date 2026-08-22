@@ -5,19 +5,6 @@
 {
   "load_direnv": "shell_hook",
   "languages": {
-    "Go": {
-      "language_servers": ["gopls"],
-      "format_on_save": "on",
-      "code_actions_on_format": {
-        "source.organizeImports": true
-      },
-      "formatter": {
-        "external": {
-          "command": "gofumpt",
-          "arguments": []
-        }
-      }
-    },
     "TypeScript": {
       "format_on_save": "on",
       "tab_size": 2,
@@ -36,14 +23,6 @@
           "command": "biome",
           "arguments": ["format", "--write"]
         }
-      }
-    }
-  },
-  "lsp": {
-    "gopls": {
-      "initialization_options": {
-        "gofumpt": true,
-        "staticcheck": true
       }
     }
   },

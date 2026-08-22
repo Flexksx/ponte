@@ -1,4 +1,10 @@
+# Nix / direnv
 .direnv/
 result
 result-*
+
+# Build output
 /out/
+
+# Bun package cache
+node_modules/

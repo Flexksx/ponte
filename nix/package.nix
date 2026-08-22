@@ -15,6 +15,7 @@
 
       dontConfigure = true;
       dontBuild = false;
+      dontStrip = true;
 
       buildPhase = ''
         runHook preBuild
