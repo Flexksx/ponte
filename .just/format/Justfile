@@ -1,6 +1,0 @@
-set working-directory := "../.."
-
-# Format the Bun/TS source and tests
-[private]
-default:
-    biome format --write ./apps/ponte/src ./apps/ponte/tests
