@@ -16,17 +16,19 @@ drifting across six trees.
 
 ponte is the bridge between them. You declare your system prompt,
 skills, and subagents **once** in `~/.config/ponte/`. `ponte sync`
-resolves every source, builds an immutable, content-addressed **store
-generation**, and activates it by symlinking each vendor's config
-directory into that store. One source of truth fans out to every tool.
+resolves every source and symlinks it into each vendor's config
+directory. One source of truth fans out to every tool.
 
-Because the store is immutable and content-addressed:
+Because the links point straight at your sources:
 
-- Editing a source file has **no effect on running agents** until the
-  next `ponte sync` — no accidental mid-session changes.
-- Identical inputs reuse the same generation (same hash, no rebuild).
-- Agents cannot modify their own configuration — the store is read-only.
-- Every past generation stays addressable until you `ponte gc` it.
+- An edit to a skill or a prompt reaches every vendor at once. There is
+  nothing to rebuild.
+- `ponte sync` removes the links for what you deleted from the config,
+  so a dropped skill stops loading everywhere.
+- A real file or directory you put in a vendor folder is left alone.
+  ponte only removes links it could have created.
+- Nothing is copied, so there is no store to grow and nothing to
+  garbage collect.
 
 ## Install
 
@@ -50,7 +52,7 @@ ponte sync
 ponte sysprompt set ~/prompts/my-prompt.md
 ponte sync
 
-# See where every vendor stands — active generation and drift
+# See where every vendor stands
 ponte status
 
 # List what's declared
@@ -60,11 +62,8 @@ ponte subagents
 # Sync to a single vendor only
 ponte sync -a claude-code
 
-# Preview a change without touching the store or any vendor
+# Preview a change without touching any vendor
 ponte sync --dry-run
-
-# Reclaim store generations no vendor points to anymore
-ponte gc
 
 # Read the full manual
 ponte manual
@@ -118,8 +117,8 @@ enabled = true
 enabled = true
 
 # Skills — one [skills.<name>] section per skill. Each is a directory
-# containing a SKILL.md file plus supporting files, synced to every
-# enabled vendor.
+# containing a SKILL.md file plus supporting files. Every enabled vendor
+# gets a link to it.
 
 [skills.software-engineering]
 source = "skills/software-engineering"   # relative to ~/.config/ponte/
@@ -129,13 +128,9 @@ source = "https://github.com/example/ast-grep-skill"
 ref    = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"   # full commit SHA preferred
 subdir = ""   # optional: subdirectory inside the repo that contains the skill
 
-# Per-vendor override — disable a skill for a specific vendor only.
-[skills.ast-grep.vendors.antigravity-cli]
-enabled = false
-
 # Subagents — one [subagents.<name>] section per subagent. Each source
-# resolves to a directory of agent definition files, flattened into
-# every enabled vendor's agents directory. Same source schema as skills.
+# resolves to a directory of agent definition files. Each of those files
+# gets a link in every enabled vendor agents directory.
 
 [subagents.claude]
 source = "subagents/claude"   # relative to the config directory
@@ -148,7 +143,6 @@ source = "subagents/claude"   # relative to the config directory
 | `[skills.<name>].source` | string | — | Local directory path, or a git URL (with `ref`/`subdir`). |
 | `[skills.<name>].ref` | string | — | For git only: branch, tag, or commit. Prefer full commit SHAs. |
 | `[skills.<name>].subdir` | string | — | Optional subdirectory inside the git repo that holds the skill. |
-| `[skills.<name>].vendors.<vendor>` | table | — | Per-vendor override: `enabled = false` hides the skill from that vendor. |
 | `[subagents.<name>].source` | string | — | Directory of agent files, or a git URL; same schema as a skill source. |
 | `[subagents.<name>].ref` | string | — | For git only: branch, tag, or commit. Prefer full commit SHAs. |
 | `[subagents.<name>].subdir` | string | — | Optional subdirectory inside the git repo. |
@@ -185,31 +179,17 @@ sync` is **never run automatically** — run it yourself after a rebuild.
     systemPromptFile = "/home/me/config/ai_agents/AGENTS.md";
 
     # Toggle individual vendors; unset vendors default to enabled.
-    agents."antigravity-cli".enable = false;
+    vendors."antigravity-cli".enable = false;
 
-    skills = [
-      {
-        name = "my-skill";
-        source = {
-          type = "git";
-          url = "https://github.com/me/skills";
-          ref = "main";
-          subdir = "my-skill";
-        };
-      }
-    ];
+    skills."my-skill" = {
+      source = "https://github.com/me/skills";
+      ref = "abc123def456";
+      subdir = "my-skill";
+    };
 
-    # Subagents: each source resolves to a directory of agent files that
-    # are flattened into every enabled vendor's agents directory on sync.
-    subagents = [
-      {
-        name = "claude";
-        source = {
-          type = "local";
-          path = "/home/me/config/ai_agents/subagents/claude";
-        };
-      }
-    ];
+    # Subagents: each source resolves to a directory of agent files. Each
+    # file gets a link in every enabled vendor agents directory.
+    subagents."claude".source = "/home/me/config/ai_agents/subagents/claude";
   };
 }
 ```
@@ -219,13 +199,14 @@ sync` is **never run automatically** — run it yourself after a rebuild.
 | `enable` | bool | `false` | Install ponte and generate `config.toml`. |
 | `package` | package | flake's default | The ponte package to install. |
 | `systemPromptFile` | string | `"AGENTS.md"` | Maps to `system_prompt_file`. Bare name → relative to `~/.config/ponte/`; absolute → read as-is. |
-| `agents.<vendor>.enable` | bool | `true` | Per-vendor toggle. Vendors: `claude-code`, `codex`, `antigravity-cli`, `cursor-agent`, `opencode`, `pi-agent`. |
-| `skills` | list of `{ name; source; }` | `[]` | Skill declarations; `source` matches the TOML source schema. |
-| `subagents` | list of `{ name; source; }` | `[]` | Subagent declarations; same `source` schema as skills. |
+| `vendors.<vendor>.enable` | bool | `true` | Per-vendor toggle. Vendors: `claude-code`, `codex`, `antigravity-cli`, `cursor-agent`, `opencode`, `pi-agent`. |
+| `skills.<name>` | `{ source; ref; subdir; }` | `{}` | Skill declarations, keyed by skill name. |
+| `subagents.<name>` | `{ source; ref; subdir; }` | `{}` | Subagent declarations, keyed by subagent name. |
 | `settings` | TOML attrset | `{}` | Escape hatch for keys the module doesn't model; merged into `config.toml` and **takes precedence** over generated values. |
 
-`source` submodule fields: `type` (`"local"`/`"git"`), `path`, `url`,
-`ref`, `subdir` — same meanings as the [TOML source table](#toml-reference).
+The `source`, `ref` and `subdir` fields carry the same meanings as the
+[TOML source table](#toml-reference). `ref` and `subdir` default to `""`
+and are omitted from `config.toml` when empty.
 
 ## Documentation
 

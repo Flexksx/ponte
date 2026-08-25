@@ -1,5 +1,4 @@
 import { describe, expect, it } from "bun:test";
-import { readlink } from "node:fs/promises";
 import { join } from "node:path";
 import type { Home } from "./harness";
 import { newHarness } from "./harness";
@@ -27,7 +26,7 @@ describe("subagent sync", () => {
     await h.close();
   });
 
-  it("symlinks subagent files from the store", async () => {
+  it("symlinks each subagent file to its source", async () => {
     if (isWindows()) return;
     const h = await newHarness();
     await h.bootstrap();
@@ -37,25 +36,22 @@ describe("subagent sync", () => {
 
     await h.mustRun("sync");
 
-    await h.assertIsStoreSymlink(h.vendorAgentPath("claude-code", "code-investigator.md"));
+    await h.assertSymlinkTo(
+      h.vendorAgentPath("claude-code", "code-investigator.md"),
+      join(subagentsDir, "code-investigator.md"),
+    );
     await h.close();
   });
 
-  it("creates a new generation when a subagent is added", async () => {
+  it("links a subagent added after the first sync", async () => {
     if (isWindows()) return;
     const h = await newHarness();
     await h.bootstrap();
     await h.mustRun("sync");
 
-    const firstTarget = await readlink(h.vendorPaths()["claude-code"]);
-
     const subagentsDir = h.fixtureDir("subagents");
     await appendConfigWithSubagent(h, "claude", subagentsDir);
     await h.mustRun("sync");
-
-    const secondTarget = await readlink(h.vendorPaths()["claude-code"]);
-
-    expect(secondTarget).not.toBe(firstTarget);
     expect(await h.readFileText(h.vendorAgentPath("claude-code", "fullstack-agent.md"))).toContain(
       "fullstack",
     );

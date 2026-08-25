@@ -6,16 +6,7 @@ export const DEFAULT_SYSTEM_PROMPT_FILE = "AGENTS.md";
 
 export type VendorConfig = { readonly enabled: boolean };
 
-export type VendorSkillConfig = { readonly enabled?: boolean };
-
-export type SkillEntry = {
-  readonly source: string;
-  readonly ref?: string;
-  readonly subdir?: string;
-  readonly vendors?: Readonly<Partial<Record<VendorName, VendorSkillConfig>>>;
-};
-
-export type SubagentEntry = {
+export type SourceEntry = {
   readonly source: string;
   readonly ref?: string;
   readonly subdir?: string;
@@ -24,8 +15,8 @@ export type SubagentEntry = {
 export type Config = {
   readonly systemPromptFile: string;
   readonly vendors: Readonly<Partial<Record<VendorName, VendorConfig>>>;
-  readonly skills: Readonly<Record<string, SkillEntry>>;
-  readonly subagents: Readonly<Record<string, SubagentEntry>>;
+  readonly skills: Readonly<Record<string, SourceEntry>>;
+  readonly subagents: Readonly<Record<string, SourceEntry>>;
 };
 
 export const defaultConfig = (): Config => ({
@@ -38,21 +29,24 @@ export const defaultConfig = (): Config => ({
 export const enabledVendors = (config: Config): VendorName[] =>
   VENDORS.filter(vendor => config.vendors[vendor]?.enabled === true);
 
-export const isSkillEnabledForVendor = (entry: SkillEntry, vendor: VendorName): boolean =>
-  entry.vendors?.[vendor]?.enabled !== false;
+const withAbsoluteSource = (entry: SourceEntry, configDirectory: string): SourceEntry =>
+  isGitSource(entry.source) || isAbsolute(entry.source)
+    ? entry
+    : { ...entry, source: join(configDirectory, entry.source) };
 
-export const normalizeConfig = (config: Config, configDirectory: string): Config => {
-  const absolute = <E extends { source: string }>(entry: E): E => {
-    if (isGitSource(entry.source) || isAbsolute(entry.source)) return entry;
-    return { ...entry, source: join(configDirectory, entry.source) };
-  };
-  return {
-    ...config,
-    skills: Object.fromEntries(
-      Object.entries(config.skills).map(([name, entry]) => [name, absolute(entry)]),
-    ),
-    subagents: Object.fromEntries(
-      Object.entries(config.subagents).map(([name, entry]) => [name, absolute(entry)]),
-    ),
-  };
-};
+const absoluteSources = (
+  entries: Readonly<Record<string, SourceEntry>>,
+  configDirectory: string,
+): Record<string, SourceEntry> =>
+  Object.fromEntries(
+    Object.entries(entries).map(([name, entry]) => [
+      name,
+      withAbsoluteSource(entry, configDirectory),
+    ]),
+  );
+
+export const normalizeConfig = (config: Config, configDirectory: string): Config => ({
+  ...config,
+  skills: absoluteSources(config.skills, configDirectory),
+  subagents: absoluteSources(config.subagents, configDirectory),
+});

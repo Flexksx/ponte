@@ -17,33 +17,27 @@ describe("sync", () => {
     await h.close();
   });
 
-  it("only writes named vendors with -a", async () => {
+  it("only links named vendors with -a", async () => {
     const h = await newHarness();
-    await h.bootstrap();
-    await h.mustRun("sysprompt", "set", samplePrompt);
-
     await h.mustRun("sync", "-a", "claude-code,antigravity-cli");
 
     const paths = h.vendorPaths();
-    await h.assertFileEquals(paths["claude-code"], samplePrompt);
-    await h.assertFileEquals(paths["antigravity-cli"], samplePrompt);
-    await h.assertFileEquals(paths.codex, "");
-    await h.assertFileEquals(paths["cursor-agent"], "");
+    await h.assertSymlinkTo(paths["claude-code"], h.configPath("AGENTS.md"));
+    await h.assertSymlinkTo(paths["antigravity-cli"], h.configPath("AGENTS.md"));
+    await h.assertMissing(paths.codex);
+    await h.assertMissing(paths["cursor-agent"]);
     await h.close();
   });
 
   it("accepts repeated -a flags", async () => {
     const h = await newHarness();
-    await h.bootstrap();
-    await h.mustRun("sysprompt", "set", samplePrompt);
-
     await h.mustRun("sync", "-a", "claude-code", "-a", "codex");
 
     const paths = h.vendorPaths();
-    await h.assertFileEquals(paths["claude-code"], samplePrompt);
-    await h.assertFileEquals(paths.codex, samplePrompt);
-    await h.assertFileEquals(paths["antigravity-cli"], "");
-    await h.assertFileEquals(paths["cursor-agent"], "");
+    await h.assertSymlinkTo(paths["claude-code"], h.configPath("AGENTS.md"));
+    await h.assertSymlinkTo(paths.codex, h.configPath("AGENTS.md"));
+    await h.assertMissing(paths["antigravity-cli"]);
+    await h.assertMissing(paths["cursor-agent"]);
     await h.close();
   });
 
@@ -91,39 +85,31 @@ describe("sync", () => {
 
   it("skips a disabled vendor", async () => {
     const h = await newHarness();
-    await h.mustRun("sync");
-    await h.mustRun("sysprompt", "set", samplePrompt);
+    await h.mustRun("sync", "-a", "claude-code");
 
     const cfg = await h.readFileText(h.configPath("config.toml"));
-    const withDisabled = cfg.replace(
-      "[vendors.codex]\nenabled = true",
-      "[vendors.codex]\nenabled = false",
+    await h.writeFile(
+      h.configPath("config.toml"),
+      cfg.replace("[vendors.codex]\nenabled = true", "[vendors.codex]\nenabled = false"),
     );
-    await h.writeFile(h.configPath("config.toml"), withDisabled);
 
     await h.mustRun("sync");
 
     const paths = h.vendorPaths();
-    await h.assertFileEquals(paths["claude-code"], samplePrompt);
-    await h.assertFileEquals(paths["antigravity-cli"], samplePrompt);
-    await h.assertFileEquals(paths["cursor-agent"], samplePrompt);
-    await h.assertFileEquals(paths.codex, "");
+    await h.assertSymlinkTo(paths["claude-code"], h.configPath("AGENTS.md"));
+    await h.assertSymlinkTo(paths["antigravity-cli"], h.configPath("AGENTS.md"));
+    await h.assertMissing(paths.codex);
     await h.close();
   });
 
-  it("runs a dry run without writing anything", async () => {
+  it("runs a dry run without creating a link", async () => {
     const h = await newHarness();
-    await h.bootstrap();
-    await h.mustRun("sysprompt", "set", "v1");
-    await h.mustRun("sync");
+    await h.mustRun("sync", "-a", "claude-code");
 
-    const before = await countGenerations(h);
-    await h.mustRun("sysprompt", "set", "v2-dry");
-    const { stdout } = await h.mustRun("sync", "--dry-run");
+    const { stdout } = await h.mustRun("sync", "--dry-run", "-a", "claude-code,codex");
     expect(stdout).toContain("Dry run");
 
-    const after = await countGenerations(h);
-    expect(after).toBe(before);
+    await h.assertMissing(h.vendorPaths().codex);
     await h.close();
   });
 
@@ -143,16 +129,6 @@ describe("sync", () => {
     await h.close();
   });
 });
-
-const countGenerations = async (h: Home): Promise<number> => {
-  const { readdir } = await import("node:fs/promises");
-  try {
-    const entries = await readdir(h.storePath());
-    return entries.filter((e: string) => !e.endsWith(".build")).length;
-  } catch {
-    return 0;
-  }
-};
 
 const snapshotVendorFiles = async (h: Home): Promise<Record<string, string>> => {
   const out: Record<string, string> = {};

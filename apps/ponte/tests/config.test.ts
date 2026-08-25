@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { type Config, normalizeConfig, type SkillEntry } from "../src/domain/config";
+import { type Config, normalizeConfig, type SourceEntry } from "../src/domain/config";
 import { isGitSource, parseSource } from "../src/domain/source";
 import { ConfigError, decodeConfig } from "../src/infra/config-codec";
 
-const cfgWith = (skills: Record<string, SkillEntry> = {}) =>
+const cfgWith = (skills: Record<string, SourceEntry> = {}) =>
   ({
     systemPromptFile: "AGENTS.md",
     vendors: {},

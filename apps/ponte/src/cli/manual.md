@@ -10,30 +10,30 @@ Supported vendors: `claude-code`, `codex`, `antigravity-cli`,
 
 ### How it works
 
-1. You declare your system prompt, skills, and subagents in
-   `~/.config/ponte/`.
-2. `ponte sync` resolves all skill and subagent sources, builds a
-   content-addressed **store generation** under
-   `~/.local/share/ponte/store/`, and creates symlinks from each
-   vendor's config directory into the store.
-3. Editing the source files has no effect on running agents until the
-   next `ponte sync`. The store is read-only, so agents cannot
-   accidentally modify their own configuration.
+1. You declare the system prompt, the skills, and the subagents in
+   `~/.config/ponte/config.toml`.
+2. `ponte sync` resolves every source. A local source resolves to its
+   directory. A git source resolves to a clone under
+   `~/.cache/ponte/sources/`.
+3. `ponte sync` then creates one symlink per item in each enabled
+   vendor directory.
+4. `ponte sync` removes symlinks that the configuration no longer
+   declares. It never removes a real file or a real directory.
+
+The symlinks point at the source, so an edit to a source file reaches
+every vendor at once. Run `ponte sync` again only when you add an item,
+remove an item, or want a git source to fetch a new ref.
 
 ```text
 ~/.config/ponte/          source (editable)
   config.toml
   AGENTS.md
   skills/my-skill/
-
-~/.local/share/ponte/store/<hash>/   immutable generation
-  instruction
-  skills/my-skill/
   subagents/claude/code-investigator.md
 
-~/.claude/CLAUDE.md    → symlink into store
-~/.claude/skills/my-skill  → symlink into store
-~/.claude/agents/code-investigator.md  → symlink into store
+~/.claude/CLAUDE.md                    → ~/.config/ponte/AGENTS.md
+~/.claude/skills/my-skill              → ~/.config/ponte/skills/my-skill
+~/.claude/agents/code-investigator.md  → ~/.config/ponte/subagents/claude/code-investigator.md
 ```
 
 ---
@@ -62,7 +62,7 @@ pi-agent        = { enabled = true }
 
 # Skills — one [skills.<name>] section per skill.
 # Each skill is a directory containing a SKILL.md file plus any supporting files.
-# Synced to every enabled vendor unless a per-vendor override disables it.
+# Every enabled vendor gets a link to the skill directory.
 
 [skills.software-engineering]
 source = "skills/software-engineering"   # relative to ~/.config/ponte/
@@ -72,13 +72,9 @@ source = "https://github.com/example/ast-grep-skill"
 ref    = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"   # full commit SHA recommended
 subdir = ""   # optional: subdirectory inside the repo that contains the skill
 
-# Per-vendor override — disable a skill for a specific vendor only.
-[skills.ast-grep.vendors.antigravity-cli]
-enabled = false
-
 # Subagents — one [subagents.<name>] section per subagent.
 # Each subagent source resolves to a directory of agent definition files.
-# Those files are flattened into every enabled vendor's agents directory.
+# Each of those files gets a link in every enabled vendor agents directory.
 
 [subagents.claude]
 source = "subagents/claude"   # relative to ~/.config/ponte/
@@ -109,39 +105,19 @@ subdir = "skills/my-skill"   # optional
 `source` is treated as a git URL when it starts with `https://`,
 `http://`, `git@`, or `file://`. ponte clones the repo into
 `~/.cache/ponte/sources/` and checks out `ref` on every sync. `ref` can
-be a branch name, tag, or commit SHA. **Prefer full commit SHAs** — a
-branch name moves and a changed ref changes the store hash, forcing a
-rebuild.
+be a branch name, tag, or commit SHA. Prefer a full commit SHA, because
+a branch name moves.
 
 The `subdir` field scopes the skill to a subdirectory of the repo. Omit
 it to use the repo root.
 
-Note: two skills from the same repo at different refs are not supported
-in v1. Use distinct repos or distinct commits for independent skills.
-
-### Per-vendor skill overrides
-
-A skill is synced to all enabled vendors by default. To restrict a
-skill to specific vendors, add `[skills.<name>.vendors.<vendor>]`
-sections:
-
-```toml
-[skills.java-dev]
-source = "skills/java-dev"
-
-[skills.java-dev.vendors.codex]
-enabled = false
-
-[skills.java-dev.vendors.cursor-agent]
-enabled = false
-```
-
-This syncs `java-dev` to every vendor except `codex` and `cursor-agent`.
+The clone directory is keyed by URL and ref together. Two skills can
+use the same repo at different refs.
 
 ### Skill directory layout
 
-A skill directory must contain a `SKILL.md` file. Any additional files
-(referenced from SKILL.md) are copied alongside it.
+A skill directory must contain a `SKILL.md` file. The vendor links to
+the directory, so every other file in it is available too.
 
 ```text
 my-skill/
@@ -179,8 +155,8 @@ other vendors receive the files at `<vendor-root>/agents/` regardless.
 
 ### `ponte sync`
 
-Resolve all skill sources, build a store generation, and activate it for
-all enabled vendors.
+Resolve every source, then link the results into each enabled vendor
+directory.
 
 ```text
 ponte sync [flags]
@@ -188,64 +164,40 @@ ponte sync [flags]
 
 | Flag | Short | Description |
 |------|-------|-------------|
-| `--global-instructions <file-or-string>` | `-g` | Override the system prompt for this invocation only. Reads from file if the argument is a path to an existing file; otherwise uses the string literally. The stored `AGENTS.md` is not modified. |
-| `--agents <list>` | `-a` | Comma-separated list of vendors to target, bypassing config. Example: `claude-code,codex`. |
-| `--dry-run` | | Resolve all sources and report the generation hash that would be built and the vendors that would be updated, without writing to the store or touching any vendor symlink. |
+| `--global-instructions <file-or-string>` | `-g` | Use another system prompt for this run. If the argument is a path to a file, the vendors link to that file. If it is a string, ponte writes it to `~/.local/share/ponte/instruction` and the vendors link there. The configured `AGENTS.md` does not change. |
+| `--agents <list>` | `-a` | Comma-separated list of vendors to target, in place of the configuration. Example: `claude-code,codex`. |
+| `--dry-run` | | Resolve every source and report the vendors and the stale link count, without any write. |
 
-On first run with no config present, `ponte sync` bootstraps
-`~/.config/ponte/config.toml` and an empty `AGENTS.md`, then proceeds.
+If no configuration file exists, `ponte sync` first creates
+`~/.config/ponte/config.toml` and an empty `AGENTS.md`.
 
-On success, `sync` prints the activated generation hash and the targeted
-vendors. With `--dry-run` it prints the generation that *would* be built and
-where it *would* sync, then exits without side effects — useful to preview the
-effect of source edits before committing them.
+`ponte sync` removes a symlink in a vendor `skills` or `agents`
+directory when the configuration no longer declares it. A real file or
+a real directory in those locations is never removed.
 
-**Exit codes:** 0 on success. Non-zero on any error (unknown agent,
-skill resolution failure, filesystem error).
+**Exit codes:** 0 on success. Non-zero on any error, for example an
+unknown agent, a source that does not resolve, or a filesystem error.
 
 ---
 
 ### `ponte status`
 
-Show, per vendor, the generation its instruction symlink currently resolves to
-and whether it has drifted from what a sync would build now.
+Show, for each vendor, whether its links match the configuration.
 
 ```text
 ponte status
 ```
 
-The first line reports the **would-be generation** — the hash a `ponte sync`
-would produce from the current sources. Each vendor row then shows:
+The first line names the system prompt file. Each vendor row shows:
 
 | Column | Meaning |
 |--------|---------|
 | `VENDOR` | The vendor name. |
 | `ENABLED` | Whether the vendor is enabled in `config.toml`. |
-| `ACTIVE` | The generation hash the vendor currently points at, or `—` if never synced. |
-| `STATE` | `in sync` (active matches would-be), `drifted` (active differs), `not synced` (no active generation), or `disabled` (a sync will not touch it). |
+| `LINKS` | The number of ponte symlinks in the vendor directories, or `—` when there are none. |
+| `STATE` | `in sync` (every link is correct and no extra link remains), `drifted` (a link is missing, points elsewhere, or the configuration no longer declares it), `not synced` (no links), or `disabled` (a sync does not touch it). |
 
-Resolving the would-be generation fetches any git-backed sources, exactly as a
-real sync would.
-
----
-
-### `ponte gc`
-
-Remove store generations that no vendor currently points to. All vendors are
-considered — including disabled ones — so a generation pinned by any vendor
-symlink is always kept.
-
-```text
-ponte gc [--dry-run]
-```
-
-| Flag | Description |
-|------|-------------|
-| `--dry-run` | List the generations that would be removed without deleting them. |
-
-The store has no automatic garbage collection; superseded generations
-accumulate after every source change. `gc` reclaims them. The active
-generation for each vendor is never removed.
+`ponte status` resolves git sources, exactly as a real sync does.
 
 ---
 
@@ -354,14 +306,12 @@ ref    = "abc123def456"
 subdir = "external-skill"
 ```
 
-### Disable a skill for a specific vendor
+### Remove a skill everywhere
 
-```toml
-[skills.java-dev]
-source = "skills/java-dev"
+Delete the `[skills.<name>]` section, then sync:
 
-[skills.java-dev.vendors.codex]
-enabled = false
+```sh
+ponte sync   # the link to that skill is removed from every vendor
 ```
 
 ### Sync to a specific vendor only
@@ -370,7 +320,7 @@ enabled = false
 ponte sync -a claude-code
 ```
 
-### Override system prompt without changing the stored one
+### Use another system prompt without changing the stored one
 
 ```sh
 ponte sync -g "Temporary debugging instructions"
@@ -384,7 +334,7 @@ codex = { enabled = false }
 ```
 
 ```sh
-ponte sync   # codex symlinks are not updated
+ponte sync   # codex gets no links
 ```
 
 ---
@@ -400,28 +350,24 @@ Migration steps:
 1. Remove the relevant `home.file` or `programs.*` entries from your
    home-manager flake.
 2. Run `home-manager switch` — this removes the nix-store symlinks.
-3. Run `ponte sync` — ponte creates its own symlinks into the ponte
-   store.
+3. Run `ponte sync`. ponte creates its own symlinks.
 
 Do not run `ponte sync` before step 2 — home-manager's next activation
 will overwrite ponte's links.
 
 ---
 
-## Store and caching
+## Caching
 
-**Store location:** `~/.local/share/ponte/store/<hash>/`
+**Git cache location:** `~/.cache/ponte/sources/<hash>/`
 
-Each sync with identical inputs reuses the same store generation (same
-hash, no copy). Changing any input — prompt content, a skill file, or a
-git ref — produces a new generation.
+The `<hash>` is derived from the URL and the ref together, so the same
+repo at two refs gets two clones. A repo already in the cache is
+fetched, not cloned again.
 
-**Git cache location:** `~/.cache/ponte/sources/<url-hash>/`
+Vendor symlinks for a git skill point into this cache. Do not delete a
+cache directory while a vendor links to it. To start again, remove
+`~/.cache/ponte/sources/` and run `ponte sync`.
 
-Cloned repos are fetched (not re-cloned) on subsequent syncs.
-
-**Garbage collection:** there is no *automatic* GC — generations accumulate
-after every source change. Run `ponte gc` to remove every generation no vendor
-points to (use `ponte gc --dry-run` to preview). The active generation for each
-vendor is always kept. To clear everything unconditionally, `rm -rf
-~/.local/share/ponte/store/`; the next `ponte sync` rebuilds from source.
+A local skill needs no cache. Its symlink points straight at the source
+directory, so an edit is visible to every vendor at once.

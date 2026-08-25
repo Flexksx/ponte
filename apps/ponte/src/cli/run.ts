@@ -1,19 +1,16 @@
 import { parseArgs } from "node:util";
 import chalk from "chalk";
 import { requireConfig } from "../app/configuration";
-import { collectGarbage, planGarbageCollection } from "../app/gc";
 import { readStatus, type StatusReport } from "../app/status";
 import { planSync, runSync, type SyncReport } from "../app/sync";
 import { readSystemPrompt, setSystemPrompt } from "../app/sysprompt";
-import type { Config, SkillEntry, SubagentEntry } from "../domain/config";
-import type { Generation, VendorState } from "../domain/generation";
-import { shortHash } from "../domain/hashing";
+import type { Config, SourceEntry } from "../domain/config";
+import type { VendorState } from "../domain/link";
 import { describeSource, isGitSource, parseSource } from "../domain/source";
 import manualText from "./manual.md" with { type: "text" };
 
-const NAME_COLUMN = 12;
 const FLAG_COLUMN = 7;
-const HASH_COLUMN = 12;
+const LINKS_COLUMN = 5;
 const TYPE_COLUMN = 5;
 
 const HELP_FLAGS = new Set(["help", "--help", "-h"]);
@@ -62,29 +59,32 @@ const runSyncCommand = async (args: string[]): Promise<void> => {
   const dryRun = values["dry-run"] === true;
   const report = dryRun ? await planSync(request) : await runSync(request);
   printBootstrap(report);
-  const verb = dryRun ? "Dry run - would " : "";
-  write(
-    `${verb}build generation ${chalk.cyan(shortHash(report.hash))} and sync to: ${report.vendors.join(", ")}\n`,
-  );
+  const verb = dryRun ? "Dry run - would link" : "Linked";
+  write(`${verb} to: ${report.vendors.join(", ")}\n`);
+  if (report.stale > 0) {
+    const removal = dryRun ? "would be removed" : "removed";
+    write(`${chalk.dim(`${report.stale} stale link(s) ${removal}.`)}\n`);
+  }
 };
 
 const printStatus = (report: StatusReport): void => {
-  write(`Would-be generation: ${chalk.cyan(shortHash(report.expectedHash))}\n\n`);
+  write(`System prompt: ${chalk.cyan(report.promptFile)}\n\n`);
+  const width = Math.max("VENDOR".length, ...report.vendors.map(vendor => vendor.name.length));
   write(
     `${chalk.bold(
-      `${"VENDOR".padEnd(NAME_COLUMN)}  ${"ENABLED".padEnd(FLAG_COLUMN)}  ${"ACTIVE".padEnd(HASH_COLUMN)}  STATE`,
+      `${"VENDOR".padEnd(width)}  ${"ENABLED".padEnd(FLAG_COLUMN)}  ${"LINKS".padEnd(LINKS_COLUMN)}  STATE`,
     )}\n`,
   );
   for (const vendor of report.vendors) {
     const enabled = vendor.enabled
       ? chalk.green("yes".padEnd(FLAG_COLUMN))
       : chalk.dim("no".padEnd(FLAG_COLUMN));
-    const active =
-      vendor.activeHash === null
-        ? chalk.dim("—".padEnd(HASH_COLUMN))
-        : chalk.cyan(shortHash(vendor.activeHash).padEnd(HASH_COLUMN));
+    const links =
+      vendor.linkCount === 0
+        ? chalk.dim("—".padEnd(LINKS_COLUMN))
+        : chalk.cyan(String(vendor.linkCount).padEnd(LINKS_COLUMN));
     write(
-      `${vendor.name.padEnd(NAME_COLUMN)}  ${enabled}  ${active}  ${STATE_STYLES[vendor.state](vendor.state)}\n`,
+      `${vendor.name.padEnd(width)}  ${enabled}  ${links}  ${STATE_STYLES[vendor.state](vendor.state)}\n`,
     );
   }
 };
@@ -94,28 +94,8 @@ const runStatusCommand = async (args: string[]): Promise<void> => {
   printStatus(await readStatus());
 };
 
-const printGcPlan = (verb: string, remove: readonly Generation[], keep: readonly Generation[]) => {
-  if (remove.length === 0) {
-    write(`Nothing to remove; ${keep.length} generation(s) in use.\n`);
-    return;
-  }
-  write(`${verb} ${remove.length} generation(s), kept ${keep.length} in use:\n`);
-  for (const generation of remove) write(`  ${chalk.cyan(shortHash(generation.hash))}\n`);
-};
-
-const runGcCommand = async (args: string[]): Promise<void> => {
-  const { values } = parseArgs({
-    args,
-    options: { "dry-run": { type: "boolean" } },
-    allowPositionals: true,
-  });
-  const dryRun = values["dry-run"] === true;
-  const plan = dryRun ? await planGarbageCollection() : await collectGarbage();
-  printGcPlan(dryRun ? "Would remove" : "Removed", plan.remove, plan.keep);
-};
-
 const printEntries = (noun: "skills" | "subagents", config: Config): void => {
-  const entries: Array<[string, SkillEntry | SubagentEntry]> = Object.entries(config[noun]);
+  const entries: Array<[string, SourceEntry]> = Object.entries(config[noun]);
   if (entries.length === 0) {
     write(`No ${noun} configured.\n`);
     return;
@@ -172,15 +152,14 @@ const runManualCommand = async (): Promise<void> => {
 const commandTable = (): readonly Command[] => [
   {
     name: "sync",
-    summary: "Sync the system prompt, skills, and subagents to configured vendors",
+    summary: "Link the system prompt, skills, and subagents into configured vendors",
     run: runSyncCommand,
   },
   {
     name: "status",
-    summary: "Show the active generation per vendor and whether sources have drifted",
+    summary: "Show which vendors are linked and whether the links match the config",
     run: runStatusCommand,
   },
-  { name: "gc", summary: "Remove store generations no vendor points to", run: runGcCommand },
   { name: "skills", summary: "List the skills declared in config.toml", run: runSkillsCommand },
   {
     name: "subagents",

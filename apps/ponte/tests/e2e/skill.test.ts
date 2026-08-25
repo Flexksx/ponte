@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { mkdir, readlink, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { tmpdir as osTmpdir } from "node:os";
 import { join } from "node:path";
 import { $ } from "bun";
@@ -38,7 +38,7 @@ describe("skill sync", () => {
     await h.close();
   });
 
-  it("symlinks the skill from the store", async () => {
+  it("symlinks the skill straight to its source directory", async () => {
     if (isWindows()) return;
     const h = await newHarness();
     await h.bootstrap();
@@ -48,20 +48,20 @@ describe("skill sync", () => {
 
     await h.mustRun("sync");
 
-    await h.assertIsStoreSymlink(h.vendorSkillPath("claude-code", "simple-skill"));
+    await h.assertSymlinkTo(h.vendorSkillPath("claude-code", "simple-skill"), skillFixtureDir);
     await h.close();
   });
 
-  it("symlinks the instruction file from the store", async () => {
+  it("symlinks the instruction file to the configured prompt", async () => {
     if (isWindows()) return;
     const h = await newHarness();
     await h.bootstrap();
 
-    await h.assertIsStoreSymlink(h.vendorPaths()["claude-code"]);
+    await h.assertSymlinkTo(h.vendorPaths()["claude-code"], h.configPath("AGENTS.md"));
     await h.close();
   });
 
-  it("reuses the store generation on identical inputs", async () => {
+  it("links a skill added after the first sync", async () => {
     if (isWindows()) return;
     const h = await newHarness();
     await h.bootstrap();
@@ -69,32 +69,43 @@ describe("skill sync", () => {
     const skillFixtureDir = h.fixtureDir("simple_skill");
     await appendConfigWithSkill(h, "simple-skill", skillFixtureDir);
     await h.mustRun("sync");
-
-    const firstTarget = await readlink(h.vendorPaths()["claude-code"]);
-    await h.mustRun("sync");
-    const secondTarget = await readlink(h.vendorPaths()["claude-code"]);
-
-    expect(secondTarget).toBe(firstTarget);
-    await h.close();
-  });
-
-  it("creates a new generation when a skill is added", async () => {
-    if (isWindows()) return;
-    const h = await newHarness();
-    await h.bootstrap();
-    await h.mustRun("sync");
-
-    const firstTarget = await readlink(h.vendorPaths()["claude-code"]);
-
-    const skillFixtureDir = h.fixtureDir("simple_skill");
-    await appendConfigWithSkill(h, "simple-skill", skillFixtureDir);
-    await h.mustRun("sync");
-
-    const secondTarget = await readlink(h.vendorPaths()["claude-code"]);
-    expect(secondTarget).not.toBe(firstTarget);
 
     const skillMD = join(h.vendorSkillPath("claude-code", "simple-skill"), "SKILL.md");
     expect(await h.readFileText(skillMD)).toContain("simple-skill");
+    await h.close();
+  });
+
+  it("removes the link when a skill leaves the config", async () => {
+    if (isWindows()) return;
+    const h = await newHarness();
+    await h.bootstrap();
+
+    const before = await h.readFileText(h.configPath("config.toml"));
+    await appendConfigWithSkill(h, "simple-skill", h.fixtureDir("simple_skill"));
+    await h.mustRun("sync");
+    await h.assertSymlinkTo(
+      h.vendorSkillPath("claude-code", "simple-skill"),
+      h.fixtureDir("simple_skill"),
+    );
+
+    await h.writeFile(h.configPath("config.toml"), before);
+    const { stdout } = await h.mustRun("sync");
+
+    expect(stdout).toContain("stale link(s) removed");
+    await h.assertMissing(h.vendorSkillPath("claude-code", "simple-skill"));
+    await h.close();
+  });
+
+  it("leaves a directory it did not create alone", async () => {
+    if (isWindows()) return;
+    const h = await newHarness();
+    await h.bootstrap();
+
+    const mine = h.vendorSkillPath("claude-code", "mine");
+    await h.writeFile(join(mine, "SKILL.md"), "hand written");
+    await h.mustRun("sync");
+
+    expect(await h.readFileText(join(mine, "SKILL.md"))).toBe("hand written");
     await h.close();
   });
 

@@ -1,4 +1,4 @@
-import { chmod, mkdir, readFile, readlink, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readlink, rm, writeFile } from "node:fs/promises";
 import { tmpdir as osTmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { $ } from "bun";
@@ -49,7 +49,6 @@ export class Home {
 
   constructor(home: string) {
     this.home = home;
-    this.cleanups.push(async () => makeWritable(home));
   }
 
   configPath(name: string): string {
@@ -147,15 +146,20 @@ export class Home {
     return join(this.vendorAgentsDirs()[vendor], agentFile);
   }
 
-  storePath(): string {
-    return join(this.home, ".local", "share", "ponte", "store");
+  async assertSymlinkTo(path: string, want: string): Promise<void> {
+    const target = await readlink(path);
+    if (target !== want) {
+      throw new Error(`expected symlink ${path} -> ${want}, got ${target}`);
+    }
   }
 
-  async assertIsStoreSymlink(path: string): Promise<void> {
-    const target = await readlink(path);
-    if (!target.startsWith(this.storePath())) {
-      throw new Error(`expected symlink target inside store ${this.storePath()}, got ${target}`);
+  async assertMissing(path: string): Promise<void> {
+    try {
+      await readlink(path);
+    } catch {
+      return;
     }
+    throw new Error(`expected no link at ${path}`);
   }
 
   fixturePath(name: string): string {
@@ -177,28 +181,9 @@ export class Home {
   }
 
   async close(): Promise<void> {
-    await makeWritable(this.home);
     for (const fn of this.cleanups.reverse()) {
       await fn();
     }
     await rm(this.home, { recursive: true, force: true });
   }
 }
-
-const makeWritable = async (root: string): Promise<void> => {
-  const { readdir } = await import("node:fs/promises");
-  try {
-    const entries = await readdir(root, { recursive: true });
-    for (const rel of entries) {
-      const abs = rel.startsWith("/") ? rel : join(root, rel);
-      try {
-        await chmod(abs, 0o755);
-      } catch {
-        void 0;
-      }
-    }
-    await chmod(root, 0o755);
-  } catch {
-    void 0;
-  }
-};

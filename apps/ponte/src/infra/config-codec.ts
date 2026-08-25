@@ -1,10 +1,8 @@
 import {
   type Config,
   DEFAULT_SYSTEM_PROMPT_FILE,
-  type SkillEntry,
-  type SubagentEntry,
+  type SourceEntry,
   type VendorConfig,
-  type VendorSkillConfig,
 } from "../domain/config";
 import { isVendor, VENDORS, type VendorName } from "../domain/vendor";
 
@@ -90,38 +88,16 @@ const readVendorConfig = (
   problems: string[],
 ): VendorConfig => ({ enabled: readBoolean(raw.enabled, `${path}.enabled`, problems) ?? false });
 
-const readSkillVendors = (
-  value: unknown,
-  path: string,
-  problems: string[],
-): Partial<Record<VendorName, VendorSkillConfig>> | undefined => {
-  if (value === undefined) return undefined;
-  return readVendorEntries<VendorSkillConfig>(value, path, problems, (raw, entryPath) => ({
-    enabled: readBoolean(raw.enabled, `${entryPath}.enabled`, problems),
-  }));
-};
-
-const readSubagentEntry = (
+const readSourceEntry = (
   raw: Record<string, unknown>,
   path: string,
   problems: string[],
-): SubagentEntry | undefined => {
+): SourceEntry | undefined => {
   const source = readString(raw.source, `${path}.source`, problems);
   if (source === undefined) return undefined;
   const ref = readString(raw.ref, `${path}.ref`, problems);
   const subdir = readString(raw.subdir, `${path}.subdir`, problems);
   return { source, ...(ref !== undefined && { ref }), ...(subdir !== undefined && { subdir }) };
-};
-
-const readSkillEntry = (
-  raw: Record<string, unknown>,
-  path: string,
-  problems: string[],
-): SkillEntry | undefined => {
-  const base = readSubagentEntry(raw, path, problems);
-  if (base === undefined) return undefined;
-  const vendors = readSkillVendors(raw.vendors, `${path}.vendors`, problems);
-  return { ...base, ...(vendors !== undefined && { vendors }) };
 };
 
 export const decodeConfig = (value: unknown): Config => {
@@ -132,8 +108,8 @@ export const decodeConfig = (value: unknown): Config => {
       readString(root.system_prompt_file, "system_prompt_file", problems) ??
       DEFAULT_SYSTEM_PROMPT_FILE,
     vendors: readVendorEntries(root.vendors, "vendors", problems, readVendorConfig),
-    skills: readEntries(root.skills, "skills", problems, readSkillEntry),
-    subagents: readEntries(root.subagents, "subagents", problems, readSubagentEntry),
+    skills: readEntries(root.skills, "skills", problems, readSourceEntry),
+    subagents: readEntries(root.subagents, "subagents", problems, readSourceEntry),
   };
   if (problems.length > 0) throw new ConfigError(problems);
   return config;
@@ -149,22 +125,12 @@ export const encodeConfig = (config: Config): string => {
     if (vendor === undefined) continue;
     lines.push("", `[vendors.${tomlKey(name)}]`, `enabled = ${vendor.enabled}`);
   }
-  for (const [name, skill] of Object.entries(config.skills)) {
-    lines.push("", `[skills.${tomlKey(name)}]`, `source = ${tomlString(skill.source)}`);
-    if (skill.ref) lines.push(`ref = ${tomlString(skill.ref)}`);
-    if (skill.subdir) lines.push(`subdir = ${tomlString(skill.subdir)}`);
-    for (const [vendor, entry] of Object.entries(skill.vendors ?? {})) {
-      if (entry?.enabled === undefined) continue;
-      lines.push(
-        `[skills.${tomlKey(name)}.vendors.${tomlKey(vendor)}]`,
-        `enabled = ${entry.enabled}`,
-      );
+  for (const table of ["skills", "subagents"] as const) {
+    for (const [name, entry] of Object.entries(config[table])) {
+      lines.push("", `[${table}.${tomlKey(name)}]`, `source = ${tomlString(entry.source)}`);
+      if (entry.ref) lines.push(`ref = ${tomlString(entry.ref)}`);
+      if (entry.subdir) lines.push(`subdir = ${tomlString(entry.subdir)}`);
     }
-  }
-  for (const [name, subagent] of Object.entries(config.subagents)) {
-    lines.push("", `[subagents.${tomlKey(name)}]`, `source = ${tomlString(subagent.source)}`);
-    if (subagent.ref) lines.push(`ref = ${tomlString(subagent.ref)}`);
-    if (subagent.subdir) lines.push(`subdir = ${tomlString(subagent.subdir)}`);
   }
   return `${lines.join("\n")}\n`;
 };

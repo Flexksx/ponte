@@ -21,15 +21,7 @@
         '';
     };
 
-    vendorSkillModule = lib.types.submodule {
-      options.enable = lib.mkOption {
-        type = lib.types.nullOr lib.types.bool;
-        default = null;
-        description = "Override enabled state for this skill on this vendor. null = inherit global vendor setting.";
-      };
-    };
-
-    skillModule = lib.types.submodule {
+    sourceModule = lib.types.submodule {
       options = {
         source = lib.mkOption {
           type = lib.types.str;
@@ -43,31 +35,7 @@
         subdir = lib.mkOption {
           type = lib.types.str;
           default = "";
-          description = "Subdirectory within the git repo that contains the skill.";
-        };
-        vendors = lib.mkOption {
-          type = lib.types.attrsOf vendorSkillModule;
-          default = {};
-          description = "Per-vendor overrides for this skill.";
-        };
-      };
-    };
-
-    subagentModule = lib.types.submodule {
-      options = {
-        source = lib.mkOption {
-          type = lib.types.str;
-          description = "Local path or git URL. Git URLs start with https://, http://, git@, or file://.";
-        };
-        ref = lib.mkOption {
-          type = lib.types.str;
-          default = "";
-          description = "Git ref (branch, tag, commit SHA) for a git source.";
-        };
-        subdir = lib.mkOption {
-          type = lib.types.str;
-          default = "";
-          description = "Subdirectory within the git repo that contains the subagent.";
+          description = "Subdirectory within the git repo that contains the source.";
         };
       };
     };
@@ -85,24 +53,12 @@
         description = "Configuration for the ${name} vendor.";
       };
 
-    mkSkillEntry = skill:
+    mkSourceEntry = entry:
       {
-        source = skill.source;
+        source = entry.source;
       }
-      // lib.optionalAttrs (skill.ref != "") {ref = skill.ref;}
-      // lib.optionalAttrs (skill.subdir != "") {subdir = skill.subdir;}
-      // lib.optionalAttrs (skill.vendors != {}) {
-        vendors = lib.mapAttrs (_: v: {enabled = v.enable;}) (
-          lib.filterAttrs (_: v: v.enable != null) skill.vendors
-        );
-      };
-
-    mkSubagentEntry = sub:
-      {
-        source = sub.source;
-      }
-      // lib.optionalAttrs (sub.ref != "") {ref = sub.ref;}
-      // lib.optionalAttrs (sub.subdir != "") {subdir = sub.subdir;};
+      // lib.optionalAttrs (entry.ref != "") {ref = entry.ref;}
+      // lib.optionalAttrs (entry.subdir != "") {subdir = entry.subdir;};
 
     generated =
       {
@@ -110,10 +66,10 @@
         vendors = lib.mapAttrs (_: vendor: {enabled = vendor.enable;}) cfg.vendors;
       }
       // lib.optionalAttrs (cfg.skills != {}) {
-        skills = lib.mapAttrs (_: mkSkillEntry) cfg.skills;
+        skills = lib.mapAttrs (_: mkSourceEntry) cfg.skills;
       }
       // lib.optionalAttrs (cfg.subagents != {}) {
-        subagents = lib.mapAttrs (_: mkSubagentEntry) cfg.subagents;
+        subagents = lib.mapAttrs (_: mkSourceEntry) cfg.subagents;
       };
 
     settings = lib.recursiveUpdate generated cfg.settings;
@@ -151,7 +107,7 @@
       };
 
       skills = lib.mkOption {
-        type = lib.types.attrsOf skillModule;
+        type = lib.types.attrsOf sourceModule;
         default = {};
         example = lib.literalExpression ''
           {
@@ -163,18 +119,13 @@
             "local-skill" = {
               source = "/path/to/local-skill";
             };
-            "claude-only" = {
-              source = "/path/to/claude-only";
-              vendors."antigravity-cli".enable = false;
-              vendors."codex".enable = false;
-            };
           }
         '';
         description = "Skills to sync to enabled vendors. The attribute name is the skill name.";
       };
 
       subagents = lib.mkOption {
-        type = lib.types.attrsOf subagentModule;
+        type = lib.types.attrsOf sourceModule;
         default = {};
         example = lib.literalExpression ''
           {

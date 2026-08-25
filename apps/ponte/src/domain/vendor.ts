@@ -17,7 +17,7 @@ const VENDOR_SPECS = {
     posixRoot: ".gemini",
     windowsRoot: join(WINDOWS_CONFIG_ROOT, "Gemini"),
     instruction: "GEMINI.md",
-    resourceRoot: "antigravity-cli",
+    resourceSubdirectory: "antigravity-cli",
   },
   "cursor-agent": {
     posixRoot: ".cursor",
@@ -48,9 +48,7 @@ type VendorSpec = {
   readonly posixRoot: string;
   readonly windowsRoot: string;
   readonly instruction: string;
-  // Vendors that keep skills and subagents below the instruction root, such as
-  // Antigravity nesting them inside the shared Gemini directory.
-  readonly resourceRoot?: string;
+  readonly resourceSubdirectory?: string;
 };
 
 export type VendorName = keyof typeof VENDOR_SPECS;
@@ -92,7 +90,8 @@ export const vendorLayouts = (
   for (const name of VENDORS) {
     const spec: VendorSpec = VENDOR_SPECS[name];
     const root = join(home, platform === "win32" ? spec.windowsRoot : spec.posixRoot);
-    const resources = spec.resourceRoot === undefined ? root : join(root, spec.resourceRoot);
+    const resources =
+      spec.resourceSubdirectory === undefined ? root : join(root, spec.resourceSubdirectory);
     layouts[name] = {
       instruction: join(root, spec.instruction),
       skills: join(resources, SKILLS_DIRECTORY),

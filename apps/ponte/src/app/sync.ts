@@ -1,28 +1,11 @@
-import {
-  type Config,
-  defaultConfig,
-  enabledVendors,
-  isSkillEnabledForVendor,
-} from "../domain/config";
-import type { BuildInput } from "../domain/generation";
-import { parseSource } from "../domain/source";
-import { parseVendorNames, type VendorName, vendorLayouts } from "../domain/vendor";
-import {
-  readConfig,
-  readPrompt,
-  resolveContent,
-  writeConfig,
-  writePrompt,
-} from "../infra/config-file";
-import { resolveSource } from "../infra/git";
-import {
-  configDirectoryPath,
-  currentPlatform,
-  gitCacheDirectoryPath,
-  homeDirectory,
-  storeDirectoryPath,
-} from "../infra/paths";
-import { activate, buildGeneration, hashBuildInput } from "../infra/store";
+import { type Config, defaultConfig, enabledVendors } from "../domain/config";
+import { staleLinkPaths, type VendorPlan } from "../domain/link";
+import { parseVendorNames, type VendorName } from "../domain/vendor";
+import { readConfig, writeConfig, writePrompt } from "../infra/config-file";
+import { fileExists, writeText } from "../infra/filesystem";
+import { applyPlan, readSymlinks } from "../infra/links";
+import { configDirectoryPath, overridePromptPath, promptFilePath } from "../infra/paths";
+import { planVendors } from "./resolve";
 
 export type SyncRequest = {
   readonly promptOverride: string | undefined;
@@ -35,8 +18,8 @@ export type Bootstrap = {
 };
 
 export type SyncReport = {
-  readonly hash: string;
   readonly vendors: readonly VendorName[];
+  readonly stale: number;
   readonly bootstrap: Bootstrap | null;
 };
 
@@ -52,31 +35,11 @@ export class NoVendorsEnabledError extends Error {
   }
 }
 
-type SyncContext = {
-  readonly config: Config;
-  readonly prompt: string;
+type PendingSync = {
   readonly vendors: readonly VendorName[];
+  readonly plans: Readonly<Record<VendorName, VendorPlan>>;
+  readonly stale: Readonly<Record<string, readonly string[]>>;
   readonly bootstrap: Bootstrap | null;
-};
-
-export const buildInputFor = async (
-  config: Config,
-  prompt: string,
-  vendor: VendorName,
-): Promise<BuildInput> => {
-  const gitCache = gitCacheDirectoryPath();
-  const skills = [];
-  for (const [name, entry] of Object.entries(config.skills)) {
-    if (!isSkillEnabledForVendor(entry, vendor)) continue;
-    const source = parseSource(entry.source, entry.ref, entry.subdir);
-    skills.push({ name, sourceDir: await resolveSource(source, gitCache) });
-  }
-  const subagents = [];
-  for (const [name, entry] of Object.entries(config.subagents)) {
-    const source = parseSource(entry.source, entry.ref, entry.subdir);
-    subagents.push({ name, sourceDir: await resolveSource(source, gitCache) });
-  }
-  return { prompt, skills, subagents };
 };
 
 const bootstrapConfig = async (): Promise<{ config: Config; bootstrap: Bootstrap }> => {
@@ -92,16 +55,23 @@ const bootstrapConfig = async (): Promise<{ config: Config; bootstrap: Bootstrap
   };
 };
 
-const loadContext = async (request: SyncRequest): Promise<SyncContext> => {
+const configuredPromptPath = async (config: Config): Promise<string> => {
+  const path = promptFilePath(config.systemPromptFile);
+  if (!(await fileExists(path))) throw new MissingSystemPromptError(config.systemPromptFile);
+  return path;
+};
+
+const materializedOverridePath = async (override: string): Promise<string> => {
+  if (await fileExists(override)) return override;
+  const path = overridePromptPath();
+  await writeText(path, override);
+  return path;
+};
+
+const pendingSync = async (request: SyncRequest): Promise<PendingSync> => {
   const existing = await readConfig();
   const { config, bootstrap } =
     existing === null ? await bootstrapConfig() : { config: existing, bootstrap: null };
-
-  const prompt =
-    request.promptOverride === undefined
-      ? await readPrompt(config.systemPromptFile)
-      : await resolveContent(request.promptOverride);
-  if (prompt === null) throw new MissingSystemPromptError(config.systemPromptFile);
 
   const vendors =
     request.requestedVendors.length > 0
@@ -109,27 +79,30 @@ const loadContext = async (request: SyncRequest): Promise<SyncContext> => {
       : enabledVendors(config);
   if (vendors.length === 0) throw new NoVendorsEnabledError();
 
-  return { config, prompt, vendors, bootstrap };
+  const promptPath =
+    request.promptOverride === undefined
+      ? await configuredPromptPath(config)
+      : await materializedOverridePath(request.promptOverride);
+  const plans = await planVendors(config, promptPath);
+  const stale: Record<string, readonly string[]> = {};
+  for (const vendor of vendors) {
+    stale[vendor] = staleLinkPaths(plans[vendor], await readSymlinks(plans[vendor]));
+  }
+  return { vendors, plans, stale, bootstrap };
 };
 
+const countStale = (pending: PendingSync): number =>
+  pending.vendors.reduce((total, vendor) => total + (pending.stale[vendor]?.length ?? 0), 0);
+
 export const planSync = async (request: SyncRequest): Promise<SyncReport> => {
-  const { config, prompt, vendors, bootstrap } = await loadContext(request);
-  let hash = "";
-  for (const vendor of vendors) {
-    hash = await hashBuildInput(await buildInputFor(config, prompt, vendor));
-  }
-  return { hash, vendors, bootstrap };
+  const pending = await pendingSync(request);
+  return { vendors: pending.vendors, stale: countStale(pending), bootstrap: pending.bootstrap };
 };
 
 export const runSync = async (request: SyncRequest): Promise<SyncReport> => {
-  const { config, prompt, vendors, bootstrap } = await loadContext(request);
-  const layouts = vendorLayouts(homeDirectory(), currentPlatform());
-  const storeDir = storeDirectoryPath();
-  let hash = "";
-  for (const vendor of vendors) {
-    const generation = await buildGeneration(await buildInputFor(config, prompt, vendor), storeDir);
-    hash = generation.hash;
-    await activate(generation, layouts[vendor]);
+  const pending = await pendingSync(request);
+  for (const vendor of pending.vendors) {
+    await applyPlan(pending.plans[vendor], pending.stale[vendor] ?? []);
   }
-  return { hash, vendors, bootstrap };
+  return { vendors: pending.vendors, stale: countStale(pending), bootstrap: pending.bootstrap };
 };
