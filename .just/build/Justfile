@@ -1,9 +1,0 @@
-set working-directory := "../.."
-
-[private]
-default:
-    just --list --justfile {{source_file()}}
-
-# Build the CLI binary
-cli:
-    go build -o out/ponte ./apps/ponte/

@@ -2,6 +2,7 @@
   perSystem = {
     pkgs,
     lib,
+    config,
     ...
   }: {
     options.shellPackages = lib.mkOption {
@@ -14,10 +15,14 @@
       default = "";
     };
 
-    config.shellPackages = with pkgs; [
-      just
-      alejandra
-      lefthook
-    ];
+    config = {
+      shellPackages = with pkgs; [just alejandra lefthook rumdl];
+
+      devShells.default = pkgs.mkShell {
+        name = "ponte-dev-env";
+        packages = config.shellPackages;
+        shellHook = config.shellHooks;
+      };
+    };
   };
 }

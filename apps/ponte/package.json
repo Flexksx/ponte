@@ -1,0 +1,15 @@
+{
+  "name": "ponte",
+  "module": "src/index.ts",
+  "type": "module",
+  "dev": true,
+  "trust": [],
+  "dependencies": {
+    "chalk": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "dependency-cruiser": "^18.2.0",
+    "typescript": "^6"
+  }
+}

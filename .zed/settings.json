@@ -1,29 +1,21 @@
-// Folder-specific settings
-//
-// For a full list of overridable settings, and general information on folder-specific settings,
-// see the documentation: https://zed.dev/docs/configuring-zed#settings-files
 {
   "load_direnv": "shell_hook",
+  "language_servers": ["biome", "vtsls"],
   "languages": {
-    "Go": {
-      "language_servers": ["gopls"],
+    "TypeScript": {
       "format_on_save": "on",
-      "code_actions_on_format": {
-        "source.organizeImports": true,
-      },
       "formatter": {
-        "external": {
-          "command": "gofumpt",
-          "arguments": [],
+        "code_actions": {
+          "source.organizeImports": true,
         },
       },
     },
-  },
-  "lsp": {
-    "gopls": {
-      "initialization_options": {
-        "gofumpt": true,
-        "staticcheck": true,
+    "JavaScript": {
+      "format_on_save": "on",
+      "formatter": {
+        "code_actions": {
+          "source.organizeImports": true,
+        },
       },
     },
   },

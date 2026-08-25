@@ -1,20 +1,26 @@
 pre-commit:
+  parallel: true
   commands:
     format-nix:
-      glob: "**/*.nix"
+      glob:
+        - "*.nix"
+        - "**/*.nix"
       run: alejandra {staged_files}
       stage_fixed: true
-    format-go:
-      glob: "**/*.go"
-      run: gofumpt -w {staged_files}
+    check-biome:
+      run: >-
+        biome check --write --error-on-warnings
+        --files-ignore-unknown=true --no-errors-on-unmatched {staged_files}
       stage_fixed: true
-    lint-go:
-      glob: "**/*.go"
-      run: golangci-lint run ./...
-    vet-go:
-      glob: "**/*.go"
-      run: go vet ./...
     lint-markdown:
-      glob: "**/*.md"
+      glob:
+        - "*.md"
+        - "**/*.md"
       run: rumdl check --fix {staged_files}
       stage_fixed: true
+
+pre-push:
+  parallel: true
+  commands:
+    lint:
+      run: just lint
