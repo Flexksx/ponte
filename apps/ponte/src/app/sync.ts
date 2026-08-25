@@ -1,12 +1,12 @@
 import {
+  type Config,
   defaultConfig,
   enabledVendors,
   isSkillEnabledForVendor,
-  type Config,
 } from "../domain/config";
 import type { BuildInput } from "../domain/generation";
 import { parseSource } from "../domain/source";
-import { parseVendorNames, vendorLayouts, type VendorName } from "../domain/vendor";
+import { parseVendorNames, type VendorName, vendorLayouts } from "../domain/vendor";
 import {
   readConfig,
   readPrompt,
@@ -62,7 +62,7 @@ type SyncContext = {
 export const buildInputFor = async (
   config: Config,
   prompt: string,
-  vendor: string,
+  vendor: VendorName,
 ): Promise<BuildInput> => {
   const gitCache = gitCacheDirectoryPath();
   const skills = [];

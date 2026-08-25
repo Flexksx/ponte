@@ -1,13 +1,14 @@
 import { parseArgs } from "node:util";
-import type { Config, SkillEntry, SubagentEntry } from "../domain/config";
-import type { Generation } from "../domain/generation";
-import { shortHash } from "../domain/hashing";
-import { describeSource, isGitSource, parseSource } from "../domain/source";
-import { collectGarbage, planGarbageCollection } from "../app/gc";
+import chalk from "chalk";
 import { requireConfig } from "../app/configuration";
+import { collectGarbage, planGarbageCollection } from "../app/gc";
 import { readStatus, type StatusReport } from "../app/status";
 import { planSync, runSync, type SyncReport } from "../app/sync";
 import { readSystemPrompt, setSystemPrompt } from "../app/sysprompt";
+import type { Config, SkillEntry, SubagentEntry } from "../domain/config";
+import type { Generation, VendorState } from "../domain/generation";
+import { shortHash } from "../domain/hashing";
+import { describeSource, isGitSource, parseSource } from "../domain/source";
 import manualText from "./manual.md" with { type: "text" };
 
 const NAME_COLUMN = 12;
@@ -16,6 +17,19 @@ const HASH_COLUMN = 12;
 const TYPE_COLUMN = 5;
 
 const HELP_FLAGS = new Set(["help", "--help", "-h"]);
+
+const STATE_STYLES: Record<VendorState, (text: string) => string> = {
+  "in sync": chalk.green,
+  drifted: chalk.yellow,
+  "not synced": chalk.red,
+  disabled: chalk.dim,
+};
+
+type Command = {
+  readonly name: string;
+  readonly summary: string;
+  readonly run: (args: string[]) => Promise<void>;
+};
 
 const write = (line: string): void => process.stdout.write(line);
 
@@ -50,20 +64,27 @@ const runSyncCommand = async (args: string[]): Promise<void> => {
   printBootstrap(report);
   const verb = dryRun ? "Dry run - would " : "";
   write(
-    `${verb}build generation ${shortHash(report.hash)} and sync to: ${report.vendors.join(", ")}\n`,
+    `${verb}build generation ${chalk.cyan(shortHash(report.hash))} and sync to: ${report.vendors.join(", ")}\n`,
   );
 };
 
 const printStatus = (report: StatusReport): void => {
-  write(`Would-be generation: ${shortHash(report.expectedHash)}\n\n`);
+  write(`Would-be generation: ${chalk.cyan(shortHash(report.expectedHash))}\n\n`);
   write(
-    `${"VENDOR".padEnd(NAME_COLUMN)}  ${"ENABLED".padEnd(FLAG_COLUMN)}  ${"ACTIVE".padEnd(HASH_COLUMN)}  STATE\n`,
+    `${chalk.bold(
+      `${"VENDOR".padEnd(NAME_COLUMN)}  ${"ENABLED".padEnd(FLAG_COLUMN)}  ${"ACTIVE".padEnd(HASH_COLUMN)}  STATE`,
+    )}\n`,
   );
   for (const vendor of report.vendors) {
-    const enabled = vendor.enabled ? "yes" : "no";
-    const active = vendor.activeHash === null ? "—" : shortHash(vendor.activeHash);
+    const enabled = vendor.enabled
+      ? chalk.green("yes".padEnd(FLAG_COLUMN))
+      : chalk.dim("no".padEnd(FLAG_COLUMN));
+    const active =
+      vendor.activeHash === null
+        ? chalk.dim("—".padEnd(HASH_COLUMN))
+        : chalk.cyan(shortHash(vendor.activeHash).padEnd(HASH_COLUMN));
     write(
-      `${vendor.name.padEnd(NAME_COLUMN)}  ${enabled.padEnd(FLAG_COLUMN)}  ${active.padEnd(HASH_COLUMN)}  ${vendor.state}\n`,
+      `${vendor.name.padEnd(NAME_COLUMN)}  ${enabled}  ${active}  ${STATE_STYLES[vendor.state](vendor.state)}\n`,
     );
   }
 };
@@ -79,7 +100,7 @@ const printGcPlan = (verb: string, remove: readonly Generation[], keep: readonly
     return;
   }
   write(`${verb} ${remove.length} generation(s), kept ${keep.length} in use:\n`);
-  for (const generation of remove) write(`  ${shortHash(generation.hash)}\n`);
+  for (const generation of remove) write(`  ${chalk.cyan(shortHash(generation.hash))}\n`);
 };
 
 const runGcCommand = async (args: string[]): Promise<void> => {
@@ -105,9 +126,9 @@ const printEntries = (noun: "skills" | "subagents", config: Config): void => {
     source: describeSource(parseSource(entry.source, entry.ref, entry.subdir)),
   }));
   const width = Math.max(4, ...rows.map(row => row.name.length));
-  write(`${"NAME".padEnd(width)}  TYPE  SOURCE\n`);
+  write(`${chalk.bold(`${"NAME".padEnd(width)}  TYPE  SOURCE`)}\n`);
   for (const row of rows) {
-    write(`${row.name.padEnd(width)}  ${row.type.padEnd(TYPE_COLUMN)}  ${row.source}\n`);
+    write(`${row.name.padEnd(width)}  ${chalk.dim(row.type.padEnd(TYPE_COLUMN))}  ${row.source}\n`);
   }
 };
 
@@ -136,7 +157,9 @@ const runSyspromptCommand = async (args: string[]): Promise<void> => {
   }
   const prompt = await readSystemPrompt();
   if (prompt === null) {
-    process.stderr.write("No system prompt set. Use `ponte sysprompt set <file-or-string>`.\n");
+    process.stderr.write(
+      `${chalk.red("No system prompt set. Use `ponte sysprompt set <file-or-string>`.")}\n`,
+    );
     return;
   }
   write(prompt);
@@ -146,47 +169,70 @@ const runManualCommand = async (): Promise<void> => {
   write(manualText);
 };
 
-const commands: Record<string, (args: string[]) => Promise<void>> = {
-  sync: runSyncCommand,
-  status: runStatusCommand,
-  gc: runGcCommand,
-  skills: runSkillsCommand,
-  subagents: runSubagentsCommand,
-  sysprompt: runSyspromptCommand,
-  manual: runManualCommand,
-};
+const commandTable = (): readonly Command[] => [
+  {
+    name: "sync",
+    summary: "Sync the system prompt, skills, and subagents to configured vendors",
+    run: runSyncCommand,
+  },
+  {
+    name: "status",
+    summary: "Show the active generation per vendor and whether sources have drifted",
+    run: runStatusCommand,
+  },
+  { name: "gc", summary: "Remove store generations no vendor points to", run: runGcCommand },
+  { name: "skills", summary: "List the skills declared in config.toml", run: runSkillsCommand },
+  {
+    name: "subagents",
+    summary: "List the subagents declared in config.toml",
+    run: runSubagentsCommand,
+  },
+  {
+    name: "sysprompt",
+    summary: "Show or manage the global system prompt",
+    run: runSyspromptCommand,
+  },
+  {
+    name: "manual",
+    summary: "Show the full configuration and usage guide",
+    run: runManualCommand,
+  },
+];
 
 const printUsage = (): void => {
-  write("Usage: ponte <command>\n\n");
-  write("Commands:\n");
-  write("  sync       Sync the system prompt, skills, and subagents to configured vendors\n");
-  write("  status     Show the active generation per vendor and whether sources have drifted\n");
-  write("  gc         Remove store generations no vendor points to\n");
-  write("  skills     List the skills declared in config.toml\n");
-  write("  subagents  List the subagents declared in config.toml\n");
-  write("  sysprompt  Show or manage the global system prompt\n");
-  write("  manual     Show the full configuration and usage guide\n");
+  const commands = commandTable();
+  const width = Math.max(...commands.map(command => command.name.length));
+  write(`Usage: ${chalk.bold("ponte")} <command>\n\n`);
+  write(`${chalk.bold("Commands:")}\n`);
+  for (const command of commands) {
+    write(`  ${chalk.bold(command.name.padEnd(width))}  ${command.summary}\n`);
+  }
+};
+
+const disableColorIfRequested = (): void => {
+  if ((Bun.env.NO_COLOR ?? "") !== "") chalk.level = 0;
 };
 
 const formatError = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
 export const run = async (argv: string[]): Promise<number> => {
+  disableColorIfRequested();
   const [commandName, ...args] = argv;
   if (commandName === undefined || HELP_FLAGS.has(commandName)) {
     printUsage();
     return 0;
   }
-  const command = commands[commandName];
+  const command = commandTable().find(candidate => candidate.name === commandName);
   if (command === undefined) {
-    process.stderr.write(`unknown command: ${commandName}\n`);
+    process.stderr.write(`${chalk.red(`unknown command: ${commandName}`)}\n`);
     return 2;
   }
   try {
-    await command(args);
+    await command.run(args);
     return 0;
   } catch (error) {
-    process.stderr.write(`${formatError(error)}\n`);
+    process.stderr.write(`${chalk.red(formatError(error))}\n`);
     return 1;
   }
 };

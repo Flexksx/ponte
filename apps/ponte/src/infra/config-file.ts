@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import { normalizeConfig, type Config } from "../domain/config";
+import { type Config, normalizeConfig } from "../domain/config";
 import { decodeConfig, encodeConfig } from "./config-codec";
 import { configDirectoryPath, configFilePath, promptFilePath } from "./paths";
 

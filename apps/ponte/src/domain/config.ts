@@ -12,7 +12,7 @@ export type SkillEntry = {
   readonly source: string;
   readonly ref?: string;
   readonly subdir?: string;
-  readonly vendors?: Record<string, VendorSkillConfig>;
+  readonly vendors?: Readonly<Partial<Record<VendorName, VendorSkillConfig>>>;
 };
 
 export type SubagentEntry = {
@@ -23,19 +23,14 @@ export type SubagentEntry = {
 
 export type Config = {
   readonly systemPromptFile: string;
-  readonly vendors: Record<string, VendorConfig>;
+  readonly vendors: Readonly<Partial<Record<VendorName, VendorConfig>>>;
   readonly skills: Readonly<Record<string, SkillEntry>>;
   readonly subagents: Readonly<Record<string, SubagentEntry>>;
 };
 
 export const defaultConfig = (): Config => ({
   systemPromptFile: DEFAULT_SYSTEM_PROMPT_FILE,
-  vendors: {
-    "claude-code": { enabled: true },
-    codex: { enabled: true },
-    "gemini-cli": { enabled: true },
-    "cursor-agent": { enabled: true },
-  },
+  vendors: Object.fromEntries(VENDORS.map(vendor => [vendor, { enabled: true }])),
   skills: {},
   subagents: {},
 });
@@ -43,7 +38,7 @@ export const defaultConfig = (): Config => ({
 export const enabledVendors = (config: Config): VendorName[] =>
   VENDORS.filter(vendor => config.vendors[vendor]?.enabled === true);
 
-export const isSkillEnabledForVendor = (entry: SkillEntry, vendor: string): boolean =>
+export const isSkillEnabledForVendor = (entry: SkillEntry, vendor: VendorName): boolean =>
   entry.vendors?.[vendor]?.enabled !== false;
 
 export const normalizeConfig = (config: Config, configDirectory: string): Config => {

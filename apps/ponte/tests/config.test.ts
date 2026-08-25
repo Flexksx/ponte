@@ -1,7 +1,7 @@
-import { describe, it, expect } from "bun:test";
-import { normalizeConfig, type Config, type SkillEntry } from "../src/domain/config";
-import { ConfigError, decodeConfig } from "../src/infra/config-codec";
+import { describe, expect, it } from "bun:test";
+import { type Config, normalizeConfig, type SkillEntry } from "../src/domain/config";
 import { isGitSource, parseSource } from "../src/domain/source";
+import { ConfigError, decodeConfig } from "../src/infra/config-codec";
 
 const cfgWith = (skills: Record<string, SkillEntry> = {}) =>
   ({
@@ -53,6 +53,15 @@ describe("decodeConfig", () => {
   it("defaults systemPromptFile when omitted", () => {
     const cfg = decodeConfig({ vendors: {} });
     expect(cfg.systemPromptFile).toBe("AGENTS.md");
+  });
+
+  it("rejects an unknown agent name", () => {
+    try {
+      decodeConfig({ vendors: { claude_code: { enabled: true } } });
+      expect(true).toBe(false);
+    } catch (e) {
+      expect(e instanceof ConfigError).toBe(true);
+    }
   });
 
   it("reports every problem at once", () => {

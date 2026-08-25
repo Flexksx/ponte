@@ -80,6 +80,12 @@
   "options": {
     "doNotFollow": { "path": "node_modules" },
     "tsPreCompilationDeps": true,
-    "tsConfig": { "fileName": "tsconfig.json" }
+    "tsConfig": { "fileName": "tsconfig.json" },
+
+    // chalk publishes an `exports` map, so the resolver needs to read it.
+    "enhancedResolveOptions": {
+      "exportsFields": ["exports"],
+      "conditionNames": ["import", "node", "default"]
+    }
   }
 }

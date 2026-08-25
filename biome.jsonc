@@ -1,25 +1,16 @@
 {
-  // Biome v2 configuration (schema 2.5.10).
-  // Docs: https://biomejs.dev/reference/configuration/
-  // This repo is Bun (TypeScript). Biome handles formatting, linting,
-  // and safe assist actions for the JS/TS source in src/.
   "$schema": "https://biomejs.dev/schemas/2.5.10/schema.json",
 
-  // Only process the TypeScript CLI source. Keeps biome from restyling
-  // config files (.zed/, .claude/, nix/, package.json) that other
-  // tools already checks.
   "files": {
     "includes": ["apps/*/src/**", "apps/*/tests/**"],
   },
 
-  // Honor .gitignore (drops out/, .direnv/ automatically).
   "vcs": {
     "enabled": true,
     "clientKind": "git",
     "useIgnoreFile": true,
   },
 
-  // Shared formatting defaults for all languages.
   "formatter": {
     "enabled": true,
     "lineWidth": 100,
@@ -29,7 +20,6 @@
     "trailingNewline": true,
   },
 
-  // TypeScript is the primary target language.
   "javascript": {
     "formatter": {
       "quoteStyle": "double",

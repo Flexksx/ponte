@@ -2,9 +2,10 @@
 # Biome after-edit hook for Claude Code.
 #
 # Claude Code passes PostToolUse JSON on stdin. When the agent edits or
-# writes a file that Biome understands, we run `biome check` (read-only)
-# on it. If anything is wrong, we return the diagnostics as
-# `hookSpecificOutput.additionalContext` so Claude sees them and fixes them.
+# writes a file that Biome understands, we apply `biome check --write` to
+# it, then re-check it the same way `just lint` does. Whatever Biome cannot
+# fix on its own comes back as `hookSpecificOutput.additionalContext`, so
+# Claude sees the remaining problems and fixes them.
 #
 # It exits quietly (empty stdout) when there is nothing to report, so a
 # clean edit never interrupts the agent.
@@ -28,32 +29,49 @@ case "$FILE_PATH" in
 *) exit 0 ;;
 esac
 
-# Biome must be on PATH. If not, degrade silently rather than error the hook.
-if ! command -v biome >/dev/null 2>&1; then
+# A deleted or moved file has nothing to check.
+if [ ! -f "$FILE_PATH" ]; then
 	exit 0
 fi
+
+report() {
+	jq -cn --arg ctx "$1" \
+		'{ "hookSpecificOutput": { "hookEventName": "PostToolUse", "additionalContext": $ctx } }'
+	exit 0
+}
 
 # Biome reads biome.jsonc from the current working directory.
-# biome check is read-only: it reports formatting/lint/assist issues.
-# `--diagnostic-level=error` forwards only real errors.
-# `--reporter=concise` keeps each diagnostic on one readable line.
-DIAG="$(biome check --reporter=concise --diagnostic-level=error --colors=never "$FILE_PATH" 2>&1 || true)"
+cd "${CLAUDE_PROJECT_DIR:-.}" || exit 0
 
-# No output means nothing needs fixing.
-if [ -z "$(echo "$DIAG" | tr -d '[:space:]')" ]; then
+# Tell Claude when the hook cannot run, instead of failing silently.
+if ! command -v biome >/dev/null 2>&1; then
+	report "biome is not on PATH, so $FILE_PATH was not formatted or checked. Enter the dev shell (direnv allow) before editing, or run: just lint"
+fi
+
+# Apply what Biome can fix by itself: formatting, safe lint fixes, assists.
+biome check --write --colors=off "$FILE_PATH" >/dev/null 2>&1
+
+# Then re-check. `--error-on-warnings` matches `just lint`, so the hook and
+# the lint task agree on what counts as a failure. The exit code is the
+# signal: Biome always prints a summary line, so empty output means nothing.
+DIAG="$(biome check --error-on-warnings --max-diagnostics=20 --colors=off "$FILE_PATH" 2>&1)"
+STATUS=$?
+if [ "$STATUS" -eq 0 ]; then
 	exit 0
 fi
+
+# biome.jsonc limits Biome to apps/*/src and apps/*/tests. A path outside
+# that is reported as ignored, which is not a problem worth surfacing.
+case "$DIAG" in
+*"provided but ignored"* | *"No files were processed"*) exit 0 ;;
+esac
 
 # Diagnostics may exceed the 10k additionalContext cap; trim to be safe.
 if [ "${#DIAG}" -gt 8000 ]; then
-	DIAG="${DIAG:0:8000}\n... (truncated; fix the visible issues first)"
+	DIAG="${DIAG:0:8000}
+... (truncated; fix the visible problems first)"
 fi
 
-NOTE="biome reported errors in $FILE_PATH. Fix them before continuing. Reproduce locally with: biome check \"$FILE_PATH\"
+report "biome formatted $FILE_PATH, but these problems remain. Fix them before continuing. Reproduce with: biome check --error-on-warnings \"$FILE_PATH\"
 
 $DIAG"
-
-# Return the diagnostics to Claude as Context_tool_result, using the documented
-# PostToolUse additionalContext shape.
-jq -cn --arg ctx "$NOTE" \
-	'{ "hookSpecificOutput": { "hookEventName": "PostToolUse", "additionalContext": $ctx } }'
