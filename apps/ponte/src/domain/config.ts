@@ -1,9 +1,17 @@
-import { join } from "node:path";
-import { mkdir } from "node:fs/promises";
-import { isGitSource } from "./sources";
-import { ConfigError } from "./hash-core";
-import { configDirectoryPath } from "./paths";
-import { VENDORS, type VendorName } from "./vendors";
+import { isAbsolute, join } from "node:path";
+import { isGitSource } from "./source";
+import { VENDORS, type VendorName } from "./vendor";
+
+export const DEFAULT_SYSTEM_PROMPT_FILE = "AGENTS.md";
+export const CONFIG_FILE = "config.toml";
+
+export class ConfigError extends Error {
+  readonly problems: readonly string[];
+  constructor(problems: readonly string[]) {
+    super(problems.join("\n"));
+    this.problems = problems;
+  }
+}
 
 export type VendorSkillConfig = { readonly enabled?: boolean };
 
@@ -29,8 +37,12 @@ export type Config = {
   readonly subagents: Readonly<Record<string, SubagentEntry>>;
 };
 
-export const DEFAULT_SYSTEM_PROMPT_FILE = "AGENTS.md";
-export const CONFIG_FILE = "config.toml";
+type SourceEntry = {
+  source?: string;
+  ref?: string;
+  subdir?: string;
+  vendors?: Record<string, VendorSkillConfig>;
+};
 
 export const defaultConfig = (): Config => ({
   systemPromptFile: DEFAULT_SYSTEM_PROMPT_FILE,
@@ -44,56 +56,49 @@ export const defaultConfig = (): Config => ({
   subagents: {},
 });
 
-export const enabledVendors = (cfg: Config): VendorName[] =>
-  VENDORS.filter(v => cfg.vendors[v]?.enabled === true);
+export const enabledVendors = (config: Config): VendorName[] =>
+  VENDORS.filter(vendor => config.vendors[vendor]?.enabled === true);
 
 export const isSkillEnabledForVendor = (entry: SkillEntry, vendor: string): boolean =>
   entry.vendors?.[vendor]?.enabled !== false;
 
-function str(value: unknown, path: string, problems: string[]): string | undefined {
+const str = (value: unknown, path: string, problems: string[]): string | undefined => {
   if (value === undefined) return undefined;
   if (typeof value !== "string") {
     problems.push(`${path}: must be a string`);
     return undefined;
   }
   return value;
-}
+};
 
-function bool(value: unknown, path: string, problems: string[]): boolean | undefined {
+const bool = (value: unknown, path: string, problems: string[]): boolean | undefined => {
   if (value === undefined) return undefined;
   if (typeof value !== "boolean") {
     problems.push(`${path}: must be a boolean`);
     return undefined;
   }
   return value;
-}
+};
 
-function table(
+const table = (
   value: unknown,
   path: string,
   problems: string[],
-): Record<string, unknown> | undefined {
+): Record<string, unknown> | undefined => {
   if (value === undefined) return undefined;
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     problems.push(`${path}: must be a table`);
     return undefined;
   }
   return value as Record<string, unknown>;
-}
-
-type SourceEntry = {
-  source?: string;
-  ref?: string;
-  subdir?: string;
-  vendors?: Record<string, VendorSkillConfig>;
 };
 
-function decodeEntry(
+const decodeEntry = (
   kind: "skills" | "subagents",
   value: unknown,
   name: string,
   problems: string[],
-): SourceEntry | undefined {
+): SourceEntry | undefined => {
   const entry = table(value, `${kind}.${name}`, problems);
   if (!entry) return undefined;
   const out: SourceEntry = {
@@ -118,9 +123,9 @@ function decodeEntry(
     }
   }
   return out;
-}
+};
 
-export function decodeConfig(value: unknown): Config {
+export const decodeConfig = (value: unknown): Config => {
   const problems: string[] = [];
   const root = table(value, "config", problems) ?? {};
   const systemPromptFile = str(root.system_prompt_file, "system_prompt_file", problems);
@@ -162,14 +167,11 @@ export function decodeConfig(value: unknown): Config {
     skills,
     subagents,
   };
-}
+};
 
-export function normalizeConfig(cfg: Config, configDir: string): Config {
+export const normalizeConfig = (cfg: Config, configDir: string): Config => {
   const normalize = <E extends { source: string }>(entry: E): E => {
-    if (isGitSource(entry.source)) return entry;
-    if (entry.source.startsWith("/") || entry.source.startsWith("\\")) {
-      return entry;
-    }
+    if (isGitSource(entry.source) || isAbsolute(entry.source)) return entry;
     return { ...entry, source: join(configDir, entry.source) };
   };
   return {
@@ -179,49 +181,28 @@ export function normalizeConfig(cfg: Config, configDir: string): Config {
       Object.entries(cfg.subagents).map(([name, e]) => [name, normalize(e)]),
     ),
   };
-}
+};
 
-export const configFilePath = () => join(configDirectoryPath(), CONFIG_FILE);
+const quote = (value: string) => JSON.stringify(value);
 
-export const promptFilePath = (filename: string): string =>
-  filename.startsWith("/") || filename.startsWith("\\")
-    ? filename
-    : join(configDirectoryPath(), filename);
-
-export async function readConfig(): Promise<Config | null> {
-  const path = configFilePath();
-  const file = Bun.file(path);
-  if (!(await file.exists())) return null;
-  const parsed = Bun.TOML.parse(await file.text());
-  return normalizeConfig(decodeConfig(parsed), configDirectoryPath());
-}
-
-export async function writeConfig(cfg: Config): Promise<void> {
-  const dir = configDirectoryPath();
-  await mkdir(dir, { recursive: true });
-  await Bun.write(join(dir, CONFIG_FILE), toToml(cfg));
-}
-
-const q = (s: string) => JSON.stringify(s);
-
-const toToml = (cfg: Config): string => {
-  const out = [`system_prompt_file = ${q(cfg.systemPromptFile)}`];
+export const encodeConfig = (cfg: Config): string => {
+  const out = [`system_prompt_file = ${quote(cfg.systemPromptFile)}`];
   for (const [name, vendor] of Object.entries(cfg.vendors)) {
     out.push("", `[vendors.${name}]`, `enabled = ${vendor.enabled}`);
   }
   for (const [name, skill] of Object.entries(cfg.skills)) {
-    out.push("", `[skills.${name}]`, `source = ${q(skill.source)}`);
-    if (skill.ref) out.push(`ref = ${q(skill.ref)}`);
-    if (skill.subdir) out.push(`subdir = ${q(skill.subdir)}`);
-    for (const [vendor, v] of Object.entries(skill.vendors ?? {})) {
-      if (v.enabled === undefined) continue;
-      out.push(`[skills.${name}.vendors.${vendor}]`, `enabled = ${v.enabled}`);
+    out.push("", `[skills.${name}]`, `source = ${quote(skill.source)}`);
+    if (skill.ref) out.push(`ref = ${quote(skill.ref)}`);
+    if (skill.subdir) out.push(`subdir = ${quote(skill.subdir)}`);
+    for (const [vendor, entry] of Object.entries(skill.vendors ?? {})) {
+      if (entry.enabled === undefined) continue;
+      out.push(`[skills.${name}.vendors.${vendor}]`, `enabled = ${entry.enabled}`);
     }
   }
-  for (const [name, sub] of Object.entries(cfg.subagents)) {
-    out.push("", `[subagents.${name}]`, `source = ${q(sub.source)}`);
-    if (sub.ref) out.push(`ref = ${q(sub.ref)}`);
-    if (sub.subdir) out.push(`subdir = ${q(sub.subdir)}`);
+  for (const [name, subagent] of Object.entries(cfg.subagents)) {
+    out.push("", `[subagents.${name}]`, `source = ${quote(subagent.source)}`);
+    if (subagent.ref) out.push(`ref = ${quote(subagent.ref)}`);
+    if (subagent.subdir) out.push(`subdir = ${quote(subagent.subdir)}`);
   }
-  return out.join("\n") + "\n";
+  return `${out.join("\n")}\n`;
 };

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import { newHarness } from "./harness";
+import type { Home } from "./harness";
 
 const samplePrompt = "# Sample prompt\n\nDo the right thing.\n";
 
@@ -26,7 +27,7 @@ describe("sync", () => {
     const paths = h.vendorPaths();
     await h.assertFileEquals(paths["claude-code"], samplePrompt);
     await h.assertFileEquals(paths["gemini-cli"], samplePrompt);
-    await h.assertFileEquals(paths["codex"], "");
+    await h.assertFileEquals(paths.codex, "");
     await h.assertFileEquals(paths["cursor-agent"], "");
     await h.close();
   });
@@ -40,7 +41,7 @@ describe("sync", () => {
 
     const paths = h.vendorPaths();
     await h.assertFileEquals(paths["claude-code"], samplePrompt);
-    await h.assertFileEquals(paths["codex"], samplePrompt);
+    await h.assertFileEquals(paths.codex, samplePrompt);
     await h.assertFileEquals(paths["gemini-cli"], "");
     await h.assertFileEquals(paths["cursor-agent"], "");
     await h.close();
@@ -106,7 +107,7 @@ describe("sync", () => {
     await h.assertFileEquals(paths["claude-code"], samplePrompt);
     await h.assertFileEquals(paths["gemini-cli"], samplePrompt);
     await h.assertFileEquals(paths["cursor-agent"], samplePrompt);
-    await h.assertFileEquals(paths["codex"], "");
+    await h.assertFileEquals(paths.codex, "");
     await h.close();
   });
 
@@ -143,7 +144,7 @@ describe("sync", () => {
   });
 });
 
-async function countGenerations(h: any): Promise<number> {
+const countGenerations = async (h: Home): Promise<number> => {
   const { readdir } = await import("node:fs/promises");
   try {
     const entries = await readdir(h.storePath());
@@ -151,12 +152,12 @@ async function countGenerations(h: any): Promise<number> {
   } catch {
     return 0;
   }
-}
+};
 
-async function snapshotVendorFiles(h: any): Promise<Record<string, string>> {
+const snapshotVendorFiles = async (h: Home): Promise<Record<string, string>> => {
   const out: Record<string, string> = {};
   for (const [k, path] of Object.entries(h.vendorPaths())) {
     out[k] = await h.readFileText(path);
   }
   return out;
-}
+};

@@ -11,8 +11,13 @@ pre-commit:
       stage_fixed: true
     lint-biome:
       glob: "apps/ponte/src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}"
-      run: biome lint {staged_files}
+      run: biome lint --error-on-warnings {staged_files}
     lint-markdown:
       glob: "**/*.md"
       run: rumdl check --fix {staged_files}
       stage_fixed: true
+
+pre-push:
+  commands:
+    lint:
+      run: just lint

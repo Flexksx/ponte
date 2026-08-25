@@ -6,6 +6,8 @@
   "trust": [],
   "dependencies": {},
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "dependency-cruiser": "^18.2.0",
+    "typescript": "^6"
   }
 }

@@ -2,17 +2,18 @@ import { $ } from "bun";
 import { join, dirname } from "node:path";
 import { mkdir, writeFile, readFile, readlink, chmod, rm } from "node:fs/promises";
 import { tmpdir as osTmpdir } from "node:os";
+import type { VendorName } from "../../src/domain/vendor";
 
 let binaryUnderTest = "";
 let binaryResolve: Promise<string> | null = null;
 
-function resolveBinary(): Promise<string> {
+const resolveBinary = (): Promise<string> => {
   if (binaryUnderTest) return Promise.resolve(binaryUnderTest);
   if (binaryResolve) return binaryResolve;
   binaryResolve = (async () => {
     const here = new URL(import.meta.url).pathname;
     const slash = here.lastIndexOf("/");
-    const root = here.slice(0, slash) + "/../..";
+    const root = `${here.slice(0, slash)}/../..`;
     const bin = join(await osTmpdir(), `ponte-e2e-bin-${randId()}`);
     await mkdir(bin, { recursive: true });
     const out = join(bin, process.platform === "win32" ? "ponte.exe" : "ponte");
@@ -24,21 +25,21 @@ function resolveBinary(): Promise<string> {
     return out;
   })();
   return binaryResolve;
-}
+};
 
-export function setBinaryPath(path: string): void {
+export const setBinaryPath = (path: string): void => {
   binaryUnderTest = path;
-}
+};
 
-export function binaryPath(): string {
+export const binaryPath = (): string => {
   return binaryUnderTest;
-}
+};
 
-export async function newHarness(): Promise<Home> {
+export const newHarness = async (): Promise<Home> => {
   const home = join(await osTmpdir(), `ponte-e2e-${randId()}`);
   await mkdir(home, { recursive: true });
   return new Home(home);
-}
+};
 
 const randId = () => Math.random().toString(36).slice(2, 10);
 
@@ -105,7 +106,7 @@ export class Home {
     }
   }
 
-  vendorPaths(): Record<string, string> {
+  vendorPaths(): Record<VendorName, string> {
     return {
       "claude-code": join(this.home, ".claude", "CLAUDE.md"),
       codex: join(this.home, ".codex", "instructions.md"),
@@ -114,7 +115,7 @@ export class Home {
     };
   }
 
-  vendorSkillsDirs(): Record<string, string> {
+  vendorSkillsDirs(): Record<VendorName, string> {
     return {
       "claude-code": join(this.home, ".claude", "skills"),
       codex: join(this.home, ".codex", "skills"),
@@ -123,11 +124,11 @@ export class Home {
     };
   }
 
-  vendorSkillPath(vendor: string, skillName: string): string {
+  vendorSkillPath(vendor: VendorName, skillName: string): string {
     return join(this.vendorSkillsDirs()[vendor], skillName);
   }
 
-  vendorAgentsDirs(): Record<string, string> {
+  vendorAgentsDirs(): Record<VendorName, string> {
     return {
       "claude-code": join(this.home, ".claude", "agents"),
       codex: join(this.home, ".codex", "agents"),
@@ -136,7 +137,7 @@ export class Home {
     };
   }
 
-  vendorAgentPath(vendor: string, agentFile: string): string {
+  vendorAgentPath(vendor: VendorName, agentFile: string): string {
     return join(this.vendorAgentsDirs()[vendor], agentFile);
   }
 
@@ -147,9 +148,7 @@ export class Home {
   async assertIsStoreSymlink(path: string): Promise<void> {
     const target = await readlink(path);
     if (!target.startsWith(this.storePath())) {
-      throw new Error(
-        `expected symlink target inside store ${this.storePath()}, got ${target}`,
-      );
+      throw new Error(`expected symlink target inside store ${this.storePath()}, got ${target}`);
     }
   }
 

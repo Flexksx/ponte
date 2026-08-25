@@ -1,9 +1,9 @@
 import { describe, it, expect } from "bun:test";
-import { resolveSource } from "../src/sources";
+import { resolveSource } from "../src/infra/git";
 import { join } from "node:path";
 import { mkdtemp, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { resolveContent } from "../src/prompt";
+import { resolveContent } from "../src/infra/config-file";
 
 describe("resolveSource.local", () => {
   it("resolves an existing directory and rejects non-directories", async () => {

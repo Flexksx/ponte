@@ -1,12 +1,7 @@
 import { describe, it, expect } from "bun:test";
-import {
-  buildGeneration,
-  planGc,
-  hashDir,
-  readActiveHash,
-  listGenerations,
-  type Generation,
-} from "../src/store";
+import { planGc, type Generation } from "../src/domain/generation";
+import { hashDir } from "../src/infra/filesystem";
+import { buildGeneration, listGenerations, readActiveHash } from "../src/infra/store";
 import { join } from "node:path";
 import { mkdtemp, readFile, writeFile, mkdir, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -74,8 +69,8 @@ describe("planGc", () => {
   it("keeps active, removes orphaned", () => {
     const gens = [gen("a"), gen("b"), gen("c")];
     const { remove, keep } = planGc(gens, new Set(["b"]));
-    expect(remove.map((g) => g.hash)).toEqual(["a", "c"]);
-    expect(keep.map((g) => g.hash)).toEqual(["b"]);
+    expect(remove.map(g => g.hash)).toEqual(["a", "c"]);
+    expect(keep.map(g => g.hash)).toEqual(["b"]);
   });
 });
 

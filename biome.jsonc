@@ -9,7 +9,7 @@
   // config files (.zed/, .claude/, nix/, package.json) that other
   // tools already checks.
   "files": {
-    "includes": ["src/**"]
+    "includes": ["apps/*/src/**", "apps/*/tests/**"]
   },
 
   // Honor .gitignore (drops out/, .direnv/ automatically).

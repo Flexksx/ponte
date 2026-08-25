@@ -1,8 +1,9 @@
 import { describe, it, expect } from "bun:test";
 import { newHarness } from "./harness";
+import type { Home } from "./harness";
 import { readdir } from "node:fs/promises";
 
-const countGenerations = async (h: any): Promise<number> => {
+const countGenerations = async (h: Home): Promise<number> => {
   try {
     const entries = await readdir(h.storePath());
     return entries.filter((e: string) => !e.endsWith(".build")).length;

@@ -1,10 +1,7 @@
 set working-directory := "../.."
 
+# Build the ponte CLI binary
 [private]
 default:
-    just --list --justfile {{source_file()}}
-
-# Build the ponte CLi binary
-cli:
     mkdir -p out
     bun build ./apps/ponte/src/index.ts --compile --outfile ./out/ponte

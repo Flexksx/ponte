@@ -4,18 +4,18 @@ import { join } from "node:path";
 import { mkdir, writeFile, readlink } from "node:fs/promises";
 import { tmpdir as osTmpdir } from "node:os";
 import { newHarness } from "./harness";
+import type { Home } from "./harness";
 
 const isWindows = () => process.platform === "win32";
 
 const writeConfigWithGitSkill = async (
-  h: any,
+  h: Home,
   skillName: string,
   repoURL: string,
   ref: string,
 ) => {
   const cfg = await h.readFileText(h.configPath("config.toml"));
-  const entry =
-    `\n[skills.${skillName}]\nsource = ${JSON.stringify(repoURL)}\nref = ${JSON.stringify(ref)}\n`;
+  const entry = `\n[skills.${skillName}]\nsource = ${JSON.stringify(repoURL)}\nref = ${JSON.stringify(ref)}\n`;
   await h.writeFile(h.configPath("config.toml"), cfg + entry);
 };
 
@@ -105,7 +105,7 @@ describe("skill sync", () => {
 
     const { repoPath, commitSHA } = await createLocalGitSkillRepo();
 
-    await writeConfigWithGitSkill(h, "git-skill", "file://" + repoPath, commitSHA);
+    await writeConfigWithGitSkill(h, "git-skill", `file://${repoPath}`, commitSHA);
 
     await h.mustRun("sync");
 
@@ -115,17 +115,17 @@ describe("skill sync", () => {
   });
 });
 
-async function appendConfigWithSkill(
-  h: any,
+const appendConfigWithSkill = async (
+  h: Home,
   skillName: string,
   skillDirPath: string,
-): Promise<void> {
+): Promise<void> => {
   const cfg = await h.readFileText(h.configPath("config.toml"));
   const entry = `\n[skills.${skillName}]\nsource = ${JSON.stringify(skillDirPath)}\n`;
   await h.writeFile(h.configPath("config.toml"), cfg + entry);
-}
+};
 
-async function createLocalGitSkillRepo(): Promise<{ repoPath: string; commitSHA: string }> {
+const createLocalGitSkillRepo = async (): Promise<{ repoPath: string; commitSHA: string }> => {
   const repoPath = join(osTmpdir(), `ponte-git-skill-${Math.random().toString(36).slice(2, 8)}`);
   await mkdir(repoPath, { recursive: true });
 
@@ -146,4 +146,4 @@ async function createLocalGitSkillRepo(): Promise<{ repoPath: string; commitSHA:
   const commitSHA = (await git("rev-parse", "HEAD")).trim();
 
   return { repoPath, commitSHA };
-}
+};

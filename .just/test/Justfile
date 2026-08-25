@@ -1,8 +1,8 @@
 set working-directory := "../.."
 
+# Run the unit and end-to-end suites
 [private]
-default:
-    just --list --justfile {{source_file()}}
+default: unit e2e
 
 # Run the unit + integration test suite
 unit:
@@ -11,6 +11,3 @@ unit:
 # Run the end-to-end suite (spawns the compiled CLI against isolated homes)
 e2e:
     bun test ./apps/ponte/tests/e2e
-
-# Run everything
-all: unit e2e

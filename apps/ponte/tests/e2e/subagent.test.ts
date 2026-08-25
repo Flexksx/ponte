@@ -2,6 +2,7 @@ import { describe, it, expect } from "bun:test";
 import { join } from "node:path";
 import { readlink } from "node:fs/promises";
 import { newHarness } from "./harness";
+import type { Home } from "./harness";
 
 const isWindows = () => process.platform === "win32";
 
@@ -85,12 +86,12 @@ describe("subagent sync", () => {
   });
 });
 
-async function appendConfigWithSubagent(
-  h: any,
+const appendConfigWithSubagent = async (
+  h: Home,
   name: string,
   sourceDirPath: string,
-): Promise<void> {
+): Promise<void> => {
   const cfg = await h.readFileText(h.configPath("config.toml"));
   const entry = `\n[subagents.${name}]\nsource = ${JSON.stringify(sourceDirPath)}\n`;
   await h.writeFile(h.configPath("config.toml"), cfg + entry);
-}
+};

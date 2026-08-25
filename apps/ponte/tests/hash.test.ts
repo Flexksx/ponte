@@ -1,9 +1,8 @@
 import { describe, it, expect } from "bun:test";
 import { createHash } from "node:crypto";
-import { computeHash, hashEntries } from "../src/hash-core";
+import { computeHash, hashEntries } from "../src/domain/hashing";
 
-const sha256 = (s: string) =>
-  createHash("sha256").update(s).digest("hex");
+const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 
 describe("hashEntries", () => {
   it("hashes one entry with a trailing newline and full hex", () => {
@@ -24,22 +23,22 @@ describe("hashEntries", () => {
 
 describe("computeHash", () => {
   it("matches the Go line format and truncates to 32", () => {
-    const body =
-      `systemprompt:${sha256("hi")}\n` +
-      `skill:a:DIRA\n` +
-      `subagent:b:DIRB\n`;
+    const body = `systemprompt:${sha256("hi")}\nskill:a:DIRA\nsubagent:b:DIRB\n`;
     const want = sha256(body).slice(0, 32);
     expect(computeHash("hi", [["a", "DIRA"]], [["b", "DIRB"]])).toBe(want);
   });
 
   it("sorts skills and subagents by name before hashing", () => {
-    const body =
-      `systemprompt:${sha256("p")}\n` +
-      `skill:a:H1\n` +
-      `skill:z:H2\n` +
-      `subagent:m:H3\n`;
+    const body = `systemprompt:${sha256("p")}\nskill:a:H1\nskill:z:H2\nsubagent:m:H3\n`;
     const want = sha256(body).slice(0, 32);
-    const got = computeHash("p", [["z", "H2"], ["a", "H1"]], [["m", "H3"]]);
+    const got = computeHash(
+      "p",
+      [
+        ["z", "H2"],
+        ["a", "H1"],
+      ],
+      [["m", "H3"]],
+    );
     expect(got).toBe(want);
   });
 });

@@ -1,12 +1,6 @@
 set working-directory := "../.."
 
+# Format the Bun/TS source and tests
 [private]
 default:
-    just --list --justfile {{source_file()}}
-
-# Format the Bun/TS source under apps/ponte/src
-typecheck:
-    biome format --write ./apps/ponte/src
-
-# Format everything
-all: typecheck
+    biome format --write ./apps/ponte/src ./apps/ponte/tests

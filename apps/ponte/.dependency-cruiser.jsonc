@@ -1,0 +1,85 @@
+{
+  "$schema": "https://raw.githubusercontent.com/sverweij/dependency-cruiser/main/src/schema/configuration.schema.json",
+
+  "forbidden": [
+    {
+      "name": "no-circular",
+      "comment": "A cycle makes the layer order meaningless. Break it with a new module that both sides import.",
+      "severity": "error",
+      "from": {},
+      "to": { "circular": true }
+    },
+    {
+      "name": "no-orphans",
+      "comment": "Nothing imports this file. Delete it, or import it. Ambient declaration files are exempt.",
+      "severity": "error",
+      "from": { "orphan": true, "pathNot": ["\\.d\\.ts$"] },
+      "to": {}
+    },
+    {
+      "name": "not-to-unresolvable",
+      "comment": "The import target does not exist. Fix the path or install the package.",
+      "severity": "error",
+      "from": {},
+      "to": { "couldNotResolve": true }
+    },
+    {
+      "name": "no-dev-deps-in-src",
+      "comment": "Development tools must not reach the shipped binary. Move the import to tests, or move the package to dependencies.",
+      "severity": "error",
+      "from": { "path": "^src/" },
+      "to": {
+        "dependencyTypes": ["npm-dev"],
+        "pathNot": ["^node_modules/@types/"]
+      }
+    },
+    {
+      "name": "no-src-to-tests",
+      "comment": "Production code must not import test code.",
+      "severity": "error",
+      "from": { "path": "^src/" },
+      "to": { "path": "^tests/" }
+    },
+    {
+      "name": "domain-is-pure",
+      "comment": "src/domain holds pure rules. It may import other domain modules, node:path and node:crypto. Nothing else.",
+      "severity": "error",
+      "from": { "path": "^src/domain/" },
+      "to": { "pathNot": ["^src/domain/", "^(node:)?(path|crypto)$"] }
+    },
+    {
+      "name": "cli-goes-through-app",
+      "comment": "The CLI layer must reach infrastructure through a use case in src/app, never directly.",
+      "severity": "error",
+      "from": { "path": "^src/cli/" },
+      "to": { "path": "^src/infra/" }
+    },
+    {
+      "name": "infra-is-a-leaf",
+      "comment": "An adapter must not call back into a use case or the CLI.",
+      "severity": "error",
+      "from": { "path": "^src/infra/" },
+      "to": { "path": "^src/(app|cli)/" }
+    },
+    {
+      "name": "app-does-not-print",
+      "comment": "A use case must not import the CLI layer. Return data and let the CLI format it.",
+      "severity": "error",
+      "from": { "path": "^src/app/" },
+      "to": { "path": "^src/cli/" }
+    },
+    {
+      "name": "entry-point-only-starts-the-cli",
+      "comment": "src/index.ts wires nothing but the CLI entry point.",
+      "severity": "error",
+      "from": { "path": "^src/index\\.ts$" },
+      "to": { "pathNot": ["^src/cli/"] }
+    }
+  ],
+
+  "options": {
+    "doNotFollow": { "path": "node_modules" },
+    "tsPreCompilationDeps": true,
+    "tsConfig": { "fileName": "tsconfig.json" }
+  }
+}

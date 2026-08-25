@@ -13,6 +13,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+      - name: Install dependencies
+        run: nix develop --command bash -c 'cd apps/ponte && bun install --frozen-lockfile'
+      - name: Check style, types and architecture
+        run: nix develop --command just lint
+
   test:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}

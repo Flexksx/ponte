@@ -1,14 +1,20 @@
 import { describe, it, expect } from "bun:test";
-import { decodeConfig, normalizeConfig, type Config, type SkillEntry } from "../src/config";
-import { ConfigError } from "../src/hash-core";
-import { parseSource, isGitSource } from "../src/sources";
+import {
+  ConfigError,
+  decodeConfig,
+  normalizeConfig,
+  type Config,
+  type SkillEntry,
+} from "../src/domain/config";
+import { isGitSource, parseSource } from "../src/domain/source";
 
-const cfgWith = (skills: Record<string, SkillEntry> = {}) => ({
-  systemPromptFile: "AGENTS.md",
-  vendors: {},
-  skills,
-  subagents: {},
-} as Config);
+const cfgWith = (skills: Record<string, SkillEntry> = {}) =>
+  ({
+    systemPromptFile: "AGENTS.md",
+    vendors: {},
+    skills,
+    subagents: {},
+  }) as Config;
 
 describe("isGitSource", () => {
   it("recognises URL schemes", () => {
@@ -73,11 +79,8 @@ describe("decodeConfig", () => {
 
 describe("normalizeConfig", () => {
   it("expands relative local paths against the config dir", () => {
-    const norm = normalizeConfig(
-      cfgWith({ s: { source: "skills/s" } }),
-      "/cfg",
-    );
-    expect(norm.skills.s.source).toBe("/cfg/skills/s");
+    const norm = normalizeConfig(cfgWith({ s: { source: "skills/s" } }), "/cfg");
+    expect(norm.skills.s?.source).toBe("/cfg/skills/s");
   });
 
   it("leaves git sources and absolute paths untouched", () => {
@@ -85,7 +88,7 @@ describe("normalizeConfig", () => {
       cfgWith({ git: { source: "https://x/y" }, abs: { source: "/abs/path" } }),
       "/cfg",
     );
-    expect(norm.skills.git.source).toBe("https://x/y");
-    expect(norm.skills.abs.source).toBe("/abs/path");
+    expect(norm.skills.git?.source).toBe("https://x/y");
+    expect(norm.skills.abs?.source).toBe("/abs/path");
   });
 });
