@@ -2,22 +2,25 @@ pre-commit:
   parallel: true
   commands:
     format-nix:
-      glob: "**/*.nix"
+      glob:
+        - "*.nix"
+        - "**/*.nix"
       run: alejandra {staged_files}
       stage_fixed: true
-    format-biome:
-      glob: "apps/ponte/src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}"
-      run: biome format --write {staged_files}
+    check-biome:
+      run: >-
+        biome check --write --error-on-warnings
+        --files-ignore-unknown=true --no-errors-on-unmatched {staged_files}
       stage_fixed: true
-    lint-biome:
-      glob: "apps/ponte/src/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}"
-      run: biome lint --error-on-warnings {staged_files}
     lint-markdown:
-      glob: "**/*.md"
+      glob:
+        - "*.md"
+        - "**/*.md"
       run: rumdl check --fix {staged_files}
       stage_fixed: true
 
 pre-push:
+  parallel: true
   commands:
     lint:
       run: just lint
