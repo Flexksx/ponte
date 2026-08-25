@@ -1,6 +1,7 @@
 import { isAbsolute, join } from "node:path";
-import { CONFIG_FILE } from "../domain/config";
 import type { Platform } from "../domain/vendor";
+
+const CONFIG_FILE = "config.toml";
 
 export const currentPlatform = (): Platform => (process.platform === "win32" ? "win32" : "posix");
 

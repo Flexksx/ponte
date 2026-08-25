@@ -1,11 +1,6 @@
 import { describe, it, expect } from "bun:test";
-import {
-  ConfigError,
-  decodeConfig,
-  normalizeConfig,
-  type Config,
-  type SkillEntry,
-} from "../src/domain/config";
+import { normalizeConfig, type Config, type SkillEntry } from "../src/domain/config";
+import { ConfigError, decodeConfig } from "../src/infra/config-codec";
 import { isGitSource, parseSource } from "../src/domain/source";
 
 const cfgWith = (skills: Record<string, SkillEntry> = {}) =>

@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import { decodeConfig, encodeConfig, normalizeConfig, type Config } from "../domain/config";
+import { normalizeConfig, type Config } from "../domain/config";
+import { decodeConfig, encodeConfig } from "./config-codec";
 import { configDirectoryPath, configFilePath, promptFilePath } from "./paths";
 
 export const readConfig = async (): Promise<Config | null> => {

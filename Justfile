@@ -12,4 +12,4 @@ mod test '.just/test'
 
 [private]
 default:
-    just --list --list-submodules
+    just --list

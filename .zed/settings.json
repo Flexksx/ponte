@@ -1,6 +1,6 @@
 {
   "load_direnv": "shell_hook",
-  "language_servers": ["biome"],
+  "language_servers": ["biome", "vtsls"],
   "languages": {
     "TypeScript": {
       "format_on_save": "on",
