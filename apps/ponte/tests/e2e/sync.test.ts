@@ -1,6 +1,6 @@
-import { describe, it, expect } from "bun:test";
-import { newHarness } from "./harness";
+import { describe, expect, it } from "bun:test";
 import type { Home } from "./harness";
+import { newHarness } from "./harness";
 
 const samplePrompt = "# Sample prompt\n\nDo the right thing.\n";
 
@@ -22,11 +22,11 @@ describe("sync", () => {
     await h.bootstrap();
     await h.mustRun("sysprompt", "set", samplePrompt);
 
-    await h.mustRun("sync", "-a", "claude-code,gemini-cli");
+    await h.mustRun("sync", "-a", "claude-code,antigravity-cli");
 
     const paths = h.vendorPaths();
     await h.assertFileEquals(paths["claude-code"], samplePrompt);
-    await h.assertFileEquals(paths["gemini-cli"], samplePrompt);
+    await h.assertFileEquals(paths["antigravity-cli"], samplePrompt);
     await h.assertFileEquals(paths.codex, "");
     await h.assertFileEquals(paths["cursor-agent"], "");
     await h.close();
@@ -42,7 +42,7 @@ describe("sync", () => {
     const paths = h.vendorPaths();
     await h.assertFileEquals(paths["claude-code"], samplePrompt);
     await h.assertFileEquals(paths.codex, samplePrompt);
-    await h.assertFileEquals(paths["gemini-cli"], "");
+    await h.assertFileEquals(paths["antigravity-cli"], "");
     await h.assertFileEquals(paths["cursor-agent"], "");
     await h.close();
   });
@@ -105,7 +105,7 @@ describe("sync", () => {
 
     const paths = h.vendorPaths();
     await h.assertFileEquals(paths["claude-code"], samplePrompt);
-    await h.assertFileEquals(paths["gemini-cli"], samplePrompt);
+    await h.assertFileEquals(paths["antigravity-cli"], samplePrompt);
     await h.assertFileEquals(paths["cursor-agent"], samplePrompt);
     await h.assertFileEquals(paths.codex, "");
     await h.close();

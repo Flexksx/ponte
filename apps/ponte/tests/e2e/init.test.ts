@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { newHarness } from "./harness";
 
 describe("init", () => {
@@ -9,7 +9,14 @@ describe("init", () => {
     expect(combined).toContain("Initialized ponte config");
 
     const cfg = await h.readFileText(h.configPath("config.toml"));
-    for (const name of ["claude-code", "codex", "gemini-cli", "cursor-agent"]) {
+    for (const name of [
+      "claude-code",
+      "codex",
+      "antigravity-cli",
+      "cursor-agent",
+      "opencode",
+      "pi-agent",
+    ]) {
       expect(cfg).toContain(name);
     }
 

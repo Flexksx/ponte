@@ -1,21 +1,44 @@
 import { join } from "node:path";
 
+const WINDOWS_CONFIG_ROOT = join("AppData", "Roaming");
+
 const VENDOR_SPECS = {
-  "claude-code": { posixRoot: ".claude", windowsRoot: "Claude", instruction: "CLAUDE.md" },
-  codex: { posixRoot: ".codex", windowsRoot: "Codex", instruction: "instructions.md" },
-  "gemini-cli": { posixRoot: ".gemini", windowsRoot: "Gemini", instruction: "GEMINI.md" },
+  "claude-code": {
+    posixRoot: ".claude",
+    windowsRoot: join(WINDOWS_CONFIG_ROOT, "Claude"),
+    instruction: "CLAUDE.md",
+  },
+  codex: {
+    posixRoot: ".codex",
+    windowsRoot: join(WINDOWS_CONFIG_ROOT, "Codex"),
+    instruction: "instructions.md",
+  },
+  "antigravity-cli": {
+    posixRoot: ".gemini",
+    windowsRoot: join(WINDOWS_CONFIG_ROOT, "Gemini"),
+    instruction: "GEMINI.md",
+    resourceRoot: "antigravity-cli",
+  },
   "cursor-agent": {
     posixRoot: ".cursor",
-    windowsRoot: "Cursor",
-    instruction: "rules/global.mdc",
+    windowsRoot: join(WINDOWS_CONFIG_ROOT, "Cursor"),
+    instruction: join("rules", "global.mdc"),
+  },
+  opencode: {
+    posixRoot: join(".config", "opencode"),
+    windowsRoot: join(WINDOWS_CONFIG_ROOT, "opencode"),
+    instruction: "AGENTS.md",
+  },
+  "pi-agent": {
+    posixRoot: join(".pi", "agent"),
+    windowsRoot: join(".pi", "agent"),
+    instruction: "AGENTS.md",
   },
 } as const satisfies Record<string, VendorSpec>;
 
 const SKILLS_DIRECTORY = "skills";
 
 const AGENTS_DIRECTORY = "agents";
-
-const WINDOWS_CONFIG_ROOT = join("AppData", "Roaming");
 
 const VENDOR_SEPARATOR = ",";
 
@@ -25,6 +48,9 @@ type VendorSpec = {
   readonly posixRoot: string;
   readonly windowsRoot: string;
   readonly instruction: string;
+  // Vendors that keep skills and subagents below the instruction root, such as
+  // Antigravity nesting them inside the shared Gemini directory.
+  readonly resourceRoot?: string;
 };
 
 export type VendorName = keyof typeof VENDOR_SPECS;
@@ -62,15 +88,15 @@ export const vendorLayouts = (
   home: string,
   platform: Platform,
 ): Record<VendorName, VendorLayout> => {
-  const base = platform === "win32" ? join(home, WINDOWS_CONFIG_ROOT) : home;
   const layouts = {} as Record<VendorName, VendorLayout>;
   for (const name of VENDORS) {
-    const spec = VENDOR_SPECS[name];
-    const root = join(base, platform === "win32" ? spec.windowsRoot : spec.posixRoot);
+    const spec: VendorSpec = VENDOR_SPECS[name];
+    const root = join(home, platform === "win32" ? spec.windowsRoot : spec.posixRoot);
+    const resources = spec.resourceRoot === undefined ? root : join(root, spec.resourceRoot);
     layouts[name] = {
       instruction: join(root, spec.instruction),
-      skills: join(root, SKILLS_DIRECTORY),
-      agents: join(root, AGENTS_DIRECTORY),
+      skills: join(resources, SKILLS_DIRECTORY),
+      agents: join(resources, AGENTS_DIRECTORY),
     };
   }
   return layouts;

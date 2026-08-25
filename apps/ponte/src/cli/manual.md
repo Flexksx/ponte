@@ -5,7 +5,8 @@
 ponte manages AI agent configuration — system prompts, skills, and
 subagents — across multiple vendors from a single source of truth.
 
-Supported vendors: `claude-code`, `codex`, `gemini-cli`, `cursor-agent`.
+Supported vendors: `claude-code`, `codex`, `antigravity-cli`,
+`cursor-agent`, `opencode`, `pi-agent`.
 
 ### How it works
 
@@ -52,10 +53,12 @@ system_prompt_file = "AGENTS.md"
 
 # Per-vendor toggles. Each key must be a known vendor name.
 [vendors]
-claude-code   = { enabled = true }
-codex         = { enabled = true }
-gemini-cli    = { enabled = true }
-cursor-agent  = { enabled = false }
+claude-code     = { enabled = true }
+codex           = { enabled = true }
+antigravity-cli = { enabled = true }
+cursor-agent    = { enabled = false }
+opencode        = { enabled = true }
+pi-agent        = { enabled = true }
 
 # Skills — one [skills.<name>] section per skill.
 # Each skill is a directory containing a SKILL.md file plus any supporting files.
@@ -70,7 +73,7 @@ ref    = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"   # full commit SHA recommen
 subdir = ""   # optional: subdirectory inside the repo that contains the skill
 
 # Per-vendor override — disable a skill for a specific vendor only.
-[skills.ast-grep.vendors.gemini-cli]
+[skills.ast-grep.vendors.antigravity-cli]
 enabled = false
 
 # Subagents — one [subagents.<name>] section per subagent.
@@ -133,7 +136,7 @@ enabled = false
 enabled = false
 ```
 
-This syncs `java-dev` to `claude-code` and `gemini-cli` only.
+This syncs `java-dev` to every vendor except `codex` and `cursor-agent`.
 
 ### Skill directory layout
 

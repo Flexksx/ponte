@@ -3,15 +3,16 @@
 > **ponte** — Portuguese for *bridge*. Pronounced **pon-chee** (`/ˈpõ.tʃi/`).
 
 Sync AI agent instructions, skills, and subagents across vendors —
-Claude Code, Codex, Gemini CLI, Cursor — from a single config.
+Claude Code, Codex, Antigravity CLI, Cursor, OpenCode, Pi — from a
+single config.
 
 ## What it is
 
 Every AI coding agent keeps its own config in its own place: Claude Code
-reads `~/.claude/`, Codex reads `~/.codex/`, Gemini CLI and Cursor each
-have their own dotfiles. The same system prompt, the same skills, the
-same subagent definitions end up copy-pasted and drifting across four
-trees.
+reads `~/.claude/`, Codex reads `~/.codex/`, Antigravity CLI, Cursor,
+OpenCode and Pi each have their own dotfiles. The same system prompt,
+the same skills, the same subagent definitions end up copy-pasted and
+drifting across six trees.
 
 ponte is the bridge between them. You declare your system prompt,
 skills, and subagents **once** in `~/.config/ponte/`. `ponte sync`
@@ -78,7 +79,7 @@ To add a skill, declare it in `~/.config/ponte/config.toml` and run
 source = "skills/my-skill"   # relative to ~/.config/ponte/
 ```
 
-See [MANUAL.md](MANUAL.md) for the full CLI reference and usage guide.
+See [the CLI manual](apps/ponte/src/cli/manual.md) for the full CLI reference and usage guide.
 
 ## Configuration reference
 
@@ -104,11 +105,17 @@ enabled = true
 [vendors.codex]
 enabled = true
 
-[vendors.gemini-cli]
+[vendors.antigravity-cli]
 enabled = true
 
 [vendors.cursor-agent]
 enabled = false
+
+[vendors.opencode]
+enabled = true
+
+[vendors.pi-agent]
+enabled = true
 
 # Skills — one [skills.<name>] section per skill. Each is a directory
 # containing a SKILL.md file plus supporting files, synced to every
@@ -123,7 +130,7 @@ ref    = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"   # full commit SHA preferre
 subdir = ""   # optional: subdirectory inside the repo that contains the skill
 
 # Per-vendor override — disable a skill for a specific vendor only.
-[skills.ast-grep.vendors.gemini-cli]
+[skills.ast-grep.vendors.antigravity-cli]
 enabled = false
 
 # Subagents — one [subagents.<name>] section per subagent. Each source
@@ -137,7 +144,7 @@ source = "subagents/claude"   # relative to the config directory
 | Key | Type | Default | Meaning |
 |-----|------|---------|---------|
 | `system_prompt_file` | string | `AGENTS.md` | System prompt path. Bare name → relative to `~/.config/ponte/`; absolute → read as-is. |
-| `[vendors.<vendor>].enabled` | bool | `true` | Whether sync targets that vendor. Vendors: `claude-code`, `codex`, `gemini-cli`, `cursor-agent`. |
+| `[vendors.<vendor>].enabled` | bool | `true` | Whether sync targets that vendor. Vendors: `claude-code`, `codex`, `antigravity-cli`, `cursor-agent`, `opencode`, `pi-agent`. |
 | `[skills.<name>].source` | string | — | Local directory path, or a git URL (with `ref`/`subdir`). |
 | `[skills.<name>].ref` | string | — | For git only: branch, tag, or commit. Prefer full commit SHAs. |
 | `[skills.<name>].subdir` | string | — | Optional subdirectory inside the git repo that holds the skill. |
@@ -178,7 +185,7 @@ sync` is **never run automatically** — run it yourself after a rebuild.
     systemPromptFile = "/home/me/config/ai_agents/AGENTS.md";
 
     # Toggle individual vendors; unset vendors default to enabled.
-    agents."gemini-cli".enable = false;
+    agents."antigravity-cli".enable = false;
 
     skills = [
       {
@@ -212,7 +219,7 @@ sync` is **never run automatically** — run it yourself after a rebuild.
 | `enable` | bool | `false` | Install ponte and generate `config.toml`. |
 | `package` | package | flake's default | The ponte package to install. |
 | `systemPromptFile` | string | `"AGENTS.md"` | Maps to `system_prompt_file`. Bare name → relative to `~/.config/ponte/`; absolute → read as-is. |
-| `agents.<vendor>.enable` | bool | `true` | Per-vendor toggle. Vendors: `claude-code`, `codex`, `gemini-cli`, `cursor-agent`. |
+| `agents.<vendor>.enable` | bool | `true` | Per-vendor toggle. Vendors: `claude-code`, `codex`, `antigravity-cli`, `cursor-agent`, `opencode`, `pi-agent`. |
 | `skills` | list of `{ name; source; }` | `[]` | Skill declarations; `source` matches the TOML source schema. |
 | `subagents` | list of `{ name; source; }` | `[]` | Subagent declarations; same `source` schema as skills. |
 | `settings` | TOML attrset | `{}` | Escape hatch for keys the module doesn't model; merged into `config.toml` and **takes precedence** over generated values. |
@@ -222,4 +229,4 @@ sync` is **never run automatically** — run it yourself after a rebuild.
 
 ## Documentation
 
-See [MANUAL.md](MANUAL.md) for the full configuration reference and usage guide.
+See [the CLI manual](apps/ponte/src/cli/manual.md) for the full configuration reference and usage guide.

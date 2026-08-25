@@ -1,7 +1,7 @@
-import { $ } from "bun";
-import { join, dirname } from "node:path";
-import { mkdir, writeFile, readFile, readlink, chmod, rm } from "node:fs/promises";
+import { chmod, mkdir, readFile, readlink, rm, writeFile } from "node:fs/promises";
 import { tmpdir as osTmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { $ } from "bun";
 import type { VendorName } from "../../src/domain/vendor";
 
 let binaryUnderTest = "";
@@ -110,8 +110,10 @@ export class Home {
     return {
       "claude-code": join(this.home, ".claude", "CLAUDE.md"),
       codex: join(this.home, ".codex", "instructions.md"),
-      "gemini-cli": join(this.home, ".gemini", "GEMINI.md"),
+      "antigravity-cli": join(this.home, ".gemini", "GEMINI.md"),
       "cursor-agent": join(this.home, ".cursor", "rules", "global.mdc"),
+      opencode: join(this.home, ".config", "opencode", "AGENTS.md"),
+      "pi-agent": join(this.home, ".pi", "agent", "AGENTS.md"),
     };
   }
 
@@ -119,8 +121,10 @@ export class Home {
     return {
       "claude-code": join(this.home, ".claude", "skills"),
       codex: join(this.home, ".codex", "skills"),
-      "gemini-cli": join(this.home, ".gemini", "skills"),
+      "antigravity-cli": join(this.home, ".gemini", "antigravity-cli", "skills"),
       "cursor-agent": join(this.home, ".cursor", "skills"),
+      opencode: join(this.home, ".config", "opencode", "skills"),
+      "pi-agent": join(this.home, ".pi", "agent", "skills"),
     };
   }
 
@@ -132,8 +136,10 @@ export class Home {
     return {
       "claude-code": join(this.home, ".claude", "agents"),
       codex: join(this.home, ".codex", "agents"),
-      "gemini-cli": join(this.home, ".gemini", "agents"),
+      "antigravity-cli": join(this.home, ".gemini", "antigravity-cli", "agents"),
       "cursor-agent": join(this.home, ".cursor", "agents"),
+      opencode: join(this.home, ".config", "opencode", "agents"),
+      "pi-agent": join(this.home, ".pi", "agent", "agents"),
     };
   }
 

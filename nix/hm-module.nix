@@ -6,7 +6,20 @@
     ...
   }: let
     cfg = config.programs.ponte;
-    tomlFormat = pkgs.formats.toml {};
+    tomlFormat = {
+      type = lib.types.toml;
+      generate = name: value:
+        pkgs.runCommand name
+        {
+          nativeBuildInputs = [pkgs.yj];
+          value = builtins.toJSON value;
+          preferLocalBuild = true;
+          __structuredAttrs = true;
+        }
+        ''
+          printf '%s' "$value" | yj -jt > "$out"
+        '';
+    };
 
     vendorSkillModule = lib.types.submodule {
       options.enable = lib.mkOption {
@@ -73,17 +86,21 @@
       };
 
     mkSkillEntry = skill:
-      {source = skill.source;}
+      {
+        source = skill.source;
+      }
       // lib.optionalAttrs (skill.ref != "") {ref = skill.ref;}
       // lib.optionalAttrs (skill.subdir != "") {subdir = skill.subdir;}
       // lib.optionalAttrs (skill.vendors != {}) {
-        vendors =
-          lib.mapAttrs (_: v: {enabled = v.enable;})
-          (lib.filterAttrs (_: v: v.enable != null) skill.vendors);
+        vendors = lib.mapAttrs (_: v: {enabled = v.enable;}) (
+          lib.filterAttrs (_: v: v.enable != null) skill.vendors
+        );
       };
 
     mkSubagentEntry = sub:
-      {source = sub.source;}
+      {
+        source = sub.source;
+      }
       // lib.optionalAttrs (sub.ref != "") {ref = sub.ref;}
       // lib.optionalAttrs (sub.subdir != "") {subdir = sub.subdir;};
 
@@ -127,8 +144,10 @@
       vendors = {
         "claude-code" = mkVendor "Claude Code";
         "codex" = mkVendor "Codex";
-        "gemini-cli" = mkVendor "Gemini CLI";
+        "antigravity-cli" = mkVendor "Antigravity CLI";
         "cursor-agent" = mkVendor "Cursor";
+        "opencode" = mkVendor "OpenCode";
+        "pi-agent" = mkVendor "Pi Agent";
       };
 
       skills = lib.mkOption {
@@ -146,7 +165,7 @@
             };
             "claude-only" = {
               source = "/path/to/claude-only";
-              vendors."gemini-cli".enable = false;
+              vendors."antigravity-cli".enable = false;
               vendors."codex".enable = false;
             };
           }
@@ -179,8 +198,7 @@
 
     config = lib.mkIf cfg.enable {
       home.packages = [cfg.package];
-      xdg.configFile."ponte/config.toml".source =
-        tomlFormat.generate "ponte-config.toml" settings;
+      xdg.configFile."ponte/config.toml".source = tomlFormat.generate "ponte-config.toml" settings;
     };
   };
 }
