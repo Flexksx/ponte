@@ -1,10 +1,11 @@
-import { describe, it, expect } from "bun:test";
-import { planGc, type Generation } from "../src/domain/generation";
+import { describe, expect, it } from "bun:test";
+import { mkdir, mkdtemp, readFile, symlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { type Generation, planGc } from "../src/domain/generation";
 import { hashDir } from "../src/infra/filesystem";
 import { buildGeneration, listGenerations, readActiveHash } from "../src/infra/store";
-import { join } from "node:path";
-import { mkdtemp, readFile, writeFile, mkdir, symlink } from "node:fs/promises";
-import { tmpdir } from "node:os";
+
 const scratchDir = () => mkdtemp(join(tmpdir(), "ponte-store-"));
 
 const emptyInput = (prompt = "p") => ({

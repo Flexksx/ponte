@@ -1,8 +1,8 @@
-import { describe, it, expect } from "bun:test";
-import { join } from "node:path";
+import { describe, expect, it } from "bun:test";
 import { readlink } from "node:fs/promises";
-import { newHarness } from "./harness";
+import { join } from "node:path";
 import type { Home } from "./harness";
+import { newHarness } from "./harness";
 
 const isWindows = () => process.platform === "win32";
 

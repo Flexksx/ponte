@@ -1,10 +1,10 @@
 import { classifyVendor, type VendorState } from "../domain/generation";
-import { VENDORS, vendorLayouts, type VendorName } from "../domain/vendor";
+import { VENDORS, type VendorName, vendorLayouts } from "../domain/vendor";
 import { readPrompt } from "../infra/config-file";
 import { currentPlatform, homeDirectory, storeDirectoryPath } from "../infra/paths";
 import { hashBuildInput, readActiveHash } from "../infra/store";
 import { requireConfig } from "./configuration";
-import { MissingSystemPromptError, buildInputFor } from "./sync";
+import { buildInputFor, MissingSystemPromptError } from "./sync";
 
 export type VendorStatus = {
   readonly name: VendorName;

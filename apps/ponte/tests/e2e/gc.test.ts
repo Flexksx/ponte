@@ -1,7 +1,7 @@
-import { describe, it, expect } from "bun:test";
-import { newHarness } from "./harness";
-import type { Home } from "./harness";
+import { describe, expect, it } from "bun:test";
 import { readdir } from "node:fs/promises";
+import type { Home } from "./harness";
+import { newHarness } from "./harness";
 
 const countGenerations = async (h: Home): Promise<number> => {
   try {

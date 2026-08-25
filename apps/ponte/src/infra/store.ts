@@ -2,9 +2,9 @@ import { mkdir, readdir, readlink, rename, rm, stat, writeFile } from "node:fs/p
 import { join } from "node:path";
 import {
   BUILD_SUFFIX,
-  hashFromStorePath,
   type BuildInput,
   type Generation,
+  hashFromStorePath,
 } from "../domain/generation";
 import { computeHash } from "../domain/hashing";
 import type { VendorLayout } from "../domain/vendor";

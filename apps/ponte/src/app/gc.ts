@@ -1,4 +1,4 @@
-import { planGc, type GarbageCollectionPlan } from "../domain/generation";
+import { type GarbageCollectionPlan, planGc } from "../domain/generation";
 import { vendorLayouts } from "../domain/vendor";
 import { currentPlatform, homeDirectory, storeDirectoryPath } from "../infra/paths";
 import { listGenerations, readActiveHash, removeGeneration } from "../infra/store";
