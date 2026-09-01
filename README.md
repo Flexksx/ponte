@@ -80,6 +80,55 @@ source = "skills/my-skill"   # relative to ~/.config/ponte/
 
 See [the CLI manual](apps/ponte/src/cli/manual.md) for the full CLI reference and usage guide.
 
+## Project mode
+
+A repository can carry its own skills. Put a `ponte.toml` file in the
+repository root:
+
+```toml
+[skills.house-style]
+source = "https://github.com/owner/skills-repo"
+ref    = "abc123def456"
+subdir = "house-style"       # optional
+
+[skills.internal]
+source = "skills/internal"   # relative to the project root
+```
+
+Every command walks up from the working directory to find `ponte.toml`. If a
+command finds the file, that directory is the project root and the command
+runs in project mode. No flag is involved. Project mode reads no global
+config and needs no system prompt.
+
+```sh
+cd my-repo
+ponte sync                          # vendor the git skills, then link them
+ponte skills                        # kind and locked commit per skill
+ponte status                        # link state of .agents/skills
+ponte update house-style            # take a new version of one skill
+git add ponte.toml .ponte .agents   # commit the copies and the links
+```
+
+What `ponte sync` does in a project:
+
+- Fetches a git source through `~/.cache/ponte/sources/`, then copies it to
+  `.ponte/sources/<name>` without the `.git` directory.
+- Copies a skill only when `.ponte/sources/<name>` is absent, so a local edit
+  survives every later sync. Commit the edit; run `ponte update` to overwrite
+  it on purpose.
+- Records the source commit per skill in `.ponte/lock.toml`.
+- Links each skill into `.agents/skills/<name>`. A link to a path inside the
+  project is relative, so it keeps working in every clone.
+- Removes the stale links in `.agents/skills/`, and leaves a real file or a
+  real directory there alone.
+
+`ponte update [name]` re-vendors a skill at the `ref` in `ponte.toml`. It
+compares the vendored copy with its locked commit first, and refuses a copy
+with local edits unless you pass `--force`.
+
+Only `[skills.<name>]` tables belong in `ponte.toml`. Any other top-level
+key is an error.
+
 ## Configuration reference
 
 ponte is configured two ways: directly via `config.toml`, or

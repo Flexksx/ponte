@@ -1,1 +1,1 @@
-apps/ponte/src/manual.md
+apps/ponte/src/cli/manual.md
