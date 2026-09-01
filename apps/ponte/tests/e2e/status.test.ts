@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { newHarness } from "./harness";
+import { newHarness, skillEntry } from "./harness";
 
 describe("status", () => {
   it("reports in sync after a sync", async () => {
@@ -19,12 +19,8 @@ describe("status", () => {
     await h.bootstrap();
     await h.mustRun("sysprompt", "set", "v1");
 
-    const skillDir = h.fixtureDir("simple_skill");
     const cfg = await h.readFileText(h.configPath("config.toml"));
-    await h.writeFile(
-      h.configPath("config.toml"),
-      `${cfg}\n[skills.simple-skill]\nsource = ${JSON.stringify(skillDir)}\n`,
-    );
+    await h.appendConfig(skillEntry(h.fixtureDir("simple_skill")));
     await h.mustRun("sync");
     await h.writeFile(h.configPath("config.toml"), cfg);
 

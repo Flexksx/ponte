@@ -1,9 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import {
   ancestorDirectories,
+  lockEquals,
+  lockedSkillName,
   normalizeProjectConfig,
   planProject,
   projectLayout,
+  projectState,
   shortCommit,
   vendoredSkillPath,
 } from "../src/domain/project";
@@ -65,26 +68,26 @@ describe("planProject", () => {
 
 describe("normalizeProjectConfig", () => {
   it("expands a relative local source against the project root", () => {
-    const config = normalizeProjectConfig({ skills: { mine: { source: "skills/mine" } } }, "/repo");
-    expect(config.skills.mine?.source).toBe("/repo/skills/mine");
+    const config = normalizeProjectConfig({ skills: [{ source: "skills/mine" }] }, "/repo");
+    expect(config.skills[0]?.source).toBe("/repo/skills/mine");
   });
 
   it("leaves git sources and absolute paths untouched", () => {
     const config = normalizeProjectConfig(
-      { skills: { git: { source: "https://x/y" }, abs: { source: "/abs/path" } } },
+      { skills: [{ source: "https://x/y" }, { source: "/abs/path" }] },
       "/repo",
     );
-    expect(config.skills.git?.source).toBe("https://x/y");
-    expect(config.skills.abs?.source).toBe("/abs/path");
+    expect(config.skills[0]?.source).toBe("https://x/y");
+    expect(config.skills[1]?.source).toBe("/abs/path");
   });
 });
 
 describe("decodeProjectConfig", () => {
-  it("decodes skill entries", () => {
+  it("decodes nameless skill entries", () => {
     const config = decodeProjectConfig({
-      skills: { mine: { source: "https://x/y", ref: "abc", subdir: "sub" } },
+      skills: [{ source: "https://x/y", ref: "abc", subdir: "sub" }],
     });
-    expect(config.skills.mine).toEqual({ source: "https://x/y", ref: "abc", subdir: "sub" });
+    expect(config.skills).toEqual([{ source: "https://x/y", ref: "abc", subdir: "sub" }]);
   });
 
   it("rejects an unknown top-level key", () => {
@@ -99,32 +102,110 @@ describe("decodeProjectConfig", () => {
 
   it("rejects an entry without a source", () => {
     try {
-      decodeProjectConfig({ skills: { mine: { ref: "abc" } } });
+      decodeProjectConfig({ skills: [{ ref: "abc" }] });
       expect(true).toBe(false);
     } catch (e) {
       expect(e instanceof ConfigError).toBe(true);
     }
   });
+
+  it("tells the user to migrate the old named skill tables", () => {
+    try {
+      decodeProjectConfig({ skills: { mine: { source: "skills/mine" } } });
+      expect(true).toBe(false);
+    } catch (e) {
+      expect((e as ConfigError).problems[0]).toContain("[[skills]]");
+    }
+  });
 });
 
 describe("lock file", () => {
-  it("round-trips a commit per skill", () => {
-    const encoded = encodeLock({ skills: { mine: { commit: "abc123" } } });
-    expect(encoded).toContain('[skills.mine]\ncommit = "abc123"');
-    expect(decodeLock(Bun.TOML.parse(encoded))).toEqual({ skills: { mine: { commit: "abc123" } } });
+  it("round-trips the source, the subdir and the commit per skill", () => {
+    const lock = {
+      skills: { mine: { source: "https://x/y", subdir: "sub", commit: "abc123" } },
+    };
+    const encoded = encodeLock(lock);
+    expect(encoded).toContain("[skills.mine]");
+    expect(decodeLock(Bun.TOML.parse(encoded))).toEqual(lock);
+  });
+
+  it("omits an empty subdir", () => {
+    const encoded = encodeLock({ skills: { mine: { source: "https://x/y", commit: "abc" } } });
+    expect(encoded).not.toContain("subdir");
   });
 
   it("encodes an empty lock without a table", () => {
     expect(decodeLock(Bun.TOML.parse(encodeLock({ skills: {} })))).toEqual({ skills: {} });
   });
 
-  it("rejects an entry without a commit", () => {
-    try {
-      decodeLock({ skills: { mine: {} } });
-      expect(true).toBe(false);
-    } catch (e) {
-      expect(e instanceof ConfigError).toBe(true);
+  it("rejects an entry without a commit or a source", () => {
+    for (const skills of [{ mine: {} }, { mine: { source: "https://x/y" } }]) {
+      try {
+        decodeLock({ skills });
+        expect(true).toBe(false);
+      } catch (e) {
+        expect(e instanceof ConfigError).toBe(true);
+      }
     }
+  });
+});
+
+describe("lockedSkillName", () => {
+  const lock = {
+    skills: {
+      one: { source: "https://x/y", commit: "a" },
+      two: { source: "https://x/y", subdir: "sub", commit: "b" },
+    },
+  };
+
+  it("matches on the source and the subdir together", () => {
+    expect(lockedSkillName(lock, { source: "https://x/y" })).toBe("one");
+    expect(lockedSkillName(lock, { source: "https://x/y", subdir: "sub" })).toBe("two");
+  });
+
+  it("ignores the ref", () => {
+    expect(lockedSkillName(lock, { source: "https://x/y", ref: "other" })).toBe("one");
+  });
+
+  it("returns null for an unlocked source", () => {
+    expect(lockedSkillName(lock, { source: "https://other/repo" })).toBeNull();
+  });
+});
+
+describe("lockEquals", () => {
+  const lock = { skills: { one: { source: "https://x/y", commit: "a" } } };
+
+  it("is true for the same entries", () => {
+    expect(lockEquals(lock, { skills: { one: { source: "https://x/y", commit: "a" } } })).toBe(
+      true,
+    );
+  });
+
+  it("is false when a commit, a source or a name changes", () => {
+    expect(lockEquals(lock, { skills: { one: { source: "https://x/y", commit: "b" } } })).toBe(
+      false,
+    );
+    expect(lockEquals(lock, { skills: { one: { source: "https://x/z", commit: "a" } } })).toBe(
+      false,
+    );
+    expect(lockEquals(lock, { skills: { two: { source: "https://x/y", commit: "a" } } })).toBe(
+      false,
+    );
+    expect(lockEquals(lock, { skills: {} })).toBe(false);
+  });
+});
+
+describe("projectState", () => {
+  const plan = planProject(layout, [{ name: "java", directory: "/repo/.ponte/sources/java" }]);
+  const actual = new Map([["/repo/.agents/skills/java", "../../.ponte/sources/java"]]);
+
+  it("has drifted while an entry still waits to be vendored", () => {
+    expect(projectState(plan, actual, 1)).toBe("drifted");
+  });
+
+  it("defers to the link state when nothing is pending", () => {
+    expect(projectState(plan, actual, 0)).toBe("in sync");
+    expect(projectState(plan, new Map(), 1)).toBe("not synced");
   });
 });
 

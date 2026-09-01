@@ -1,9 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import { type Config, normalizeConfig, type SourceEntry } from "../src/domain/config";
+import { type Config, normalizeConfig, type SourceEntry, sourceKey } from "../src/domain/config";
 import { isGitSource, parseSource } from "../src/domain/source";
-import { ConfigError, decodeConfig } from "../src/infra/config-codec";
+import { ConfigError, decodeConfig, encodeConfig } from "../src/infra/config-codec";
 
-const cfgWith = (skills: Record<string, SourceEntry> = {}) =>
+const cfgWith = (skills: readonly SourceEntry[] = []) =>
   ({
     systemPromptFile: "AGENTS.md",
     vendors: {},
@@ -68,7 +68,7 @@ describe("decodeConfig", () => {
     const bad = {
       system_prompt_file: 123,
       vendors: "nope",
-      skills: { s: { source: 42 } },
+      skills: [{ source: 42 }],
     };
     try {
       decodeConfig(bad);
@@ -79,20 +79,61 @@ describe("decodeConfig", () => {
       expect(problems.length).toBeGreaterThan(1);
     }
   });
+
+  it("decodes an array of nameless skill entries", () => {
+    const cfg = decodeConfig({
+      ...base,
+      skills: [{ source: "skills/one" }, { source: "https://x/y", ref: "abc", subdir: "sub" }],
+    });
+    expect(cfg.skills).toEqual([
+      { source: "skills/one" },
+      { source: "https://x/y", ref: "abc", subdir: "sub" },
+    ]);
+  });
+
+  it("tells the user to migrate the old named skill tables", () => {
+    try {
+      decodeConfig({ ...base, skills: { "my-skill": { source: "skills/my-skill" } } });
+      expect(true).toBe(false);
+    } catch (e) {
+      expect(e instanceof ConfigError).toBe(true);
+      expect((e as ConfigError).problems[0]).toContain("[[skills]]");
+      expect((e as ConfigError).problems[0]).toContain("SKILL.md");
+    }
+  });
+
+  it("round-trips the skills array through encodeConfig", () => {
+    const encoded = encodeConfig(cfgWith([{ source: "skills/one" }, { source: "skills/two" }]));
+    expect(encoded).toContain("[[skills]]");
+    expect(decodeConfig(Bun.TOML.parse(encoded)).skills).toEqual([
+      { source: "skills/one" },
+      { source: "skills/two" },
+    ]);
+  });
 });
 
 describe("normalizeConfig", () => {
   it("expands relative local paths against the config dir", () => {
-    const norm = normalizeConfig(cfgWith({ s: { source: "skills/s" } }), "/cfg");
-    expect(norm.skills.s?.source).toBe("/cfg/skills/s");
+    const norm = normalizeConfig(cfgWith([{ source: "skills/s" }]), "/cfg");
+    expect(norm.skills[0]?.source).toBe("/cfg/skills/s");
   });
 
   it("leaves git sources and absolute paths untouched", () => {
     const norm = normalizeConfig(
-      cfgWith({ git: { source: "https://x/y" }, abs: { source: "/abs/path" } }),
+      cfgWith([{ source: "https://x/y" }, { source: "/abs/path" }]),
       "/cfg",
     );
-    expect(norm.skills.git?.source).toBe("https://x/y");
-    expect(norm.skills.abs?.source).toBe("/abs/path");
+    expect(norm.skills[0]?.source).toBe("https://x/y");
+    expect(norm.skills[1]?.source).toBe("/abs/path");
+  });
+});
+
+describe("sourceKey", () => {
+  it("separates entries by source and subdir", () => {
+    expect(sourceKey({ source: "https://x/y" })).toBe(sourceKey({ source: "https://x/y" }));
+    expect(sourceKey({ source: "https://x/y", subdir: "a" })).not.toBe(
+      sourceKey({ source: "https://x/y", subdir: "b" }),
+    );
+    expect(sourceKey({ source: "https://x/y" })).not.toBe(sourceKey({ source: "https://x/z" }));
   });
 });

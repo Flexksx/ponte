@@ -43,6 +43,16 @@ export const newHarness = async (): Promise<Home> => {
 
 const randId = () => Math.random().toString(36).slice(2, 10);
 
+export const skillDoc = (name: string, body = "# Skill\n"): string =>
+  `---\nname: ${name}\n---\n${body}`;
+
+export const skillEntry = (source: string, ref?: string, subdir?: string): string => {
+  const lines = ["[[skills]]", `source = ${JSON.stringify(source)}`];
+  if (ref !== undefined) lines.push(`ref = ${JSON.stringify(ref)}`);
+  if (subdir !== undefined) lines.push(`subdir = ${JSON.stringify(subdir)}`);
+  return `${lines.join("\n")}\n`;
+};
+
 export class Home {
   readonly home: string;
   private cleanups: Array<() => Promise<void>> = [];
@@ -126,6 +136,16 @@ export class Home {
 
   async bootstrap(): Promise<void> {
     await this.mustRun("sync");
+  }
+
+  async appendConfig(text: string): Promise<void> {
+    const cfg = await this.readFileText(this.configPath("config.toml"));
+    await this.writeFile(this.configPath("config.toml"), `${cfg}\n${text}`);
+  }
+
+  async writeSkill(directory: string, content: string): Promise<string> {
+    await this.writeFile(join(directory, "SKILL.md"), content);
+    return directory;
   }
 
   async writeFile(path: string, content: string): Promise<void> {
