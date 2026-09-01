@@ -6,7 +6,7 @@
     # derivation. Update outputHash whenever apps/ponte/bun.lock changes.
     bunDeps = pkgs.stdenv.mkDerivation {
       name = "ponte-bun-deps";
-      version = "0.1.0";
+      version = "0.2.0";
 
       src = ../.;
 
@@ -39,7 +39,7 @@
   in {
     packages.default = pkgs.stdenv.mkDerivation {
       name = "ponte";
-      version = "0.1.0";
+      version = "0.2.0";
 
       src = ../.;
 
