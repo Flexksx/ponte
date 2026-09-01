@@ -1,17 +1,36 @@
 import { parseArgs } from "node:util";
 import chalk from "chalk";
 import { requireConfig } from "../app/configuration";
+import {
+  findProject,
+  listProjectSkills,
+  type Project,
+  type ProjectSkillRow,
+  type ProjectStatusReport,
+  readProjectStatus,
+  requireProject,
+} from "../app/project";
+import { type ProjectSyncReport, planProjectSync, runProjectSync } from "../app/project-sync";
+import { runProjectUpdate } from "../app/project-update";
 import { readStatus, type StatusReport } from "../app/status";
 import { planSync, runSync, type SyncReport } from "../app/sync";
 import { readSystemPrompt, setSystemPrompt } from "../app/sysprompt";
 import type { Config, SourceEntry } from "../domain/config";
 import type { VendorState } from "../domain/link";
+import {
+  PROJECT_SKILLS_DIRECTORY,
+  PROJECT_SOURCES_DIRECTORY,
+  shortCommit,
+} from "../domain/project";
 import { describeSource, isGitSource, parseSource } from "../domain/source";
 import manualText from "./manual.md" with { type: "text" };
 
 const FLAG_COLUMN = 7;
 const LINKS_COLUMN = 5;
 const TYPE_COLUMN = 5;
+const KIND_COLUMN = 8;
+const COMMIT_COLUMN = 7;
+const NO_VALUE = "—";
 
 const HELP_FLAGS = new Set(["help", "--help", "-h"]);
 
@@ -37,6 +56,28 @@ const printBootstrap = (report: SyncReport): void => {
   write(`  ${report.bootstrap.systemPromptFile} - empty\n\n`);
 };
 
+const printStale = (stale: number, dryRun: boolean): void => {
+  if (stale === 0) return;
+  const removal = dryRun ? "would be removed" : "removed";
+  write(`${chalk.dim(`${stale} stale link(s) ${removal}.`)}\n`);
+};
+
+const printProjectSync = (report: ProjectSyncReport, dryRun: boolean): void => {
+  const verb = dryRun ? "Dry run - would sync project" : "Synced project";
+  write(`${verb} ${chalk.cyan(report.root)}\n`);
+  if (report.vendored > 0) {
+    const action = dryRun ? "would be vendored into" : "vendored into";
+    write(`${report.vendored} skill(s) ${action} ${chalk.cyan(PROJECT_SOURCES_DIRECTORY)}\n`);
+  }
+  const linked = dryRun ? "Would link" : "Linked";
+  write(`${linked} ${report.linked} skill(s) into ${chalk.cyan(PROJECT_SKILLS_DIRECTORY)}\n`);
+  printStale(report.stale, dryRun);
+};
+
+const runProjectSyncCommand = async (project: Project, dryRun: boolean): Promise<void> => {
+  printProjectSync(dryRun ? await planProjectSync(project) : await runProjectSync(project), dryRun);
+};
+
 const runSyncCommand = async (args: string[]): Promise<void> => {
   const { values, positionals } = parseArgs({
     args,
@@ -51,20 +92,25 @@ const runSyncCommand = async (args: string[]): Promise<void> => {
 
   const override = values["global-instructions"];
   const agents = values.agents;
+  const dryRun = values["dry-run"] === true;
+
+  const project = await findProject();
+  if (project !== null) {
+    if (typeof override === "string" || Array.isArray(agents)) {
+      throw new Error("-g and -a apply to a global sync only, and this directory is a project");
+    }
+    return runProjectSyncCommand(project, dryRun);
+  }
+
   const request = {
     promptOverride: typeof override === "string" ? override : undefined,
     requestedVendors: Array.isArray(agents) ? agents : [],
   };
-
-  const dryRun = values["dry-run"] === true;
   const report = dryRun ? await planSync(request) : await runSync(request);
   printBootstrap(report);
   const verb = dryRun ? "Dry run - would link" : "Linked";
   write(`${verb} to: ${report.vendors.join(", ")}\n`);
-  if (report.stale > 0) {
-    const removal = dryRun ? "would be removed" : "removed";
-    write(`${chalk.dim(`${report.stale} stale link(s) ${removal}.`)}\n`);
-  }
+  printStale(report.stale, dryRun);
 };
 
 const printStatus = (report: StatusReport): void => {
@@ -89,8 +135,20 @@ const printStatus = (report: StatusReport): void => {
   }
 };
 
+const printProjectStatus = (report: ProjectStatusReport): void => {
+  write(`Project: ${chalk.cyan(report.root)}\n`);
+  write(`Skills:  ${chalk.cyan(report.skillsDirectory)}\n\n`);
+  const links = report.linkCount === 0 ? chalk.dim("0") : chalk.cyan(String(report.linkCount));
+  write(`${links} link(s) - ${STATE_STYLES[report.state](report.state)}\n`);
+};
+
 const runStatusCommand = async (args: string[]): Promise<void> => {
   if (args.length > 0) throw new Error(`unexpected argument for status: ${args[0]}`);
+  const project = await findProject();
+  if (project !== null) {
+    printProjectStatus(await readProjectStatus(project));
+    return;
+  }
   printStatus(await readStatus());
 };
 
@@ -112,9 +170,55 @@ const printEntries = (noun: "skills" | "subagents", config: Config): void => {
   }
 };
 
+const printProjectSkills = (rows: readonly ProjectSkillRow[]): void => {
+  if (rows.length === 0) {
+    write("No skills configured.\n");
+    return;
+  }
+  const width = Math.max(4, ...rows.map(row => row.name.length));
+  write(
+    `${chalk.bold(
+      `${"NAME".padEnd(width)}  ${"KIND".padEnd(KIND_COLUMN)}  ${"COMMIT".padEnd(COMMIT_COLUMN)}  SOURCE`,
+    )}\n`,
+  );
+  for (const row of rows) {
+    const kind = row.vendored ? "vendored" : "local";
+    const commit = row.commit === null ? NO_VALUE : shortCommit(row.commit);
+    const source = describeSource(parseSource(row.entry.source, row.entry.ref, row.entry.subdir));
+    write(
+      `${row.name.padEnd(width)}  ${chalk.dim(kind.padEnd(KIND_COLUMN))}  ${chalk.dim(commit.padEnd(COMMIT_COLUMN))}  ${source}\n`,
+    );
+  }
+};
+
 const runSkillsCommand = async (args: string[]): Promise<void> => {
   if (args.length > 0) throw new Error(`unexpected argument for skills: ${args[0]}`);
+  const project = await findProject();
+  if (project !== null) {
+    printProjectSkills(await listProjectSkills(project));
+    return;
+  }
   printEntries("skills", await requireConfig());
+};
+
+const runUpdateCommand = async (args: string[]): Promise<void> => {
+  const { values, positionals } = parseArgs({
+    args,
+    options: { force: { type: "boolean" } },
+    allowPositionals: true,
+  });
+  if (positionals.length > 1) throw new Error(`unexpected argument for update: ${positionals[1]}`);
+  const project = await requireProject();
+  const report = await runProjectUpdate(project, positionals[0], values.force === true);
+  if (report.updated.length === 0) {
+    write("No vendored skills to update.\n");
+    return;
+  }
+  write(`Updated ${report.updated.length} skill(s) in ${chalk.cyan(report.root)}\n`);
+  for (const skill of report.updated) {
+    const commit = skill.commit === null ? NO_VALUE : shortCommit(skill.commit);
+    write(`  ${skill.name} -> ${chalk.dim(commit)}\n`);
+  }
 };
 
 const runSubagentsCommand = async (args: string[]): Promise<void> => {
@@ -160,7 +264,16 @@ const commandTable = (): readonly Command[] => [
     summary: "Show which vendors are linked and whether the links match the config",
     run: runStatusCommand,
   },
-  { name: "skills", summary: "List the skills declared in config.toml", run: runSkillsCommand },
+  {
+    name: "skills",
+    summary: "List the declared skills, from ponte.toml in a project or from config.toml",
+    run: runSkillsCommand,
+  },
+  {
+    name: "update",
+    summary: "Re-vendor project skills from their sources (project mode only)",
+    run: runUpdateCommand,
+  },
   {
     name: "subagents",
     summary: "List the subagents declared in config.toml",
