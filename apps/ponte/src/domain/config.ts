@@ -34,7 +34,7 @@ const withAbsoluteSource = (entry: SourceEntry, configDirectory: string): Source
     ? entry
     : { ...entry, source: join(configDirectory, entry.source) };
 
-const absoluteSources = (
+export const absoluteSources = (
   entries: Readonly<Record<string, SourceEntry>>,
   configDirectory: string,
 ): Record<string, SourceEntry> =>

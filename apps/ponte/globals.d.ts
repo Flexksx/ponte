@@ -4,6 +4,7 @@ declare namespace process {
   export const stdout: { write(s: string): void };
   export const stderr: { write(s: string): void };
   function exit(code: number): never;
+  function cwd(): string;
 }
 
 declare namespace Bun {
@@ -28,6 +29,7 @@ declare module "node:path" {
   export function join(...parts: string[]): string;
   export function dirname(path: string): string;
   export function isAbsolute(path: string): boolean;
+  export function relative(from: string, to: string): string;
 }
 
 declare module "node:crypto" {

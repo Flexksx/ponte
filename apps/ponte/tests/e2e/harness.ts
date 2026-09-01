@@ -1,4 +1,4 @@
-import { mkdir, readFile, readlink, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readlink, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir as osTmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { $ } from "bun";
@@ -55,6 +55,27 @@ export class Home {
     return join(this.home, ".config", "ponte", name);
   }
 
+  projectSkillLink(root: string, name: string): string {
+    return join(root, ".agents", "skills", name);
+  }
+
+  vendoredSkillPath(root: string, name: string): string {
+    return join(root, ".ponte", "sources", name);
+  }
+
+  lockPath(root: string): string {
+    return join(root, ".ponte", "lock.toml");
+  }
+
+  async exists(path: string): Promise<boolean> {
+    try {
+      await stat(path);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   private runEnv(): Record<string, string> {
     return {
       HOME: this.home,
@@ -64,10 +85,13 @@ export class Home {
     };
   }
 
-  async run(...args: string[]): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  private async execute(
+    cwd: string,
+    args: string[],
+  ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
     const env = this.runEnv();
     const binary = await resolveBinary();
-    const proc = await $`${binary} ${args}`.env(env).nothrow().quiet();
+    const proc = await $`${binary} ${args}`.env(env).cwd(cwd).nothrow().quiet();
     return {
       stdout: proc.stdout.toString(),
       stderr: proc.stderr.toString(),
@@ -75,8 +99,23 @@ export class Home {
     };
   }
 
+  async run(...args: string[]): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+    return this.runIn(this.home, ...args);
+  }
+
+  async runIn(
+    cwd: string,
+    ...args: string[]
+  ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+    return this.execute(cwd, args);
+  }
+
   async mustRun(...args: string[]): Promise<{ stdout: string; stderr: string }> {
-    const res = await this.run(...args);
+    return this.mustRunIn(this.home, ...args);
+  }
+
+  async mustRunIn(cwd: string, ...args: string[]): Promise<{ stdout: string; stderr: string }> {
+    const res = await this.runIn(cwd, ...args);
     if (res.exitCode !== 0) {
       throw new Error(
         `ponte ${args.join(" ")} exited ${res.exitCode}\nstdout:\n${res.stdout}\nstderr:\n${res.stderr}`,

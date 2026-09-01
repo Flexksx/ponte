@@ -8,6 +8,9 @@ subagents — across multiple vendors from a single source of truth.
 Supported vendors: `claude-code`, `codex`, `antigravity-cli`,
 `cursor-agent`, `opencode`, `pi-agent`.
 
+A repository can also carry its own skills in a `ponte.toml` file. Read
+[Project mode](#project-mode) for that workflow.
+
 ### How it works
 
 1. You declare the system prompt, the skills, and the subagents in
@@ -151,6 +154,86 @@ other vendors receive the files at `<vendor-root>/agents/` regardless.
 
 ---
 
+## Project mode
+
+A repository can carry its own skills. Put a `ponte.toml` file in the
+repository root and declare the skills there.
+
+Every command walks up from the working directory to find `ponte.toml`. If a
+command finds the file, that directory is the project root and the command
+runs in project mode. If no directory on the way up holds the file, every
+command behaves exactly as described above.
+
+Project mode never reads and never creates `~/.config/ponte/`, and it needs
+no system prompt. The only shared resource it uses is the git cache at
+`~/.cache/ponte/sources/`.
+
+### Project schema
+
+```toml
+# Skills - one [skills.<name>] section per skill. This is the only table
+# that ponte.toml accepts. Any other top-level key is an error.
+
+[skills.ast-grep]
+source = "https://github.com/example/ast-grep-skill"
+ref    = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"   # full commit SHA recommended
+subdir = ""   # optional: subdirectory inside the repo that contains the skill
+
+[skills.house-style]
+source = "skills/house-style"   # relative to the project root
+```
+
+The `source`, `ref` and `subdir` fields carry the same meanings as in
+`config.toml`. A relative local path resolves against the project root. The
+keys `system_prompt_file`, `[vendors]` and `[subagents]` are not part of the
+project schema.
+
+### Project layout
+
+```text
+<project>/
+  ponte.toml
+  .ponte/
+    lock.toml                commit per vendored skill
+    sources/ast-grep/        full copy of the git source
+  .agents/skills/
+    ast-grep     → ../../.ponte/sources/ast-grep
+    house-style  → ../../skills/house-style
+```
+
+### Vendoring
+
+`ponte sync` fetches a git source through `~/.cache/ponte/sources/`, then
+copies the resolved directory to `.ponte/sources/<name>`. The copy holds no
+`.git` directory, so the project owns the files.
+
+`ponte sync` copies a skill only when `.ponte/sources/<name>` is absent. A
+later sync leaves the copy alone. An edit to a vendored skill is a normal
+change: commit it. To take a new version of the skill, run
+`ponte update <name>`.
+
+A local source is never copied. The link points straight at the directory.
+
+### The lock file
+
+`.ponte/lock.toml` records the commit that each vendored skill came from.
+
+```toml
+[skills.ast-grep]
+commit = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
+```
+
+`ponte sync` writes an entry when it vendors a skill. `ponte update` writes
+the new commit. `ponte update` also reads the file to find local edits.
+
+### What to commit
+
+Commit `ponte.toml`, `.ponte/` and the links in `.agents/skills/`. A link to
+a path inside the project is relative, so it keeps working in every clone. A
+link to a local source outside the project stays absolute.
+
+---
+
 ## CLI reference
 
 ### `ponte sync`
@@ -175,8 +258,42 @@ If no configuration file exists, `ponte sync` first creates
 directory when the configuration no longer declares it. A real file or
 a real directory in those locations is never removed.
 
+In project mode, `ponte sync` vendors the missing git skills, links every
+skill into `.agents/skills/`, and removes the stale links there. It reports
+the project root, the number of vendored skills, the number of links, and
+the number of removed links. The `-g` and `-a` flags belong to a global
+sync, so `ponte sync` rejects them inside a project.
+
 **Exit codes:** 0 on success. Non-zero on any error, for example an
 unknown agent, a source that does not resolve, or a filesystem error.
+
+---
+
+### `ponte update [name]`
+
+Re-vendor a project skill from its source. This command works in project
+mode only.
+
+```text
+ponte update [name] [--force]
+```
+
+| Argument | Description |
+|----------|-------------|
+| `name` | The skill to update. Omit it to update every vendored skill. |
+| `--force` | Overwrite a vendored copy that differs from its locked commit. |
+
+`ponte update` resolves the source at the `ref` in `ponte.toml`, replaces
+`.ponte/sources/<name>` with the fresh checkout, and writes the new commit
+to `.ponte/lock.toml`.
+
+Before the first overwrite, `ponte update` checks out the locked commit in
+the git cache and compares that tree with the vendored copy. If a tree
+differs, or the lock file holds no entry for the skill, the command stops
+and writes the skill names. Pass `--force` to overwrite anyway.
+
+**Exit codes:** 0 on success. Non-zero outside a project, for an unknown
+skill name, for a local skill, or for a copy with local edits.
 
 ---
 
@@ -198,6 +315,10 @@ The first line names the system prompt file. Each vendor row shows:
 | `STATE` | `in sync` (every link is correct and no extra link remains), `drifted` (a link is missing, points elsewhere, or the configuration no longer declares it), `not synced` (no links), or `disabled` (a sync does not touch it). |
 
 `ponte status` resolves git sources, exactly as a real sync does.
+
+In project mode, `ponte status` prints the project root, the path of
+`.agents/skills`, the number of links there, and one state for the whole
+directory.
 
 ---
 
@@ -225,6 +346,11 @@ ponte skills
 ```
 
 Prints `No skills configured.` when the config declares none.
+
+In project mode, `ponte skills` lists the skills from `ponte.toml`. The
+`KIND` column holds `vendored` for a git source and `local` for a path. The
+`COMMIT` column holds the short commit from `.ponte/lock.toml`, or `—` when
+the lock file has no entry for the skill.
 
 ---
 
@@ -318,6 +444,28 @@ ponte sync   # the link to that skill is removed from every vendor
 
 ```sh
 ponte sync -a claude-code
+```
+
+### Vendor a skill into a repository
+
+Add `ponte.toml` to the repository root:
+
+```toml
+[skills.house-style]
+source = "https://github.com/owner/skills-repo"
+ref    = "abc123def456"
+subdir = "house-style"
+```
+
+```sh
+ponte sync                              # copy the skill, then link it
+git add ponte.toml .ponte .agents       # commit the copy and the link
+```
+
+Later, to take a new version of the skill:
+
+```sh
+ponte update house-style
 ```
 
 ### Use another system prompt without changing the stored one
