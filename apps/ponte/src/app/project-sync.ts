@@ -15,11 +15,11 @@ const syncProject = async (project: Project, apply: boolean): Promise<ProjectSyn
   const stale = staleLinkPaths(resolution.plan, await readSymlinks(resolution.plan));
   if (apply) {
     await applyPlan(resolution.plan, stale);
-    if (resolution.vendored.length > 0) await writeProjectLock(project.layout, resolution.lock);
+    if (resolution.lockChanged) await writeProjectLock(project.layout, resolution.lock);
   }
   return {
     root: project.layout.root,
-    vendored: resolution.vendored.length,
+    vendored: resolution.pending,
     linked: resolution.plan.links.length,
     stale: stale.length,
   };

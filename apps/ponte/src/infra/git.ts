@@ -3,6 +3,7 @@ import { mkdir, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { $ } from "bun";
 import { MissingGitRefError, type SkillSource } from "../domain/source";
+import { directoryExists } from "./filesystem";
 
 const CLONE_DIRECTORY_LENGTH = 16;
 
@@ -53,3 +54,16 @@ export const resolveSourceDetails = async (
 
 export const resolveSource = async (source: SkillSource, cacheDir: string): Promise<string> =>
   (await resolveSourceDetails(source, cacheDir)).directory;
+
+export const cachedSourceDirectory = async (
+  source: SkillSource,
+  cacheDir: string,
+): Promise<string | null> => {
+  if (source.type === "local") {
+    return (await directoryExists(source.path)) ? source.path : null;
+  }
+  if (!source.ref) return null;
+  const repo = join(cacheDir, cloneDirectoryName(source.url, source.ref));
+  const directory = source.subdir ? join(repo, source.subdir) : repo;
+  return (await directoryExists(directory)) ? directory : null;
+};

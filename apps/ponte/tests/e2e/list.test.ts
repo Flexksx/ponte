@@ -1,28 +1,31 @@
 import { describe, expect, it } from "bun:test";
 import type { Home } from "./harness";
-import { newHarness } from "./harness";
+import { newHarness, skillEntry } from "./harness";
 
 const addConfigTable = async (h: Home, key: string, name: string, source: string) => {
-  const cfg = await h.readFileText(h.configPath("config.toml"));
-  await h.writeFile(
-    h.configPath("config.toml"),
-    `${cfg}
-[${key}.${name}]
-source = "${source}"
-`,
-  );
+  await h.appendConfig(`[${key}.${name}]\nsource = "${source}"\n`);
 };
 
 describe("skills", () => {
-  it("lists declared skills", async () => {
+  it("lists a local skill under its frontmatter name", async () => {
     const h = await newHarness();
     await h.bootstrap();
     const fixture = h.fixturePath("simple_skill");
-    await addConfigTable(h, "skills", "simple-skill", fixture);
+    await h.appendConfig(skillEntry(fixture));
     const { stdout } = await h.mustRun("skills");
     for (const want of ["NAME", "simple-skill", "local", fixture]) {
       expect(stdout).toContain(want);
     }
+    await h.close();
+  });
+
+  it("leaves the name unknown for a git source the cache does not hold", async () => {
+    const h = await newHarness();
+    await h.bootstrap();
+    await h.appendConfig(skillEntry("https://example.invalid/repo", "abc123"));
+    const { stdout } = await h.mustRun("skills");
+    expect(stdout).toContain("?");
+    expect(stdout).toContain("https://example.invalid/repo");
     await h.close();
   });
 

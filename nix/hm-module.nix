@@ -65,8 +65,8 @@
         system_prompt_file = cfg.systemPromptFile;
         vendors = lib.mapAttrs (_: vendor: {enabled = vendor.enable;}) cfg.vendors;
       }
-      // lib.optionalAttrs (cfg.skills != {}) {
-        skills = lib.mapAttrs (_: mkSourceEntry) cfg.skills;
+      // lib.optionalAttrs (cfg.skills != []) {
+        skills = map mkSourceEntry cfg.skills;
       }
       // lib.optionalAttrs (cfg.subagents != {}) {
         subagents = lib.mapAttrs (_: mkSourceEntry) cfg.subagents;
@@ -107,21 +107,25 @@
       };
 
       skills = lib.mkOption {
-        type = lib.types.attrsOf sourceModule;
-        default = {};
+        type = lib.types.listOf sourceModule;
+        default = [];
         example = lib.literalExpression ''
-          {
-            "my-skill" = {
+          [
+            {
               source = "https://github.com/me/skills";
               ref = "abc123";
               subdir = "my-skill";
-            };
-            "local-skill" = {
+            }
+            {
               source = "/path/to/local-skill";
-            };
-          }
+            }
+          ]
         '';
-        description = "Skills to sync to enabled vendors. The attribute name is the skill name.";
+        description = ''
+          Skills to sync to enabled vendors. A skill carries no name here: ponte
+          reads the name from the `name` field in the frontmatter of the skill's
+          SKILL.md file, as the Agent Skills specification requires.
+        '';
       };
 
       subagents = lib.mkOption {

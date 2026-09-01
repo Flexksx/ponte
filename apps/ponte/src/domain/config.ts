@@ -15,14 +15,14 @@ export type SourceEntry = {
 export type Config = {
   readonly systemPromptFile: string;
   readonly vendors: Readonly<Partial<Record<VendorName, VendorConfig>>>;
-  readonly skills: Readonly<Record<string, SourceEntry>>;
+  readonly skills: readonly SourceEntry[];
   readonly subagents: Readonly<Record<string, SourceEntry>>;
 };
 
 export const defaultConfig = (): Config => ({
   systemPromptFile: DEFAULT_SYSTEM_PROMPT_FILE,
   vendors: Object.fromEntries(VENDORS.map(vendor => [vendor, { enabled: true }])),
-  skills: {},
+  skills: [],
   subagents: {},
 });
 
@@ -45,8 +45,16 @@ export const absoluteSources = (
     ]),
   );
 
+export const absoluteSourceList = (
+  entries: readonly SourceEntry[],
+  configDirectory: string,
+): SourceEntry[] => entries.map(entry => withAbsoluteSource(entry, configDirectory));
+
+export const sourceKey = (entry: { readonly source: string; readonly subdir?: string }): string =>
+  `${entry.source}\n${entry.subdir ?? ""}`;
+
 export const normalizeConfig = (config: Config, configDirectory: string): Config => ({
   ...config,
-  skills: absoluteSources(config.skills, configDirectory),
+  skills: absoluteSourceList(config.skills, configDirectory),
   subagents: absoluteSources(config.subagents, configDirectory),
 });

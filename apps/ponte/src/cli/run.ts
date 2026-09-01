@@ -12,6 +12,7 @@ import {
 } from "../app/project";
 import { type ProjectSyncReport, planProjectSync, runProjectSync } from "../app/project-sync";
 import { runProjectUpdate } from "../app/project-update";
+import { listSkills, type SkillRow } from "../app/skills";
 import { readStatus, type StatusReport } from "../app/status";
 import { planSync, runSync, type SyncReport } from "../app/sync";
 import { readSystemPrompt, setSystemPrompt } from "../app/sysprompt";
@@ -31,6 +32,7 @@ const TYPE_COLUMN = 5;
 const KIND_COLUMN = 8;
 const COMMIT_COLUMN = 7;
 const NO_VALUE = "—";
+const UNKNOWN_NAME = "?";
 
 const HELP_FLAGS = new Set(["help", "--help", "-h"]);
 
@@ -152,21 +154,37 @@ const runStatusCommand = async (args: string[]): Promise<void> => {
   printStatus(await readStatus());
 };
 
-const printEntries = (noun: "skills" | "subagents", config: Config): void => {
-  const entries: Array<[string, SourceEntry]> = Object.entries(config[noun]);
+const sourceLabel = (entry: SourceEntry): string =>
+  describeSource(parseSource(entry.source, entry.ref, entry.subdir));
+
+const nameLabel = (name: string | null): string => name ?? UNKNOWN_NAME;
+
+const printSubagents = (config: Config): void => {
+  const entries: Array<[string, SourceEntry]> = Object.entries(config.subagents);
   if (entries.length === 0) {
-    write(`No ${noun} configured.\n`);
+    write("No subagents configured.\n");
     return;
   }
-  const rows = entries.map(([name, entry]) => ({
-    name,
-    type: isGitSource(entry.source) ? "git" : "local",
-    source: describeSource(parseSource(entry.source, entry.ref, entry.subdir)),
-  }));
-  const width = Math.max(4, ...rows.map(row => row.name.length));
+  const width = Math.max(4, ...entries.map(([name]) => name.length));
+  write(`${chalk.bold(`${"NAME".padEnd(width)}  TYPE  SOURCE`)}\n`);
+  for (const [name, entry] of entries) {
+    const type = isGitSource(entry.source) ? "git" : "local";
+    write(`${name.padEnd(width)}  ${chalk.dim(type.padEnd(TYPE_COLUMN))}  ${sourceLabel(entry)}\n`);
+  }
+};
+
+const printSkills = (rows: readonly SkillRow[]): void => {
+  if (rows.length === 0) {
+    write("No skills configured.\n");
+    return;
+  }
+  const width = Math.max(4, ...rows.map(row => nameLabel(row.name).length));
   write(`${chalk.bold(`${"NAME".padEnd(width)}  TYPE  SOURCE`)}\n`);
   for (const row of rows) {
-    write(`${row.name.padEnd(width)}  ${chalk.dim(row.type.padEnd(TYPE_COLUMN))}  ${row.source}\n`);
+    const type = isGitSource(row.entry.source) ? "git" : "local";
+    const name =
+      row.name === null ? chalk.dim(nameLabel(null).padEnd(width)) : row.name.padEnd(width);
+    write(`${name}  ${chalk.dim(type.padEnd(TYPE_COLUMN))}  ${sourceLabel(row.entry)}\n`);
   }
 };
 
@@ -175,7 +193,7 @@ const printProjectSkills = (rows: readonly ProjectSkillRow[]): void => {
     write("No skills configured.\n");
     return;
   }
-  const width = Math.max(4, ...rows.map(row => row.name.length));
+  const width = Math.max(4, ...rows.map(row => nameLabel(row.name).length));
   write(
     `${chalk.bold(
       `${"NAME".padEnd(width)}  ${"KIND".padEnd(KIND_COLUMN)}  ${"COMMIT".padEnd(COMMIT_COLUMN)}  SOURCE`,
@@ -184,9 +202,10 @@ const printProjectSkills = (rows: readonly ProjectSkillRow[]): void => {
   for (const row of rows) {
     const kind = row.vendored ? "vendored" : "local";
     const commit = row.commit === null ? NO_VALUE : shortCommit(row.commit);
-    const source = describeSource(parseSource(row.entry.source, row.entry.ref, row.entry.subdir));
+    const name =
+      row.name === null ? chalk.dim(nameLabel(null).padEnd(width)) : row.name.padEnd(width);
     write(
-      `${row.name.padEnd(width)}  ${chalk.dim(kind.padEnd(KIND_COLUMN))}  ${chalk.dim(commit.padEnd(COMMIT_COLUMN))}  ${source}\n`,
+      `${name}  ${chalk.dim(kind.padEnd(KIND_COLUMN))}  ${chalk.dim(commit.padEnd(COMMIT_COLUMN))}  ${sourceLabel(row.entry)}\n`,
     );
   }
 };
@@ -198,7 +217,7 @@ const runSkillsCommand = async (args: string[]): Promise<void> => {
     printProjectSkills(await listProjectSkills(project));
     return;
   }
-  printEntries("skills", await requireConfig());
+  printSkills(await listSkills((await requireConfig()).skills));
 };
 
 const runUpdateCommand = async (args: string[]): Promise<void> => {
@@ -223,7 +242,7 @@ const runUpdateCommand = async (args: string[]): Promise<void> => {
 
 const runSubagentsCommand = async (args: string[]): Promise<void> => {
   if (args.length > 0) throw new Error(`unexpected argument for subagents: ${args[0]}`);
-  printEntries("subagents", await requireConfig());
+  printSubagents(await requireConfig());
 };
 
 const runSyspromptCommand = async (args: string[]): Promise<void> => {

@@ -10,6 +10,7 @@ import {
   type ProjectConfig,
   type ProjectLock,
 } from "../domain/project";
+import { SKILL_FILE } from "../domain/skill";
 import { isVendor, VENDORS, type VendorName } from "../domain/vendor";
 
 const BARE_KEY = /^[A-Za-z0-9_-]+$/;
@@ -87,6 +88,29 @@ const readEntries = <E>(
   return entries;
 };
 
+const readEntryList = <E>(
+  value: unknown,
+  path: string,
+  problems: string[],
+  readEntry: (raw: Record<string, unknown>, path: string, problems: string[]) => E | undefined,
+): E[] => {
+  const entries: E[] = [];
+  if (value === undefined) return entries;
+  if (!Array.isArray(value)) {
+    problems.push(
+      `${path}: must be an array of tables - replace every [${path}.<name>] section with a [[${path}]] section and delete the name, because ponte now reads the name from ${SKILL_FILE}`,
+    );
+    return entries;
+  }
+  for (const [index, raw] of value.entries()) {
+    const rawEntry = readTable(raw, `${path}[${index}]`, problems);
+    if (!rawEntry) continue;
+    const entry = readEntry(rawEntry, `${path}[${index}]`, problems);
+    if (entry !== undefined) entries.push(entry);
+  }
+  return entries;
+};
+
 const readVendorEntries = <E>(
   value: unknown,
   path: string,
@@ -130,7 +154,7 @@ export const decodeConfig = (value: unknown): Config => {
       readString(root.system_prompt_file, "system_prompt_file", problems) ??
       DEFAULT_SYSTEM_PROMPT_FILE,
     vendors: readVendorEntries(root.vendors, "vendors", problems, readVendorConfig),
-    skills: readEntries(root.skills, "skills", problems, readSourceEntry),
+    skills: readEntryList(root.skills, "skills", problems, readSourceEntry),
     subagents: readEntries(root.subagents, "subagents", problems, readSourceEntry),
   };
   if (problems.length > 0) throw new ConfigError(problems);
@@ -141,18 +165,24 @@ const tomlKey = (name: string): string => (BARE_KEY.test(name) ? name : JSON.str
 
 const tomlString = (text: string): string => JSON.stringify(text);
 
+const sourceEntryLines = (entry: SourceEntry): string[] => {
+  const lines = [`source = ${tomlString(entry.source)}`];
+  if (entry.ref) lines.push(`ref = ${tomlString(entry.ref)}`);
+  if (entry.subdir) lines.push(`subdir = ${tomlString(entry.subdir)}`);
+  return lines;
+};
+
 export const encodeConfig = (config: Config): string => {
   const lines = [`system_prompt_file = ${tomlString(config.systemPromptFile)}`];
   for (const [name, vendor] of Object.entries(config.vendors)) {
     if (vendor === undefined) continue;
     lines.push("", `[vendors.${tomlKey(name)}]`, `enabled = ${vendor.enabled}`);
   }
-  for (const table of ["skills", "subagents"] as const) {
-    for (const [name, entry] of Object.entries(config[table])) {
-      lines.push("", `[${table}.${tomlKey(name)}]`, `source = ${tomlString(entry.source)}`);
-      if (entry.ref) lines.push(`ref = ${tomlString(entry.ref)}`);
-      if (entry.subdir) lines.push(`subdir = ${tomlString(entry.subdir)}`);
-    }
+  for (const entry of config.skills) {
+    lines.push("", "[[skills]]", ...sourceEntryLines(entry));
+  }
+  for (const [name, entry] of Object.entries(config.subagents)) {
+    lines.push("", `[subagents.${tomlKey(name)}]`, ...sourceEntryLines(entry));
   }
   return `${lines.join("\n")}\n`;
 };
@@ -167,7 +197,7 @@ export const decodeProjectConfig = (value: unknown): ProjectConfig => {
     );
   }
   const config: ProjectConfig = {
-    skills: readEntries(root.skills, "skills", problems, readSourceEntry),
+    skills: readEntryList(root.skills, "skills", problems, readSourceEntry),
   };
   if (problems.length > 0) throw new ConfigError(problems);
   return config;
@@ -178,8 +208,11 @@ const readLockEntry = (
   path: string,
   problems: string[],
 ): LockEntry | undefined => {
+  const source = readRequiredString(raw.source, `${path}.source`, problems);
   const commit = readRequiredString(raw.commit, `${path}.commit`, problems);
-  return commit === undefined ? undefined : { commit };
+  const subdir = readString(raw.subdir, `${path}.subdir`, problems);
+  if (source === undefined || commit === undefined) return undefined;
+  return { source, ...(subdir !== undefined && { subdir }), commit };
 };
 
 export const decodeLock = (value: unknown): ProjectLock => {
@@ -190,9 +223,14 @@ export const decodeLock = (value: unknown): ProjectLock => {
   return lock;
 };
 
+const lockEntryLines = (name: string, entry: LockEntry): string => {
+  const lines = [`[skills.${tomlKey(name)}]`, `source = ${tomlString(entry.source)}`];
+  if (entry.subdir) lines.push(`subdir = ${tomlString(entry.subdir)}`);
+  lines.push(`commit = ${tomlString(entry.commit)}`);
+  return `${lines.join("\n")}\n`;
+};
+
 export const encodeLock = (lock: ProjectLock): string => {
-  const tables = Object.entries(lock.skills).map(
-    ([name, entry]) => `[skills.${tomlKey(name)}]\ncommit = ${tomlString(entry.commit)}\n`,
-  );
+  const tables = Object.entries(lock.skills).map(([name, entry]) => lockEntryLines(name, entry));
   return `${LOCK_HEADER}${tables.length === 0 ? "" : `\n${tables.join("\n")}`}`;
 };

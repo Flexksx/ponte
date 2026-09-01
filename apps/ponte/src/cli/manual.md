@@ -63,14 +63,15 @@ cursor-agent    = { enabled = false }
 opencode        = { enabled = true }
 pi-agent        = { enabled = true }
 
-# Skills — one [skills.<name>] section per skill.
+# Skills — one [[skills]] entry per skill.
 # Each skill is a directory containing a SKILL.md file plus any supporting files.
+# An entry holds no name: ponte reads the name from the SKILL.md frontmatter.
 # Every enabled vendor gets a link to the skill directory.
 
-[skills.software-engineering]
+[[skills]]
 source = "skills/software-engineering"   # relative to ~/.config/ponte/
 
-[skills.ast-grep]
+[[skills]]
 source = "https://github.com/example/ast-grep-skill"
 ref    = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"   # full commit SHA recommended
 subdir = ""   # optional: subdirectory inside the repo that contains the skill
@@ -88,7 +89,7 @@ source = "subagents/claude"   # relative to ~/.config/ponte/
 #### Local
 
 ```toml
-[skills.my-skill]
+[[skills]]
 source = "skills/my-skill"
 ```
 
@@ -99,7 +100,7 @@ directory containing a `SKILL.md` file.
 #### Git
 
 ```toml
-[skills.my-skill]
+[[skills]]
 source = "https://github.com/owner/repo"
 ref    = "v1.2.0"
 subdir = "skills/my-skill"   # optional
@@ -117,6 +118,41 @@ it to use the repo root.
 The clone directory is keyed by URL and ref together. Two skills can
 use the same repo at different refs.
 
+### Skill names
+
+The [Agent Skills specification](https://agentskills.io) puts the name of a
+skill in the YAML frontmatter of its `SKILL.md`, and the name must match the
+parent directory name. ponte follows that rule: it reads the frontmatter
+`name` of every skill on every sync and names the link after it.
+
+```markdown
+---
+name: ast-grep
+description: Structural code search with ast-grep.
+---
+```
+
+A name holds 1 to 64 characters. Only lowercase letters `a-z`, digits `0-9`
+and hyphens are legal. A name must not start with a hyphen, end with a
+hyphen, or hold two hyphens in a row.
+
+`ponte sync` stops and names the source when:
+
+- the source directory holds no `SKILL.md`,
+- the `SKILL.md` holds no frontmatter,
+- the frontmatter declares no `name`,
+- the name breaks one of the rules above, or
+- two entries declare the same name.
+
+#### Migration from named skill tables
+
+Earlier versions of ponte named a skill with the table key, as in
+`[skills.my-skill]`. That key is gone. If ponte finds a `[skills.<name>]`
+table, it stops and asks for the new shape. To migrate, replace each table
+header with `[[skills]]` and delete the name. The name in the `SKILL.md`
+frontmatter now decides the link name, so make sure each `SKILL.md` declares
+the name you expect.
+
 ### Skill directory layout
 
 A skill directory must contain a `SKILL.md` file. The vendor links to
@@ -124,7 +160,7 @@ the directory, so every other file in it is available too.
 
 ```text
 my-skill/
-  SKILL.md            required
+  SKILL.md            required, and its frontmatter holds the skill name
   references/         optional
     guide.md
 ```
@@ -171,22 +207,23 @@ no system prompt. The only shared resource it uses is the git cache at
 ### Project schema
 
 ```toml
-# Skills - one [skills.<name>] section per skill. This is the only table
-# that ponte.toml accepts. Any other top-level key is an error.
+# Skills - one [[skills]] entry per skill. This is the only key that
+# ponte.toml accepts. Any other top-level key is an error.
 
-[skills.ast-grep]
+[[skills]]
 source = "https://github.com/example/ast-grep-skill"
 ref    = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"   # full commit SHA recommended
 subdir = ""   # optional: subdirectory inside the repo that contains the skill
 
-[skills.house-style]
+[[skills]]
 source = "skills/house-style"   # relative to the project root
 ```
 
 The `source`, `ref` and `subdir` fields carry the same meanings as in
-`config.toml`. A relative local path resolves against the project root. The
-keys `system_prompt_file`, `[vendors]` and `[subagents]` are not part of the
-project schema.
+`config.toml`. An entry holds no name: ponte reads the name from the
+`SKILL.md` frontmatter, exactly as a global sync does. A relative local path
+resolves against the project root. The keys `system_prompt_file`,
+`[vendors]` and `[subagents]` are not part of the project schema.
 
 ### Project layout
 
@@ -194,7 +231,7 @@ project schema.
 <project>/
   ponte.toml
   .ponte/
-    lock.toml                commit per vendored skill
+    lock.toml                source and commit per vendored skill
     sources/ast-grep/        full copy of the git source
   .agents/skills/
     ast-grep     → ../../.ponte/sources/ast-grep
@@ -204,27 +241,39 @@ project schema.
 ### Vendoring
 
 `ponte sync` fetches a git source through `~/.cache/ponte/sources/`, then
-copies the resolved directory to `.ponte/sources/<name>`. The copy holds no
+copies the resolved directory to `.ponte/sources/<name>`, where `<name>` is
+the name in the frontmatter of the fetched `SKILL.md`. The copy holds no
 `.git` directory, so the project owns the files.
 
-`ponte sync` copies a skill only when `.ponte/sources/<name>` is absent. A
-later sync leaves the copy alone. An edit to a vendored skill is a normal
-change: commit it. To take a new version of the skill, run
-`ponte update <name>`.
+`ponte sync` matches each git entry to a lock entry by `source` and `subdir`.
+On a match, if `.ponte/sources/<name>` is present, `ponte sync` skips the
+fetch and leaves the copy alone. So a vendored project needs no network on a
+later sync, and an edit to a vendored skill is a normal change: commit it. To
+take a new version of the skill, run `ponte update <name>`.
+
+`ponte sync` also reads the frontmatter name of every vendored copy. If the
+name no longer matches the directory name, `ponte sync` stops instead of
+relinking the copy under the wrong name.
 
 A local source is never copied. The link points straight at the directory.
 
 ### The lock file
 
-`.ponte/lock.toml` records the commit that each vendored skill came from.
+`.ponte/lock.toml` records the source and the commit of each vendored skill,
+keyed by the skill name.
 
 ```toml
 [skills.ast-grep]
+source = "https://github.com/example/ast-grep-skill"
+subdir = "ast-grep"
 commit = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
 ```
 
-`ponte sync` writes an entry when it vendors a skill. `ponte update` writes
-the new commit. `ponte update` also reads the file to find local edits.
+The `source` and `subdir` fields let `ponte sync` match a config entry to its
+vendored copy without a fetch. `ponte sync` writes an entry when it vendors a
+skill, and it drops an entry that the config no longer declares. `ponte
+update` writes the new commit. `ponte update` also reads the file to find
+local edits.
 
 ### What to commit
 
@@ -287,6 +336,12 @@ ponte update [name] [--force]
 `.ponte/sources/<name>` with the fresh checkout, and writes the new commit
 to `.ponte/lock.toml`.
 
+If the fresh checkout declares a different frontmatter name, the skill was
+renamed upstream. `ponte update` stops and keeps the old copy. To take the
+rename, delete `.ponte/sources/<old-name>` and run `ponte sync`. The next
+sync vendors the skill under the new name, writes the new lock entry, and
+removes the stale link in `.agents/skills/`.
+
 Before the first overwrite, `ponte update` checks out the locked commit in
 the git cache and compares that tree with the vendored copy. If a tree
 differs, or the lock file holds no entry for the skill, the command stops
@@ -345,12 +400,19 @@ optional subdir).
 ponte skills
 ```
 
+`ponte skills` never uses the network. It reads the name of a local skill
+from the `SKILL.md` on disk. For a git skill it reads the name only when the
+git cache already holds the source. The `NAME` column holds `?` when the name
+is not available yet; run `ponte sync` to fetch the source.
+
 Prints `No skills configured.` when the config declares none.
 
 In project mode, `ponte skills` lists the skills from `ponte.toml`. The
 `KIND` column holds `vendored` for a git source and `local` for a path. The
-`COMMIT` column holds the short commit from `.ponte/lock.toml`, or `—` when
-the lock file has no entry for the skill.
+`NAME` column of a git skill holds the name from `.ponte/lock.toml`, or `?`
+when the lock file has no entry for the source. The `COMMIT` column holds the
+short commit from `.ponte/lock.toml`, or `—` when the lock file has no entry
+for the skill.
 
 ---
 
@@ -411,11 +473,12 @@ ponte sync                            # activate
 Add to `~/.config/ponte/config.toml`:
 
 ```toml
-[skills.my-skill]
+[[skills]]
 source = "skills/my-skill"
 ```
 
-Create `~/.config/ponte/skills/my-skill/SKILL.md`, then:
+Create `~/.config/ponte/skills/my-skill/SKILL.md` with `name: my-skill` in
+its frontmatter, then:
 
 ```sh
 ponte sync
@@ -426,7 +489,7 @@ The skill appears at `~/.claude/skills/my-skill`, `~/.codex/skills/my-skill`, et
 ### Declare a git-backed skill
 
 ```toml
-[skills.external-skill]
+[[skills]]
 source = "https://github.com/owner/skills-repo"
 ref    = "abc123def456"
 subdir = "external-skill"
@@ -434,7 +497,7 @@ subdir = "external-skill"
 
 ### Remove a skill everywhere
 
-Delete the `[skills.<name>]` section, then sync:
+Delete the `[[skills]]` entry, then sync:
 
 ```sh
 ponte sync   # the link to that skill is removed from every vendor
@@ -451,7 +514,7 @@ ponte sync -a claude-code
 Add `ponte.toml` to the repository root:
 
 ```toml
-[skills.house-style]
+[[skills]]
 source = "https://github.com/owner/skills-repo"
 ref    = "abc123def456"
 subdir = "house-style"

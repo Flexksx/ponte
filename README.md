@@ -69,14 +69,19 @@ ponte sync --dry-run
 ponte manual
 ```
 
-To add a skill, declare it in `~/.config/ponte/config.toml` and run
+To add a skill, declare its source in `~/.config/ponte/config.toml` and run
 `ponte sync` — it lands at `~/.claude/skills/<name>`,
 `~/.codex/skills/<name>`, and every other enabled vendor at once.
 
 ```toml
-[skills.my-skill]
+[[skills]]
 source = "skills/my-skill"   # relative to ~/.config/ponte/
 ```
+
+A skill entry carries no name. The name is the `name` field in the YAML
+frontmatter of the skill's `SKILL.md`, as the [Agent Skills
+specification](https://agentskills.io) requires. ponte reads that field on
+every sync, checks it against the specification, and names the link after it.
 
 See [the CLI manual](apps/ponte/src/cli/manual.md) for the full CLI reference and usage guide.
 
@@ -86,12 +91,12 @@ A repository can carry its own skills. Put a `ponte.toml` file in the
 repository root:
 
 ```toml
-[skills.house-style]
+[[skills]]
 source = "https://github.com/owner/skills-repo"
 ref    = "abc123def456"
 subdir = "house-style"       # optional
 
-[skills.internal]
+[[skills]]
 source = "skills/internal"   # relative to the project root
 ```
 
@@ -113,10 +118,14 @@ What `ponte sync` does in a project:
 
 - Fetches a git source through `~/.cache/ponte/sources/`, then copies it to
   `.ponte/sources/<name>` without the `.git` directory.
-- Copies a skill only when `.ponte/sources/<name>` is absent, so a local edit
-  survives every later sync. Commit the edit; run `ponte update` to overwrite
-  it on purpose.
-- Records the source commit per skill in `.ponte/lock.toml`.
+- Records the source, the subdir and the commit per skill in
+  `.ponte/lock.toml`, keyed by the name from `SKILL.md`.
+- Matches an entry to a lock entry by source and subdir. On a match, if
+  `.ponte/sources/<name>` is present, sync skips the fetch and leaves the copy
+  alone. So a local edit survives every later sync: commit the edit, and run
+  `ponte update` to overwrite it on purpose.
+- Reads the frontmatter name of every vendored copy. If someone edits a copy
+  to a different name than its directory, sync stops.
 - Links each skill into `.agents/skills/<name>`. A link to a path inside the
   project is relative, so it keeps working in every clone.
 - Removes the stale links in `.agents/skills/`, and leaves a real file or a
@@ -124,10 +133,12 @@ What `ponte sync` does in a project:
 
 `ponte update [name]` re-vendors a skill at the `ref` in `ponte.toml`. It
 compares the vendored copy with its locked commit first, and refuses a copy
-with local edits unless you pass `--force`.
+with local edits unless you pass `--force`. If the new checkout declares a
+different name, `ponte update` stops: delete `.ponte/sources/<old-name>` and
+run `ponte sync` to vendor the skill under its new name.
 
-Only `[skills.<name>]` tables belong in `ponte.toml`. Any other top-level
-key is an error.
+Only `[[skills]]` entries belong in `ponte.toml`. Any other top-level key is
+an error.
 
 ## Configuration reference
 
@@ -165,14 +176,15 @@ enabled = true
 [vendors.pi-agent]
 enabled = true
 
-# Skills — one [skills.<name>] section per skill. Each is a directory
-# containing a SKILL.md file plus supporting files. Every enabled vendor
-# gets a link to it.
+# Skills — one [[skills]] entry per skill. Each source is a directory
+# containing a SKILL.md file plus supporting files. The skill name comes
+# from the frontmatter of that SKILL.md, so no name appears here. Every
+# enabled vendor gets a link to the directory.
 
-[skills.software-engineering]
+[[skills]]
 source = "skills/software-engineering"   # relative to ~/.config/ponte/
 
-[skills.ast-grep]
+[[skills]]
 source = "https://github.com/example/ast-grep-skill"
 ref    = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"   # full commit SHA preferred
 subdir = ""   # optional: subdirectory inside the repo that contains the skill
@@ -189,9 +201,9 @@ source = "subagents/claude"   # relative to the config directory
 |-----|------|---------|---------|
 | `system_prompt_file` | string | `AGENTS.md` | System prompt path. Bare name → relative to `~/.config/ponte/`; absolute → read as-is. |
 | `[vendors.<vendor>].enabled` | bool | `true` | Whether sync targets that vendor. Vendors: `claude-code`, `codex`, `antigravity-cli`, `cursor-agent`, `opencode`, `pi-agent`. |
-| `[skills.<name>].source` | string | — | Local directory path, or a git URL (with `ref`/`subdir`). |
-| `[skills.<name>].ref` | string | — | For git only: branch, tag, or commit. Prefer full commit SHAs. |
-| `[skills.<name>].subdir` | string | — | Optional subdirectory inside the git repo that holds the skill. |
+| `[[skills]].source` | string | — | Local directory path, or a git URL (with `ref`/`subdir`). |
+| `[[skills]].ref` | string | — | For git only: branch, tag, or commit. Prefer full commit SHAs. |
+| `[[skills]].subdir` | string | — | Optional subdirectory inside the git repo that holds the skill. |
 | `[subagents.<name>].source` | string | — | Directory of agent files, or a git URL; same schema as a skill source. |
 | `[subagents.<name>].ref` | string | — | For git only: branch, tag, or commit. Prefer full commit SHAs. |
 | `[subagents.<name>].subdir` | string | — | Optional subdirectory inside the git repo. |
@@ -230,11 +242,15 @@ sync` is **never run automatically** — run it yourself after a rebuild.
     # Toggle individual vendors; unset vendors default to enabled.
     vendors."antigravity-cli".enable = false;
 
-    skills."my-skill" = {
-      source = "https://github.com/me/skills";
-      ref = "abc123def456";
-      subdir = "my-skill";
-    };
+    # Skills carry no name here. ponte reads the name from the frontmatter
+    # of each skill's SKILL.md.
+    skills = [
+      {
+        source = "https://github.com/me/skills";
+        ref = "abc123def456";
+        subdir = "my-skill";
+      }
+    ];
 
     # Subagents: each source resolves to a directory of agent files. Each
     # file gets a link in every enabled vendor agents directory.
@@ -249,7 +265,7 @@ sync` is **never run automatically** — run it yourself after a rebuild.
 | `package` | package | flake's default | The ponte package to install. |
 | `systemPromptFile` | string | `"AGENTS.md"` | Maps to `system_prompt_file`. Bare name → relative to `~/.config/ponte/`; absolute → read as-is. |
 | `vendors.<vendor>.enable` | bool | `true` | Per-vendor toggle. Vendors: `claude-code`, `codex`, `antigravity-cli`, `cursor-agent`, `opencode`, `pi-agent`. |
-| `skills.<name>` | `{ source; ref; subdir; }` | `{}` | Skill declarations, keyed by skill name. |
+| `skills` | list of `{ source; ref; subdir; }` | `[]` | Skill sources. The name comes from each skill's `SKILL.md`. |
 | `subagents.<name>` | `{ source; ref; subdir; }` | `{}` | Subagent declarations, keyed by subagent name. |
 | `settings` | TOML attrset | `{}` | Escape hatch for keys the module doesn't model; merged into `config.toml` and **takes precedence** over generated values. |
 
