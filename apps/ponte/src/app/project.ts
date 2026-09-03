@@ -7,6 +7,7 @@ import {
   type ProjectLayout,
   type ProjectLock,
   planProject,
+  projectEnabledVendors,
   projectLayout,
   vendoredSkillPath,
 } from "../domain/project";
@@ -14,7 +15,7 @@ import { isGitSource, parseSource } from "../domain/source";
 import { copyDirectoryWithoutGit, directoryExists } from "../infra/filesystem";
 import { resolveSource, resolveSourceDetails } from "../infra/git";
 import { readSymlinks } from "../infra/links";
-import { currentDirectory, gitCacheDirectoryPath } from "../infra/paths";
+import { currentDirectory, currentPlatform, gitCacheDirectoryPath } from "../infra/paths";
 import { findProjectRoot, readProjectConfig, readProjectLock } from "../infra/project-file";
 
 export type Project = { readonly layout: ProjectLayout; readonly config: ProjectConfig };
@@ -56,7 +57,9 @@ export class NotInProjectError extends Error {
 export const findProject = async (): Promise<Project | null> => {
   const root = await findProjectRoot(currentDirectory());
   if (root === null) return null;
-  return { layout: projectLayout(root), config: await readProjectConfig(root) };
+  const config = await readProjectConfig(root);
+  const enabled = projectEnabledVendors(config);
+  return { layout: projectLayout(root, currentPlatform(), enabled), config };
 };
 
 export const requireProject = async (): Promise<Project> => {

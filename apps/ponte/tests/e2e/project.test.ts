@@ -153,15 +153,62 @@ describe("project sync", () => {
     await h.close();
   });
 
+  it("links skills into vendor-specific directories", async () => {
+    if (isWindows()) return;
+    const h = await newHarness();
+    const root = await newProject(h, '[skills.mine]\nsource = "skills/mine"\n');
+    await h.writeFile(join(root, "skills", "mine", "SKILL.md"), "# mine\n");
+
+    await h.mustRunIn(root, "sync");
+
+    await h.assertSymlinkTo(h.projectSkillLink(root, "mine"), "../../skills/mine");
+    await h.assertSymlinkTo(join(root, ".claude", "skills", "mine"), "../../skills/mine");
+    await h.assertSymlinkTo(join(root, ".codex", "skills", "mine"), "../../skills/mine");
+    await h.close();
+  });
+
+  it("removes stale links from vendor directories too", async () => {
+    if (isWindows()) return;
+    const h = await newHarness();
+    const root = await newProject(h, '[skills.mine]\nsource = "skills/mine"\n');
+    await h.writeFile(join(root, "skills", "mine", "SKILL.md"), "# mine\n");
+    await h.mustRunIn(root, "sync");
+
+    await symlink("/nowhere", join(root, ".claude", "skills", "stale"));
+    await h.writeFile(join(root, "ponte.toml"), "");
+
+    await h.mustRunIn(root, "sync");
+
+    await h.assertMissing(join(root, ".claude", "skills", "mine"));
+    await h.assertMissing(join(root, ".claude", "skills", "stale"));
+    await h.close();
+  });
+
+  it("links only into enabled vendors when vendors section is present", async () => {
+    if (isWindows()) return;
+    const h = await newHarness();
+    const config =
+      '[vendors.claude-code]\nenabled = true\n\n[vendors.codex]\nenabled = false\n\n[skills.mine]\nsource = "skills/mine"\n';
+    const root = await newProject(h, config);
+    await h.writeFile(join(root, "skills", "mine", "SKILL.md"), "# mine\n");
+
+    await h.mustRunIn(root, "sync");
+
+    await h.assertSymlinkTo(h.projectSkillLink(root, "mine"), "../../skills/mine");
+    await h.assertSymlinkTo(join(root, ".claude", "skills", "mine"), "../../skills/mine");
+    await h.assertMissing(join(root, ".codex", "skills", "mine"));
+    await h.close();
+  });
+
   it("rejects an unknown top-level key", async () => {
     if (isWindows()) return;
     const h = await newHarness();
-    const root = await newProject(h, "[vendors.claude-code]\nenabled = true\n");
+    const root = await newProject(h, "[unknown_key]\nfoo = true\n");
 
     const { stderr, exitCode } = await h.runIn(root, "sync");
 
     expect(exitCode).not.toBe(0);
-    expect(stderr).toContain("vendors");
+    expect(stderr).toContain("unknown_key");
     expect(stderr).toContain("unknown key");
     await h.close();
   });
