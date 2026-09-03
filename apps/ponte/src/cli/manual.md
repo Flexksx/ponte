@@ -171,9 +171,15 @@ no system prompt. The only shared resource it uses is the git cache at
 ### Project schema
 
 ```toml
-# Skills - one [skills.<name>] section per skill. This is the only table
-# that ponte.toml accepts. Any other top-level key is an error.
+# Per-vendor toggles (optional). Omit the section to link into every
+# vendor. When present, only vendors with enabled = true get links.
+[vendors.claude-code]
+enabled = true
 
+[vendors.codex]
+enabled = false
+
+# Skills - one [skills.<name>] section per skill.
 [skills.ast-grep]
 source = "https://github.com/example/ast-grep-skill"
 ref    = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"   # full commit SHA recommended
@@ -185,8 +191,8 @@ source = "skills/house-style"   # relative to the project root
 
 The `source`, `ref` and `subdir` fields carry the same meanings as in
 `config.toml`. A relative local path resolves against the project root. The
-keys `system_prompt_file`, `[vendors]` and `[subagents]` are not part of the
-project schema.
+keys `system_prompt_file` and `[subagents]` are not part of the project
+schema.
 
 ### Project layout
 
@@ -199,7 +205,17 @@ project schema.
   .agents/skills/
     ast-grep     → ../../.ponte/sources/ast-grep
     house-style  → ../../skills/house-style
+  .claude/skills/
+    ast-grep     → ../../.ponte/sources/ast-grep
+    house-style  → ../../skills/house-style
+  .codex/skills/
+    ast-grep     → ../../.ponte/sources/ast-grep
+    house-style  → ../../skills/house-style
 ```
+
+`ponte sync` links every skill into `.agents/skills/` and into each
+enabled vendor's project-level skill directory. Claude Code reads
+`.claude/skills/`, Codex reads `.codex/skills/`, and so on.
 
 ### Vendoring
 
@@ -228,9 +244,10 @@ the new commit. `ponte update` also reads the file to find local edits.
 
 ### What to commit
 
-Commit `ponte.toml`, `.ponte/` and the links in `.agents/skills/`. A link to
-a path inside the project is relative, so it keeps working in every clone. A
-link to a local source outside the project stays absolute.
+Commit `ponte.toml`, `.ponte/`, and the skill links (`.agents/skills/`,
+`.claude/skills/`, `.codex/skills/`, and so on). A link to a path inside
+the project is relative, so it keeps working in every clone. A link to a
+local source outside the project stays absolute.
 
 ---
 
@@ -259,10 +276,11 @@ directory when the configuration no longer declares it. A real file or
 a real directory in those locations is never removed.
 
 In project mode, `ponte sync` vendors the missing git skills, links every
-skill into `.agents/skills/`, and removes the stale links there. It reports
-the project root, the number of vendored skills, the number of links, and
-the number of removed links. The `-g` and `-a` flags belong to a global
-sync, so `ponte sync` rejects them inside a project.
+skill into `.agents/skills/` and each enabled vendor's skill directory, and
+removes the stale links. It reports the project root, the number of vendored
+skills, the number of links, and the number of removed links. The `-g` and
+`-a` flags belong to a global sync, so `ponte sync` rejects them inside a
+project.
 
 **Exit codes:** 0 on success. Non-zero on any error, for example an
 unknown agent, a source that does not resolve, or a filesystem error.
@@ -317,8 +335,8 @@ The first line names the system prompt file. Each vendor row shows:
 `ponte status` resolves git sources, exactly as a real sync does.
 
 In project mode, `ponte status` prints the project root, the path of
-`.agents/skills`, the number of links there, and one state for the whole
-directory.
+`.agents/skills`, the total link count across all vendor directories, and
+one state for the whole set.
 
 ---
 

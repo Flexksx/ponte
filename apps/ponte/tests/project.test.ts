@@ -3,10 +3,12 @@ import {
   ancestorDirectories,
   normalizeProjectConfig,
   planProject,
+  projectEnabledVendors,
   projectLayout,
   shortCommit,
   vendoredSkillPath,
 } from "../src/domain/project";
+import { VENDORS } from "../src/domain/vendor";
 import {
   ConfigError,
   decodeLock,
@@ -15,16 +17,57 @@ import {
 } from "../src/infra/config-codec";
 
 const layout = projectLayout("/repo");
+const TOTAL_SKILL_DIRECTORIES = 1 + VENDORS.length;
+
+const findLink = (links: readonly { path: string; target: string }[], path: string) =>
+  links.find(l => l.path === path);
 
 describe("projectLayout", () => {
   it("places the links, the sources and the lock file", () => {
-    expect(layout).toEqual({
-      root: "/repo",
-      skills: "/repo/.agents/skills",
-      sources: "/repo/.ponte/sources",
-      lockFile: "/repo/.ponte/lock.toml",
-    });
+    expect(layout.root).toBe("/repo");
+    expect(layout.skills).toBe("/repo/.agents/skills");
+    expect(layout.sources).toBe("/repo/.ponte/sources");
+    expect(layout.lockFile).toBe("/repo/.ponte/lock.toml");
     expect(vendoredSkillPath(layout, "java")).toBe("/repo/.ponte/sources/java");
+  });
+
+  it("includes vendor skill directories for each known vendor", () => {
+    expect(layout.vendorSkillDirectories).toContain("/repo/.claude/skills");
+    expect(layout.vendorSkillDirectories).toContain("/repo/.codex/skills");
+    expect(layout.vendorSkillDirectories.length).toBe(VENDORS.length);
+  });
+});
+
+describe("projectEnabledVendors", () => {
+  it("returns undefined when no vendors section is present", () => {
+    expect(projectEnabledVendors({ skills: {} })).toBe(undefined);
+  });
+
+  it("returns only enabled vendors", () => {
+    const enabled = projectEnabledVendors({
+      vendors: { "claude-code": { enabled: true }, codex: { enabled: false } },
+      skills: {},
+    });
+    expect(enabled).toEqual(["claude-code"]);
+  });
+
+  it("returns empty when all vendors are disabled", () => {
+    const enabled = projectEnabledVendors({
+      vendors: { "claude-code": { enabled: false } },
+      skills: {},
+    });
+    expect(enabled).toEqual([]);
+  });
+
+  it("returns empty when vendors section exists but lists none", () => {
+    expect(projectEnabledVendors({ vendors: {}, skills: {} })).toEqual([]);
+  });
+});
+
+describe("projectLayout with vendor filter", () => {
+  it("includes only filtered vendor directories", () => {
+    const filtered = projectLayout("/repo", "posix", ["claude-code"]);
+    expect(filtered.vendorSkillDirectories).toEqual(["/repo/.claude/skills"]);
   });
 });
 
@@ -44,22 +87,34 @@ describe("ancestorDirectories", () => {
 });
 
 describe("planProject", () => {
-  it("links a vendored skill with a relative target", () => {
-    expect(planProject(layout, [{ name: "java", directory: "/repo/.ponte/sources/java" }])).toEqual(
-      {
-        links: [{ path: "/repo/.agents/skills/java", target: "../../.ponte/sources/java" }],
-        ownedDirectories: ["/repo/.agents/skills"],
-      },
+  it("links a vendored skill into agents and all vendor directories", () => {
+    const plan = planProject(layout, [{ name: "java", directory: "/repo/.ponte/sources/java" }]);
+    expect(findLink(plan.links, "/repo/.agents/skills/java")?.target).toBe(
+      "../../.ponte/sources/java",
     );
+    expect(findLink(plan.links, "/repo/.claude/skills/java")?.target).toBe(
+      "../../.ponte/sources/java",
+    );
+    expect(plan.links.length).toBe(TOTAL_SKILL_DIRECTORIES);
+  });
+
+  it("uses a deeper relative path for vendors with subdirectories", () => {
+    const plan = planProject(layout, [{ name: "java", directory: "/repo/.ponte/sources/java" }]);
+    const geminiLink = findLink(plan.links, "/repo/.gemini/antigravity-cli/skills/java");
+    expect(geminiLink?.target).toBe("../../../.ponte/sources/java");
   });
 
   it("keeps a source outside the project absolute", () => {
     const plan = planProject(layout, [{ name: "java", directory: "/elsewhere/java" }]);
-    expect(plan.links).toEqual([{ path: "/repo/.agents/skills/java", target: "/elsewhere/java" }]);
+    expect(findLink(plan.links, "/repo/.agents/skills/java")?.target).toBe("/elsewhere/java");
+    expect(findLink(plan.links, "/repo/.claude/skills/java")?.target).toBe("/elsewhere/java");
   });
 
-  it("owns only the project skills directory", () => {
-    expect(planProject(layout, []).ownedDirectories).toEqual(["/repo/.agents/skills"]);
+  it("owns agents and all vendor skill directories", () => {
+    const dirs = planProject(layout, []).ownedDirectories;
+    expect(dirs).toContain("/repo/.agents/skills");
+    expect(dirs).toContain("/repo/.claude/skills");
+    expect(dirs.length).toBe(TOTAL_SKILL_DIRECTORIES);
   });
 });
 
@@ -67,6 +122,19 @@ describe("normalizeProjectConfig", () => {
   it("expands a relative local source against the project root", () => {
     const config = normalizeProjectConfig({ skills: { mine: { source: "skills/mine" } } }, "/repo");
     expect(config.skills.mine?.source).toBe("/repo/skills/mine");
+  });
+
+  it("preserves vendors through normalization", () => {
+    const config = normalizeProjectConfig(
+      { vendors: { "claude-code": { enabled: true } }, skills: {} },
+      "/repo",
+    );
+    expect(config.vendors?.["claude-code"]?.enabled).toBe(true);
+  });
+
+  it("omits vendors when absent in the original", () => {
+    const config = normalizeProjectConfig({ skills: {} }, "/repo");
+    expect(config.vendors).toBe(undefined);
   });
 
   it("leaves git sources and absolute paths untouched", () => {
@@ -89,11 +157,35 @@ describe("decodeProjectConfig", () => {
 
   it("rejects an unknown top-level key", () => {
     try {
-      decodeProjectConfig({ vendors: {}, system_prompt_file: "AGENTS.md" });
+      decodeProjectConfig({ unknown_key: {}, system_prompt_file: "AGENTS.md" });
       expect(true).toBe(false);
     } catch (e) {
       expect(e instanceof ConfigError).toBe(true);
       expect((e as ConfigError).problems.length).toBe(2);
+    }
+  });
+
+  it("accepts an optional vendors section", () => {
+    const config = decodeProjectConfig({
+      vendors: { "claude-code": { enabled: true }, codex: { enabled: false } },
+      skills: { mine: { source: "https://x/y" } },
+    });
+    expect(config.vendors?.["claude-code"]?.enabled).toBe(true);
+    expect(config.vendors?.codex?.enabled).toBe(false);
+  });
+
+  it("treats missing vendors section as all enabled", () => {
+    const config = decodeProjectConfig({ skills: {} });
+    expect(config.vendors).toBe(undefined);
+  });
+
+  it("rejects an unknown vendor name", () => {
+    try {
+      decodeProjectConfig({ vendors: { "not-a-vendor": { enabled: true } }, skills: {} });
+      expect(true).toBe(false);
+    } catch (e) {
+      expect(e instanceof ConfigError).toBe(true);
+      expect((e as ConfigError).message).toContain("not-a-vendor");
     }
   });
 
