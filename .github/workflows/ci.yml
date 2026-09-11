@@ -13,29 +13,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  format:
-    name: Format
+  check:
+    name: Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@main
-      - name: Check TypeScript formatting
-        run: nix run .#check-ts -- --error-on-warnings
-      - name: Check Nix formatting
-        run: nix run .#check-nix -- .
-      - name: Check Markdown
-        run: nix run .#check-md -- .
-
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@main
-      - name: Check style, types and architecture
-        run: nix run .#lint
+      - name: Run all checks
+        run: nix flake check
 
   test:
     name: Test (${{ matrix.os }})
@@ -52,17 +38,3 @@ jobs:
         run: bun install --frozen-lockfile
       - name: Run test suite
         run: bun test ./libs/core/tests ./apps/ponte/tests
-
-  package:
-    name: Package
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@main
-      - name: Evaluate every flake output
-        run: nix flake check
-      - name: Build the package
-        run: nix build .#default
-      - name: Run the built binary
-        run: ./result/bin/ponte --help

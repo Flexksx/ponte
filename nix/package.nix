@@ -18,7 +18,6 @@
         runHook preBuild
         export HOME="$TMPDIR"
         export SSL_CERT_FILE="${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
-        cd apps/ponte
         bun install --production --frozen-lockfile --no-progress
         runHook postBuild
       '';
@@ -26,7 +25,7 @@
       installPhase = ''
         runHook preInstall
         mkdir -p $out
-        cp -R node_modules/. $out/
+        cp -RL apps/ponte/node_modules/. $out/
         runHook postInstall
       '';
 
@@ -34,7 +33,7 @@
 
       outputHashMode = "recursive";
       outputHashAlgo = "sha256";
-      outputHash = "sha256-zAYdGXrCZb0w5yJdZFeYzasDNqji50FSvrQsX9AYlfk=";
+      outputHash = "sha256-rWKKCIIIOcvCxFU/Jd31C06XllOJj0r+Kn94+IkmdZU=";
     };
   in {
     packages.default = pkgs.stdenv.mkDerivation {
