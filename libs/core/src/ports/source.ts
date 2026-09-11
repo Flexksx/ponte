@@ -1,4 +1,4 @@
-import type { SkillSource } from "./source";
+import type { SkillSource } from "../domain/source";
 
 export type ResolvedSource = {
   readonly directory: string;

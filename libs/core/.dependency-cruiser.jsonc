@@ -6,8 +6,8 @@
       "name": "domain-does-not-import-ports",
       "comment": "Domain modules define pure types and logic. They must not depend on port definitions.",
       "severity": "error",
-      "from": { "path": "^src/domain/", "pathNot": "\\.ports\\.ts$" },
-      "to": { "path": "\\.ports\\.ts$" }
+      "from": { "path": "^src/domain/" },
+      "to": { "path": "^src/ports/" }
     },
     {
       "name": "no-circular",

@@ -1,4 +1,4 @@
-import type { Config } from "./config";
+import type { Config } from "../domain/config";
 
 export type ReadConfig = () => Promise<Config | null>;
 export type WriteConfig = (config: Config) => Promise<void>;

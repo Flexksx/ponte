@@ -1,5 +1,5 @@
-import type { ProjectLayout } from "./project";
-import type { ProjectConfig, ProjectLock } from "./project-config";
+import type { ProjectLayout } from "../domain/project";
+import type { ProjectConfig, ProjectLock } from "../domain/project-config";
 
 export type FindProjectRoot = (start: string) => Promise<string | null>;
 export type ReadProjectConfig = (root: string) => Promise<ProjectConfig>;
