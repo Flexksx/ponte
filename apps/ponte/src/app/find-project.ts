@@ -2,16 +2,10 @@ import {
   type FindProjectRoot,
   getProjectEnabledVendors,
   type Platform,
-  type ProjectConfig,
-  type ProjectLayout,
+  type Project,
   projectLayout,
   type ReadProjectConfig,
 } from "@ponte/core";
-
-export type Project = {
-  readonly layout: ProjectLayout;
-  readonly config: ProjectConfig;
-};
 
 export type FindProject = () => Promise<Project | null>;
 

@@ -2,7 +2,7 @@ import {
   type Config,
   err,
   type FileExists,
-  getVendorState,
+  getEffectiveVendorState,
   ok,
   type ReadSymlinks,
   type Result,
@@ -48,7 +48,7 @@ export const createGetStatusReport =
         name,
         enabled,
         linkCount: actual.size,
-        state: enabled ? getVendorState(plans[name], actual) : "disabled",
+        state: getEffectiveVendorState(plans[name], actual, enabled),
       });
     }
     return ok({ promptFile: config.systemPromptFile, vendors });

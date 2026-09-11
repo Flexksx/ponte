@@ -100,3 +100,9 @@ export const buildProjectPlan = (
     ownedDirectories: allDirectories,
   };
 };
+
+export const getEffectiveVendorState = (
+  plan: VendorPlan,
+  actual: ReadonlyMap<string, string>,
+  enabled: boolean,
+): VendorState => (enabled ? getVendorState(plan, actual) : "disabled");

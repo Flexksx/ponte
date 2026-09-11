@@ -4,13 +4,12 @@ import {
   createDefaultConfig,
   err,
   type FileExists,
-  getEnabledVendors,
   getStaleLinkPaths,
   ok,
-  parseVendorNames,
   type ReadConfig,
   type ReadSymlinks,
   type Result,
+  resolveVendors,
   type VendorName,
   type VendorPlan,
   type WriteConfig,
@@ -106,10 +105,7 @@ export const createSyncVendors = (deps: SyncDeps) => {
         ? await bootstrapConfig()
         : { config: existing, bootstrap: null };
 
-    const vendors =
-      request.requestedVendors.length > 0
-        ? parseVendorNames(request.requestedVendors)
-        : getEnabledVendors(config);
+    const vendors = resolveVendors(request.requestedVendors, config);
     if (vendors.length === 0) {
       return err("no agents enabled in config - run with -a to specify agents");
     }

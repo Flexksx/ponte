@@ -7,14 +7,14 @@ import {
   PROJECT_CONFIG_FILE,
   PROJECT_SKILLS_DIRECTORY,
   PROJECT_SOURCES_DIRECTORY,
+  type Project,
+  type ProjectSkillRow,
   parseSource,
   type SourceEntry,
   type VendorState,
 } from "@ponte/core";
 import chalk from "chalk";
 import { type App, bootstrap } from "../app/bootstrap";
-import type { Project } from "../app/find-project";
-import type { ProjectSkillRow } from "../app/project-skills";
 import type { ProjectStatusReport } from "../app/project-status";
 import type { ProjectSyncReport } from "../app/project-sync";
 import type { StatusReport } from "../app/vendor-status";

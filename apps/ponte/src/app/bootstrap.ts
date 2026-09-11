@@ -1,5 +1,6 @@
 import {
   type Config,
+  type Project,
   type ReadConfig,
   type Result,
   resolvePromptPath,
@@ -39,7 +40,6 @@ import {
   readProjectLock,
   writeProjectLock,
 } from "../infra/project-file";
-import type { Project } from "./find-project";
 import { createFindProject, type FindProject } from "./find-project";
 import {
   createCopyVendorSkill,

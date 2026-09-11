@@ -1,9 +1,10 @@
 import {
   buildProjectPlan,
   type CopyDirectoryWithoutGit,
+  classifySkillEntries,
   type DirectoryExists,
-  isGitSource,
   type LockEntry,
+  type Project,
   type ProjectLayout,
   type ProjectLock,
   parseSource,
@@ -14,7 +15,6 @@ import {
   type VendorPlan,
   vendoredSkillPath,
 } from "@ponte/core";
-import type { Project } from "./find-project";
 
 export type ProjectSkill = {
   readonly name: string;
@@ -72,33 +72,38 @@ export const createResolveProjectSkills =
     const locked: Record<string, LockEntry> = {
       ...(await deps.readProjectLock(project.layout)).skills,
     };
+    const classified = classifySkillEntries(project.config, project.layout);
     const skills: ProjectSkill[] = [];
     const vendored: string[] = [];
-    for (const [name, entry] of Object.entries(project.config.skills)) {
-      if (!isGitSource(entry.source)) {
+    for (const entry of classified) {
+      if (entry.kind === "local") {
         const directory = await deps.resolveSource(
-          parseSource(entry.source, entry.ref, entry.subdir),
+          parseSource(entry.entry.source, entry.entry.ref, entry.entry.subdir),
         );
-        skills.push({ name, directory, vendored: false, commit: null });
+        skills.push({
+          name: entry.name,
+          directory,
+          vendored: false,
+          commit: null,
+        });
         continue;
       }
-      const directory = vendoredSkillPath(project.layout, name);
-      if (!(await deps.directoryExists(directory))) {
-        vendored.push(name);
+      if (!(await deps.directoryExists(entry.directory))) {
+        vendored.push(entry.name);
         if (materialize) {
           const commit = await deps.copyVendorSkill(
             project.layout,
-            name,
-            entry,
+            entry.name,
+            entry.entry,
           );
-          if (commit !== null) locked[name] = { commit };
+          if (commit !== null) locked[entry.name] = { commit };
         }
       }
       skills.push({
-        name,
-        directory,
+        name: entry.name,
+        directory: entry.directory,
         vendored: true,
-        commit: locked[name]?.commit ?? null,
+        commit: locked[entry.name]?.commit ?? null,
       });
     }
     return {

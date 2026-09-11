@@ -1,6 +1,6 @@
 import { isAbsolute, join } from "node:path";
 import { isGitSource } from "./source";
-import { VENDORS, type VendorName } from "./vendor";
+import { parseVendorNames, VENDORS, type VendorName } from "./vendor";
 
 export type VendorConfig = { readonly enabled: boolean };
 
@@ -64,3 +64,11 @@ export const resolvePromptPath = (
   filename: string,
 ): string =>
   isAbsolute(filename) ? filename : join(configDirectory, filename);
+
+export const resolveVendors = (
+  requestedVendors: readonly string[],
+  config: Config,
+): VendorName[] =>
+  requestedVendors.length > 0
+    ? parseVendorNames(requestedVendors)
+    : getEnabledVendors(config);

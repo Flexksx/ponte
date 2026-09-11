@@ -2,9 +2,11 @@ import {
   type DirectoriesDiffer,
   type DirectoryExists,
   err,
-  isGitSource,
+  getUpdatableSkill,
+  getUpdatableSkills,
   type LockEntry,
   ok,
+  type Project,
   type ProjectLayout,
   type ProjectLock,
   parseSource,
@@ -16,7 +18,6 @@ import {
   vendoredSkillPath,
   type WriteProjectLock,
 } from "@ponte/core";
-import type { Project } from "./find-project";
 import type { CopyVendorSkill } from "./project-resolve";
 
 export type UpdatedSkill = {
@@ -41,30 +42,12 @@ type UpdateDeps = {
 
 type Target = readonly [string, SourceEntry];
 
-const namedTarget = (
-  project: Project,
-  name: string,
-): Result<Target, string> => {
-  const entry = project.config.skills[name];
-  if (entry === undefined) return err(`unknown project skill: ${name}`);
-  if (!isGitSource(entry.source)) {
-    return err(`${name} is a local skill, so there is nothing to update`);
-  }
-  return ok([name, entry]);
-};
-
 const updateTargets = (
   project: Project,
   name: string | undefined,
 ): Result<readonly Target[], string> => {
-  if (name === undefined) {
-    return ok(
-      Object.entries(project.config.skills).filter(([, entry]) =>
-        isGitSource(entry.source),
-      ),
-    );
-  }
-  const result = namedTarget(project, name);
+  if (name === undefined) return ok(getUpdatableSkills(project.config));
+  const result = getUpdatableSkill(project.config, name);
   if (!result.ok) return result;
   return ok([result.value]);
 };

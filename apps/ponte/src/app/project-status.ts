@@ -1,9 +1,9 @@
 import {
   getVendorState,
+  type Project,
   type ReadSymlinks,
   type VendorState,
 } from "@ponte/core";
-import type { Project } from "./find-project";
 import type { ResolveProjectSkills } from "./project-resolve";
 
 export type ProjectStatusReport = {

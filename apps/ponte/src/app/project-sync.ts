@@ -1,10 +1,10 @@
 import {
   type ApplyPlan,
   getStaleLinkPaths,
+  type Project,
   type ReadSymlinks,
   type WriteProjectLock,
 } from "@ponte/core";
-import type { Project } from "./find-project";
 import type { ResolveProjectSkills } from "./project-resolve";
 
 export type ProjectSyncReport = {
