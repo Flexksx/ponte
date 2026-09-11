@@ -13,8 +13,8 @@ type Violation = {
 const BINDING = /^(export )?(const|let|var) [A-Za-z_$][\w$]* ?(<[^=]*>)?(:[^=]*)? = /;
 
 const GROUP_NAMES: Record<Group, string> = {
-  1: "constants",
-  2: "types, interfaces and classes",
+  1: "types, interfaces and classes",
+  2: "constants",
   3: "functions",
   4: "statements",
 };
@@ -25,8 +25,8 @@ const NAMED_CONSTANT = /^(export )?const [A-Z][A-Z0-9_]* ?(:[^=]*)? = /;
 const ARROW_FUNCTION = /^(export )?const [A-Za-z_$][\w$]* ?(<[^=]*>)?(:[^=]*)? = (async )?[(<]/;
 
 const classify = (line: string): Group | null => {
-  if (TYPE_DECLARATION.test(line)) return 2;
-  if (NAMED_CONSTANT.test(line)) return 1;
+  if (TYPE_DECLARATION.test(line)) return 1;
+  if (NAMED_CONSTANT.test(line)) return 2;
   if (ARROW_FUNCTION.test(line)) return 3;
   if (BINDING.test(line)) return 4;
   return null;
@@ -64,7 +64,7 @@ const checkFile = async (file: string): Promise<Violation[]> => {
 
 const sourceFiles = async (root: string): Promise<string[]> =>
   (await readdir(root, { recursive: true }))
-    .filter(name => name.endsWith(".ts"))
+    .filter(name => name.endsWith(".ts") && !name.endsWith(".d.ts"))
     .map(name => join(root, name))
     .sort();
 

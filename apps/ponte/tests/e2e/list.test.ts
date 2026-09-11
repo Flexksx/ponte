@@ -2,7 +2,12 @@ import { describe, expect, it } from "bun:test";
 import type { Home } from "./harness";
 import { newHarness } from "./harness";
 
-const addConfigTable = async (h: Home, key: string, name: string, source: string) => {
+const addConfigTable = async (
+  h: Home,
+  key: string,
+  name: string,
+  source: string,
+) => {
   const cfg = await h.readFileText(h.configPath("config.toml"));
   await h.writeFile(
     h.configPath("config.toml"),

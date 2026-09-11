@@ -19,7 +19,10 @@ export const directoryExists = async (path: string): Promise<boolean> => {
   }
 };
 
-export const writeText = async (path: string, content: string): Promise<void> => {
+export const writeText = async (
+  path: string,
+  content: string,
+): Promise<void> => {
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, content);
 };
@@ -37,7 +40,10 @@ export const removeDirectory = async (path: string): Promise<void> => {
   await rm(path, { recursive: true, force: true });
 };
 
-export const copyDirectoryWithoutGit = async (from: string, to: string): Promise<void> => {
+export const copyDirectoryWithoutGit = async (
+  from: string,
+  to: string,
+): Promise<void> => {
   await mkdir(dirname(to), { recursive: true });
   await cp(from, to, { recursive: true });
   await rm(join(to, GIT_DIRECTORY), { recursive: true, force: true });
@@ -56,12 +62,16 @@ const treeFiles = async (root: string, inside: string): Promise<string[]> => {
 };
 
 const bytesDiffer = (left: Uint8Array, right: Uint8Array): boolean =>
-  left.length !== right.length || left.some((byte, index) => byte !== right[index]);
+  left.length !== right.length ||
+  left.some((byte, index) => byte !== right[index]);
 
 const filesDiffer = async (left: string, right: string): Promise<boolean> =>
   bytesDiffer(await Bun.file(left).bytes(), await Bun.file(right).bytes());
 
-export const directoriesDiffer = async (left: string, right: string): Promise<boolean> => {
+export const directoriesDiffer = async (
+  left: string,
+  right: string,
+): Promise<boolean> => {
   const leftFiles = (await treeFiles(left, "")).sort();
   const rightFiles = (await treeFiles(right, "")).sort();
   if (leftFiles.join("\n") !== rightFiles.join("\n")) return true;

@@ -2,8 +2,6 @@
   perSystem = {pkgs, ...}: let
     bun = pkgs.bun;
 
-    # `bun install` needs the network, so it lives in a fixed-output
-    # derivation. Update outputHash whenever apps/ponte/bun.lock changes.
     bunDeps = pkgs.stdenv.mkDerivation {
       name = "ponte-bun-deps";
       version = "0.1.0";
@@ -18,7 +16,6 @@
         runHook preBuild
         export HOME="$TMPDIR"
         export SSL_CERT_FILE="${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
-        cd apps/ponte
         bun install --production --frozen-lockfile --no-progress
         runHook postBuild
       '';
@@ -26,7 +23,7 @@
       installPhase = ''
         runHook preInstall
         mkdir -p $out
-        cp -R node_modules/. $out/
+        cp -RL apps/ponte/node_modules/. $out/
         runHook postInstall
       '';
 
@@ -34,7 +31,7 @@
 
       outputHashMode = "recursive";
       outputHashAlgo = "sha256";
-      outputHash = "sha256-zAYdGXrCZb0w5yJdZFeYzasDNqji50FSvrQsX9AYlfk=";
+      outputHash = "sha256-2+Yz0wJTxFoOhyfVSJFE0p8keVPL2yobWn0V468EJdA=";
     };
   in {
     packages.default = pkgs.stdenv.mkDerivation {

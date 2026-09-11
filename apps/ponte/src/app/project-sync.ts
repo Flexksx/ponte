@@ -1,7 +1,11 @@
-import { staleLinkPaths } from "../domain/link";
-import { applyPlan, readSymlinks } from "../infra/links";
-import { writeProjectLock } from "../infra/project-file";
-import { type Project, resolveProject } from "./project";
+import {
+  type ApplyPlan,
+  getStaleLinkPaths,
+  type Project,
+  type ReadSymlinks,
+  type WriteProjectLock,
+} from "@ponte/core";
+import type { ResolveProjectSkills } from "./project-resolve";
 
 export type ProjectSyncReport = {
   readonly root: string;
@@ -10,23 +14,30 @@ export type ProjectSyncReport = {
   readonly stale: number;
 };
 
-const syncProject = async (project: Project, apply: boolean): Promise<ProjectSyncReport> => {
-  const resolution = await resolveProject(project, apply);
-  const stale = staleLinkPaths(resolution.plan, await readSymlinks(resolution.plan));
-  if (apply) {
-    await applyPlan(resolution.plan, stale);
-    if (resolution.vendored.length > 0) await writeProjectLock(project.layout, resolution.lock);
-  }
-  return {
-    root: project.layout.root,
-    vendored: resolution.vendored.length,
-    linked: resolution.plan.links.length,
-    stale: stale.length,
-  };
+type SyncProjectDeps = {
+  resolveProjectSkills: ResolveProjectSkills;
+  readSymlinks: ReadSymlinks;
+  applyPlan: ApplyPlan;
+  writeProjectLock: WriteProjectLock;
 };
 
-export const planProjectSync = (project: Project): Promise<ProjectSyncReport> =>
-  syncProject(project, false);
-
-export const runProjectSync = (project: Project): Promise<ProjectSyncReport> =>
-  syncProject(project, true);
+export const createSyncProject =
+  (deps: SyncProjectDeps) =>
+  async (project: Project, apply: boolean): Promise<ProjectSyncReport> => {
+    const resolution = await deps.resolveProjectSkills(project, apply);
+    const stale = getStaleLinkPaths(
+      resolution.plan,
+      await deps.readSymlinks(resolution.plan),
+    );
+    if (apply) {
+      await deps.applyPlan(resolution.plan, stale);
+      if (resolution.vendored.length > 0)
+        await deps.writeProjectLock(project.layout, resolution.lock);
+    }
+    return {
+      root: project.layout.root,
+      vendored: resolution.vendored.length,
+      linked: resolution.plan.links.length,
+      stale: stale.length,
+    };
+  };

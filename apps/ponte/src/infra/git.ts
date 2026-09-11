@@ -1,21 +1,29 @@
 import { createHash } from "node:crypto";
 import { mkdir, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { MissingGitRefError, type SkillSource } from "@ponte/core";
 import { $ } from "bun";
-import { MissingGitRefError, type SkillSource } from "../domain/source";
+
+export type ResolvedSource = {
+  readonly directory: string;
+  readonly commit: string | null;
+};
 
 const CLONE_DIRECTORY_LENGTH = 16;
 
-export type ResolvedSource = { readonly directory: string; readonly commit: string | null };
-
 const cloneDirectoryName = (url: string, ref: string): string =>
-  createHash("sha256").update(`${url}\n${ref}`).digest("hex").slice(0, CLONE_DIRECTORY_LENGTH);
+  createHash("sha256")
+    .update(`${url}\n${ref}`)
+    .digest("hex")
+    .slice(0, CLONE_DIRECTORY_LENGTH);
 
 const runGit = async (args: string[], cwd?: string): Promise<string> => {
   const shell = $`git ${args}`;
   const result = await (cwd ? shell.cwd(cwd) : shell).quiet();
   if (result.exitCode !== 0) {
-    throw new Error(`git ${args.join(" ")} failed: ${result.stderr.toString().trim()}`);
+    throw new Error(
+      `git ${args.join(" ")} failed: ${result.stderr.toString().trim()}`,
+    );
   }
   return result.stdout.toString().trim();
 };
@@ -51,5 +59,7 @@ export const resolveSourceDetails = async (
   };
 };
 
-export const resolveSource = async (source: SkillSource, cacheDir: string): Promise<string> =>
-  (await resolveSourceDetails(source, cacheDir)).directory;
+export const resolveSource = async (
+  source: SkillSource,
+  cacheDir: string,
+): Promise<string> => (await resolveSourceDetails(source, cacheDir)).directory;

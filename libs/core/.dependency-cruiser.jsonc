@@ -1,0 +1,26 @@
+{
+  "$schema": "https://raw.githubusercontent.com/sverweij/dependency-cruiser/main/src/schema/configuration.schema.json",
+
+  "forbidden": [
+    {
+      "name": "domain-does-not-import-ports",
+      "comment": "Domain modules define pure types and logic. They must not depend on port definitions.",
+      "severity": "error",
+      "from": { "path": "^src/domain/" },
+      "to": { "path": "^src/ports/" }
+    },
+    {
+      "name": "no-circular",
+      "comment": "A cycle makes the layer order meaningless.",
+      "severity": "error",
+      "from": {},
+      "to": { "circular": true }
+    }
+  ],
+
+  "options": {
+    "doNotFollow": { "path": "node_modules" },
+    "tsPreCompilationDeps": true,
+    "tsConfig": { "fileName": "tsconfig.json" }
+  }
+}

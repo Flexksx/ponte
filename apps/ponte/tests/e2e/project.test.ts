@@ -22,7 +22,9 @@ const newSkillRepo = async (h: Home, content: string): Promise<SkillRepo> => {
   const git = async (...args: string[]): Promise<string> => {
     const res = await $`git ${args}`.cwd(repoPath).quiet();
     if (res.exitCode !== 0) {
-      throw new Error(`git ${args.join(" ")} failed: ${res.stdout}${res.stderr}`);
+      throw new Error(
+        `git ${args.join(" ")} failed: ${res.stdout}${res.stderr}`,
+      );
     }
     return res.stdout.toString().trim();
   };
@@ -63,7 +65,10 @@ describe("project sync", () => {
     const { stdout } = await h.mustRunIn(deep, "sync");
 
     expect(stdout).toContain(root);
-    await h.assertSymlinkTo(h.projectSkillLink(root, "mine"), "../../skills/mine");
+    await h.assertSymlinkTo(
+      h.projectSkillLink(root, "mine"),
+      "../../skills/mine",
+    );
     await h.close();
   });
 
@@ -71,7 +76,10 @@ describe("project sync", () => {
     if (isWindows()) return;
     const h = await newHarness();
     const repo = await newSkillRepo(h, "# version one\n");
-    const root = await newProject(h, gitSkillConfig("git-skill", repo, repo.sha));
+    const root = await newProject(
+      h,
+      gitSkillConfig("git-skill", repo, repo.sha),
+    );
 
     await h.mustRunIn(root, "sync");
 
@@ -94,7 +102,10 @@ describe("project sync", () => {
     if (isWindows()) return;
     const h = await newHarness();
     const repo = await newSkillRepo(h, "# version one\n");
-    const root = await newProject(h, gitSkillConfig("git-skill", repo, repo.sha));
+    const root = await newProject(
+      h,
+      gitSkillConfig("git-skill", repo, repo.sha),
+    );
     await h.mustRunIn(root, "sync");
 
     const skillFile = join(h.vendoredSkillPath(root, "git-skill"), "SKILL.md");
@@ -110,7 +121,10 @@ describe("project sync", () => {
     if (isWindows()) return;
     const h = await newHarness();
     const outside = h.fixtureDir("simple_skill");
-    const root = await newProject(h, `[skills.simple]\nsource = ${JSON.stringify(outside)}\n`);
+    const root = await newProject(
+      h,
+      `[skills.simple]\nsource = ${JSON.stringify(outside)}\n`,
+    );
 
     await h.mustRunIn(root, "sync");
 
@@ -161,9 +175,18 @@ describe("project sync", () => {
 
     await h.mustRunIn(root, "sync");
 
-    await h.assertSymlinkTo(h.projectSkillLink(root, "mine"), "../../skills/mine");
-    await h.assertSymlinkTo(join(root, ".claude", "skills", "mine"), "../../skills/mine");
-    await h.assertSymlinkTo(join(root, ".codex", "skills", "mine"), "../../skills/mine");
+    await h.assertSymlinkTo(
+      h.projectSkillLink(root, "mine"),
+      "../../skills/mine",
+    );
+    await h.assertSymlinkTo(
+      join(root, ".claude", "skills", "mine"),
+      "../../skills/mine",
+    );
+    await h.assertSymlinkTo(
+      join(root, ".codex", "skills", "mine"),
+      "../../skills/mine",
+    );
     await h.close();
   });
 
@@ -194,8 +217,14 @@ describe("project sync", () => {
 
     await h.mustRunIn(root, "sync");
 
-    await h.assertSymlinkTo(h.projectSkillLink(root, "mine"), "../../skills/mine");
-    await h.assertSymlinkTo(join(root, ".claude", "skills", "mine"), "../../skills/mine");
+    await h.assertSymlinkTo(
+      h.projectSkillLink(root, "mine"),
+      "../../skills/mine",
+    );
+    await h.assertSymlinkTo(
+      join(root, ".claude", "skills", "mine"),
+      "../../skills/mine",
+    );
     await h.assertMissing(join(root, ".codex", "skills", "mine"));
     await h.close();
   });
@@ -257,11 +286,17 @@ describe("project update", () => {
     if (isWindows()) return;
     const h = await newHarness();
     const repo = await newSkillRepo(h, "# version one\n");
-    const root = await newProject(h, gitSkillConfig("git-skill", repo, repo.sha));
+    const root = await newProject(
+      h,
+      gitSkillConfig("git-skill", repo, repo.sha),
+    );
     await h.mustRunIn(root, "sync");
 
     const next = await repo.commit("# version two\n");
-    await h.writeFile(join(root, "ponte.toml"), gitSkillConfig("git-skill", repo, next));
+    await h.writeFile(
+      join(root, "ponte.toml"),
+      gitSkillConfig("git-skill", repo, next),
+    );
 
     const { stdout } = await h.mustRunIn(root, "update", "git-skill");
 
@@ -282,7 +317,10 @@ describe("project update", () => {
     if (isWindows()) return;
     const h = await newHarness();
     const repo = await newSkillRepo(h, "# version one\n");
-    const root = await newProject(h, gitSkillConfig("git-skill", repo, repo.sha));
+    const root = await newProject(
+      h,
+      gitSkillConfig("git-skill", repo, repo.sha),
+    );
     await h.mustRunIn(root, "sync");
 
     const skillFile = join(h.vendoredSkillPath(root, "git-skill"), "SKILL.md");

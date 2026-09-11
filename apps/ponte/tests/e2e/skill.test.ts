@@ -48,7 +48,10 @@ describe("skill sync", () => {
 
     await h.mustRun("sync");
 
-    await h.assertSymlinkTo(h.vendorSkillPath("claude-code", "simple-skill"), skillFixtureDir);
+    await h.assertSymlinkTo(
+      h.vendorSkillPath("claude-code", "simple-skill"),
+      skillFixtureDir,
+    );
     await h.close();
   });
 
@@ -57,7 +60,10 @@ describe("skill sync", () => {
     const h = await newHarness();
     await h.bootstrap();
 
-    await h.assertSymlinkTo(h.vendorPaths()["claude-code"], h.configPath("AGENTS.md"));
+    await h.assertSymlinkTo(
+      h.vendorPaths()["claude-code"],
+      h.configPath("AGENTS.md"),
+    );
     await h.close();
   });
 
@@ -70,7 +76,10 @@ describe("skill sync", () => {
     await appendConfigWithSkill(h, "simple-skill", skillFixtureDir);
     await h.mustRun("sync");
 
-    const skillMD = join(h.vendorSkillPath("claude-code", "simple-skill"), "SKILL.md");
+    const skillMD = join(
+      h.vendorSkillPath("claude-code", "simple-skill"),
+      "SKILL.md",
+    );
     expect(await h.readFileText(skillMD)).toContain("simple-skill");
     await h.close();
   });
@@ -81,7 +90,11 @@ describe("skill sync", () => {
     await h.bootstrap();
 
     const before = await h.readFileText(h.configPath("config.toml"));
-    await appendConfigWithSkill(h, "simple-skill", h.fixtureDir("simple_skill"));
+    await appendConfigWithSkill(
+      h,
+      "simple-skill",
+      h.fixtureDir("simple_skill"),
+    );
     await h.mustRun("sync");
     await h.assertSymlinkTo(
       h.vendorSkillPath("claude-code", "simple-skill"),
@@ -116,11 +129,19 @@ describe("skill sync", () => {
 
     const { repoPath, commitSHA } = await createLocalGitSkillRepo();
 
-    await writeConfigWithGitSkill(h, "git-skill", `file://${repoPath}`, commitSHA);
+    await writeConfigWithGitSkill(
+      h,
+      "git-skill",
+      `file://${repoPath}`,
+      commitSHA,
+    );
 
     await h.mustRun("sync");
 
-    const skillMD = join(h.vendorSkillPath("claude-code", "git-skill"), "SKILL.md");
+    const skillMD = join(
+      h.vendorSkillPath("claude-code", "git-skill"),
+      "SKILL.md",
+    );
     expect(await h.readFileText(skillMD)).toContain("git-skill");
     await h.close();
   });
@@ -136,14 +157,22 @@ const appendConfigWithSkill = async (
   await h.writeFile(h.configPath("config.toml"), cfg + entry);
 };
 
-const createLocalGitSkillRepo = async (): Promise<{ repoPath: string; commitSHA: string }> => {
-  const repoPath = join(osTmpdir(), `ponte-git-skill-${Math.random().toString(36).slice(2, 8)}`);
+const createLocalGitSkillRepo = async (): Promise<{
+  repoPath: string;
+  commitSHA: string;
+}> => {
+  const repoPath = join(
+    osTmpdir(),
+    `ponte-git-skill-${Math.random().toString(36).slice(2, 8)}`,
+  );
   await mkdir(repoPath, { recursive: true });
 
   const git = async (...args: string[]): Promise<string> => {
     const res = await $`git ${args}`.cwd(repoPath).quiet();
     if (res.exitCode !== 0) {
-      throw new Error(`git ${args.join(" ")} failed: ${res.stdout}${res.stderr}`);
+      throw new Error(
+        `git ${args.join(" ")} failed: ${res.stdout}${res.stderr}`,
+      );
     }
     return res.stdout.toString();
   };
@@ -151,7 +180,10 @@ const createLocalGitSkillRepo = async (): Promise<{ repoPath: string; commitSHA:
   await git("init");
   await git("config", "user.email", "test@example.com");
   await git("config", "user.name", "Test");
-  await writeFile(join(repoPath, "SKILL.md"), "---\nname: git-skill\n---\n# Git Skill\n");
+  await writeFile(
+    join(repoPath, "SKILL.md"),
+    "---\nname: git-skill\n---\n# Git Skill\n",
+  );
   await git("add", ".");
   await git("commit", "-m", "add skill");
   const commitSHA = (await git("rev-parse", "HEAD")).trim();

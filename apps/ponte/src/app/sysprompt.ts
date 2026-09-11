@@ -1,12 +1,29 @@
-import { readPrompt, resolveContent, writePrompt } from "../infra/config-file";
-import { requireConfig } from "./configuration";
+import type {
+  Config,
+  ReadPrompt,
+  ResolveContent,
+  WritePrompt,
+} from "@ponte/core";
 
-export const readSystemPrompt = async (): Promise<string | null> => {
-  const config = await requireConfig();
-  return readPrompt(config.systemPromptFile);
+type ReadSystemPromptDeps = {
+  readPrompt: ReadPrompt;
 };
 
-export const setSystemPrompt = async (fileOrLiteral: string): Promise<void> => {
-  const config = await requireConfig();
-  await writePrompt(config.systemPromptFile, await resolveContent(fileOrLiteral));
+export const createReadSystemPrompt =
+  (deps: ReadSystemPromptDeps) =>
+  (config: Config): Promise<string | null> =>
+    deps.readPrompt(config.systemPromptFile);
+
+type SetSystemPromptDeps = {
+  writePrompt: WritePrompt;
+  resolveContent: ResolveContent;
 };
+
+export const createSetSystemPrompt =
+  (deps: SetSystemPromptDeps) =>
+  async (config: Config, fileOrLiteral: string): Promise<void> => {
+    await deps.writePrompt(
+      config.systemPromptFile,
+      await deps.resolveContent(fileOrLiteral),
+    );
+  };

@@ -1,8 +1,15 @@
-import { mkdir, readFile, readlink, rm, stat, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  readFile,
+  readlink,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir as osTmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import type { VendorName } from "@ponte/core";
 import { $ } from "bun";
-import type { VendorName } from "../../src/domain/vendor";
 
 let binaryUnderTest = "";
 let binaryResolve: Promise<string> | null = null;
@@ -17,9 +24,12 @@ const resolveBinary = (): Promise<string> => {
     const bin = join(await osTmpdir(), `ponte-e2e-bin-${randId()}`);
     await mkdir(bin, { recursive: true });
     const out = join(bin, process.platform === "win32" ? "ponte.exe" : "ponte");
-    const build = await $`bun build ${root}/src/index.ts --compile --outfile ${out}`.quiet();
+    const build =
+      await $`bun build ${root}/src/index.ts --compile --outfile ${out}`.quiet();
     if (build.exitCode !== 0) {
-      throw new Error(`could not build ponte for e2e: ${build.stderr.toString()}`);
+      throw new Error(
+        `could not build ponte for e2e: ${build.stderr.toString()}`,
+      );
     }
     binaryUnderTest = out;
     return out;
@@ -99,7 +109,9 @@ export class Home {
     };
   }
 
-  async run(...args: string[]): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  async run(
+    ...args: string[]
+  ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
     return this.runIn(this.home, ...args);
   }
 
@@ -110,11 +122,16 @@ export class Home {
     return this.execute(cwd, args);
   }
 
-  async mustRun(...args: string[]): Promise<{ stdout: string; stderr: string }> {
+  async mustRun(
+    ...args: string[]
+  ): Promise<{ stdout: string; stderr: string }> {
     return this.mustRunIn(this.home, ...args);
   }
 
-  async mustRunIn(cwd: string, ...args: string[]): Promise<{ stdout: string; stderr: string }> {
+  async mustRunIn(
+    cwd: string,
+    ...args: string[]
+  ): Promise<{ stdout: string; stderr: string }> {
     const res = await this.runIn(cwd, ...args);
     if (res.exitCode !== 0) {
       throw new Error(
@@ -140,7 +157,9 @@ export class Home {
   async assertFileEquals(path: string, want: string): Promise<void> {
     const got = await this.readFileText(path);
     if (got !== want) {
-      throw new Error(`content mismatch at ${path}\n--- want ---\n${want}\n--- got ---\n${got}`);
+      throw new Error(
+        `content mismatch at ${path}\n--- want ---\n${want}\n--- got ---\n${got}`,
+      );
     }
   }
 
@@ -159,7 +178,12 @@ export class Home {
     return {
       "claude-code": join(this.home, ".claude", "skills"),
       codex: join(this.home, ".codex", "skills"),
-      "antigravity-cli": join(this.home, ".gemini", "antigravity-cli", "skills"),
+      "antigravity-cli": join(
+        this.home,
+        ".gemini",
+        "antigravity-cli",
+        "skills",
+      ),
       "cursor-agent": join(this.home, ".cursor", "skills"),
       opencode: join(this.home, ".config", "opencode", "skills"),
       "pi-agent": join(this.home, ".pi", "agent", "skills"),
@@ -174,7 +198,12 @@ export class Home {
     return {
       "claude-code": join(this.home, ".claude", "agents"),
       codex: join(this.home, ".codex", "agents"),
-      "antigravity-cli": join(this.home, ".gemini", "antigravity-cli", "agents"),
+      "antigravity-cli": join(
+        this.home,
+        ".gemini",
+        "antigravity-cli",
+        "agents",
+      ),
       "cursor-agent": join(this.home, ".cursor", "agents"),
       opencode: join(this.home, ".config", "opencode", "agents"),
       "pi-agent": join(this.home, ".pi", "agent", "agents"),

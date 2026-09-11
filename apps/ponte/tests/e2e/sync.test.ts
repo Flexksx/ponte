@@ -23,7 +23,10 @@ describe("sync", () => {
 
     const paths = h.vendorPaths();
     await h.assertSymlinkTo(paths["claude-code"], h.configPath("AGENTS.md"));
-    await h.assertSymlinkTo(paths["antigravity-cli"], h.configPath("AGENTS.md"));
+    await h.assertSymlinkTo(
+      paths["antigravity-cli"],
+      h.configPath("AGENTS.md"),
+    );
     await h.assertMissing(paths.codex);
     await h.assertMissing(paths["cursor-agent"]);
     await h.close();
@@ -46,7 +49,11 @@ describe("sync", () => {
     await h.bootstrap();
     await h.mustRun("sysprompt", "set", samplePrompt);
 
-    const { stderr, exitCode } = await h.run("sync", "-a", "definitely-not-real");
+    const { stderr, exitCode } = await h.run(
+      "sync",
+      "-a",
+      "definitely-not-real",
+    );
     expect(exitCode).not.toBe(0);
     expect(stderr).toContain("definitely-not-real");
     await h.close();
@@ -90,14 +97,20 @@ describe("sync", () => {
     const cfg = await h.readFileText(h.configPath("config.toml"));
     await h.writeFile(
       h.configPath("config.toml"),
-      cfg.replace("[vendors.codex]\nenabled = true", "[vendors.codex]\nenabled = false"),
+      cfg.replace(
+        "[vendors.codex]\nenabled = true",
+        "[vendors.codex]\nenabled = false",
+      ),
     );
 
     await h.mustRun("sync");
 
     const paths = h.vendorPaths();
     await h.assertSymlinkTo(paths["claude-code"], h.configPath("AGENTS.md"));
-    await h.assertSymlinkTo(paths["antigravity-cli"], h.configPath("AGENTS.md"));
+    await h.assertSymlinkTo(
+      paths["antigravity-cli"],
+      h.configPath("AGENTS.md"),
+    );
     await h.assertMissing(paths.codex);
     await h.close();
   });
@@ -106,7 +119,12 @@ describe("sync", () => {
     const h = await newHarness();
     await h.mustRun("sync", "-a", "claude-code");
 
-    const { stdout } = await h.mustRun("sync", "--dry-run", "-a", "claude-code,codex");
+    const { stdout } = await h.mustRun(
+      "sync",
+      "--dry-run",
+      "-a",
+      "claude-code,codex",
+    );
     expect(stdout).toContain("Dry run");
 
     await h.assertMissing(h.vendorPaths().codex);
@@ -130,7 +148,9 @@ describe("sync", () => {
   });
 });
 
-const snapshotVendorFiles = async (h: Home): Promise<Record<string, string>> => {
+const snapshotVendorFiles = async (
+  h: Home,
+): Promise<Record<string, string>> => {
   const out: Record<string, string> = {};
   for (const [k, path] of Object.entries(h.vendorPaths())) {
     out[k] = await h.readFileText(path);

@@ -52,9 +52,11 @@ describe("subagent sync", () => {
     const subagentsDir = h.fixtureDir("subagents");
     await appendConfigWithSubagent(h, "claude", subagentsDir);
     await h.mustRun("sync");
-    expect(await h.readFileText(h.vendorAgentPath("claude-code", "fullstack-agent.md"))).toContain(
-      "fullstack",
-    );
+    expect(
+      await h.readFileText(
+        h.vendorAgentPath("claude-code", "fullstack-agent.md"),
+      ),
+    ).toContain("fullstack");
     await h.close();
   });
 

@@ -30,7 +30,7 @@
       "from": { "path": "^src/" },
       "to": {
         "dependencyTypes": ["npm-dev"],
-        "pathNot": ["^node_modules/@types/"]
+        "pathNot": ["node_modules/.*@types"]
       }
     },
     {
@@ -39,13 +39,6 @@
       "severity": "error",
       "from": { "path": "^src/" },
       "to": { "path": "^tests/" }
-    },
-    {
-      "name": "domain-is-pure",
-      "comment": "src/domain holds pure rules. It may import other domain modules, node:path and node:crypto. Nothing else.",
-      "severity": "error",
-      "from": { "path": "^src/domain/" },
-      "to": { "pathNot": ["^src/domain/", "^(node:)?(path|crypto)$"] }
     },
     {
       "name": "cli-goes-through-app",

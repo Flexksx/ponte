@@ -1,8 +1,6 @@
 import { isAbsolute, join } from "node:path";
 import { isGitSource } from "./source";
-import { VENDORS, type VendorName } from "./vendor";
-
-export const DEFAULT_SYSTEM_PROMPT_FILE = "AGENTS.md";
+import { parseVendorNames, VENDORS, type VendorName } from "./vendor";
 
 export type VendorConfig = { readonly enabled: boolean };
 
@@ -19,22 +17,29 @@ export type Config = {
   readonly subagents: Readonly<Record<string, SourceEntry>>;
 };
 
-export const defaultConfig = (): Config => ({
+export const DEFAULT_SYSTEM_PROMPT_FILE = "AGENTS.md";
+
+export const createDefaultConfig = (): Config => ({
   systemPromptFile: DEFAULT_SYSTEM_PROMPT_FILE,
-  vendors: Object.fromEntries(VENDORS.map(vendor => [vendor, { enabled: true }])),
+  vendors: Object.fromEntries(
+    VENDORS.map(vendor => [vendor, { enabled: true }]),
+  ),
   skills: {},
   subagents: {},
 });
 
-export const enabledVendors = (config: Config): VendorName[] =>
+export const getEnabledVendors = (config: Config): VendorName[] =>
   VENDORS.filter(vendor => config.vendors[vendor]?.enabled === true);
 
-const withAbsoluteSource = (entry: SourceEntry, configDirectory: string): SourceEntry =>
+const withAbsoluteSource = (
+  entry: SourceEntry,
+  configDirectory: string,
+): SourceEntry =>
   isGitSource(entry.source) || isAbsolute(entry.source)
     ? entry
     : { ...entry, source: join(configDirectory, entry.source) };
 
-export const absoluteSources = (
+export const resolveSourcePaths = (
   entries: Readonly<Record<string, SourceEntry>>,
   configDirectory: string,
 ): Record<string, SourceEntry> =>
@@ -45,8 +50,25 @@ export const absoluteSources = (
     ]),
   );
 
-export const normalizeConfig = (config: Config, configDirectory: string): Config => ({
+export const resolveConfigPaths = (
+  config: Config,
+  configDirectory: string,
+): Config => ({
   ...config,
-  skills: absoluteSources(config.skills, configDirectory),
-  subagents: absoluteSources(config.subagents, configDirectory),
+  skills: resolveSourcePaths(config.skills, configDirectory),
+  subagents: resolveSourcePaths(config.subagents, configDirectory),
 });
+
+export const resolvePromptPath = (
+  configDirectory: string,
+  filename: string,
+): string =>
+  isAbsolute(filename) ? filename : join(configDirectory, filename);
+
+export const resolveVendors = (
+  requestedVendors: readonly string[],
+  config: Config,
+): VendorName[] =>
+  requestedVendors.length > 0
+    ? parseVendorNames(requestedVendors)
+    : getEnabledVendors(config);
