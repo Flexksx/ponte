@@ -56,7 +56,8 @@
         "useConsistentTypeDefinitions": {
           "level": "error",
           "options": { "style": "type" }
-        }
+        },
+        "useBlockStatements": "error"
       }
     }
   }

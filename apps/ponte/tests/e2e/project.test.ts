@@ -55,7 +55,9 @@ const gitSkillConfig = (name: string, repo: SkillRepo, ref: string): string =>
 
 describe("project sync", () => {
   it("finds the project from a subdirectory", async () => {
-    if (isWindows()) return;
+    if (isWindows()) {
+      return;
+    }
     const h = await newHarness();
     const root = await newProject(h, '[skills.mine]\nsource = "skills/mine"\n');
     await h.writeFile(join(root, "skills", "mine", "SKILL.md"), "# mine\n");
@@ -73,7 +75,9 @@ describe("project sync", () => {
   });
 
   it("vendors a git skill, strips .git, writes the lock and links relatively", async () => {
-    if (isWindows()) return;
+    if (isWindows()) {
+      return;
+    }
     const h = await newHarness();
     const repo = await newSkillRepo(h, "# version one\n");
     const root = await newProject(
@@ -99,7 +103,9 @@ describe("project sync", () => {
   });
 
   it("never overwrites an edited vendored skill", async () => {
-    if (isWindows()) return;
+    if (isWindows()) {
+      return;
+    }
     const h = await newHarness();
     const repo = await newSkillRepo(h, "# version one\n");
     const root = await newProject(
@@ -118,7 +124,9 @@ describe("project sync", () => {
   });
 
   it("links a local source outside the project by absolute path", async () => {
-    if (isWindows()) return;
+    if (isWindows()) {
+      return;
+    }
     const h = await newHarness();
     const outside = h.fixtureDir("simple_skill");
     const root = await newProject(
@@ -133,7 +141,9 @@ describe("project sync", () => {
   });
 
   it("removes a stale link and leaves a real directory alone", async () => {
-    if (isWindows()) return;
+    if (isWindows()) {
+      return;
+    }
     const h = await newHarness();
     const root = await newProject(h, '[skills.mine]\nsource = "skills/mine"\n');
     await h.writeFile(join(root, "skills", "mine", "SKILL.md"), "# mine\n");
@@ -154,7 +164,9 @@ describe("project sync", () => {
   });
 
   it("does not bootstrap the global config", async () => {
-    if (isWindows()) return;
+    if (isWindows()) {
+      return;
+    }
     const h = await newHarness();
     const root = await newProject(h, '[skills.mine]\nsource = "skills/mine"\n');
     await h.writeFile(join(root, "skills", "mine", "SKILL.md"), "# mine\n");
@@ -168,7 +180,9 @@ describe("project sync", () => {
   });
 
   it("links skills into vendor-specific directories", async () => {
-    if (isWindows()) return;
+    if (isWindows()) {
+      return;
+    }
     const h = await newHarness();
     const root = await newProject(h, '[skills.mine]\nsource = "skills/mine"\n');
     await h.writeFile(join(root, "skills", "mine", "SKILL.md"), "# mine\n");
@@ -191,7 +205,9 @@ describe("project sync", () => {
   });
 
   it("removes stale links from vendor directories too", async () => {
-    if (isWindows()) return;
+    if (isWindows()) {
+      return;
+    }
     const h = await newHarness();
     const root = await newProject(h, '[skills.mine]\nsource = "skills/mine"\n');
     await h.writeFile(join(root, "skills", "mine", "SKILL.md"), "# mine\n");
@@ -208,7 +224,9 @@ describe("project sync", () => {
   });
 
   it("links only into enabled vendors when vendors section is present", async () => {
-    if (isWindows()) return;
+    if (isWindows()) {
+      return;
+    }
     const h = await newHarness();
     const config =
       '[vendors.claude-code]\nenabled = true\n\n[vendors.codex]\nenabled = false\n\n[skills.mine]\nsource = "skills/mine"\n';
@@ -230,7 +248,9 @@ describe("project sync", () => {
   });
 
   it("rejects an unknown top-level key", async () => {
-    if (isWindows()) return;
+    if (isWindows()) {
+      return;
+    }
     const h = await newHarness();
     const root = await newProject(h, "[unknown_key]\nfoo = true\n");
 
@@ -245,7 +265,9 @@ describe("project sync", () => {
 
 describe("project skills and status", () => {
   it("lists the project skills with their kind and locked commit", async () => {
-    if (isWindows()) return;
+    if (isWindows()) {
+      return;
+    }
     const h = await newHarness();
     const repo = await newSkillRepo(h, "# version one\n");
     const root = await newProject(
@@ -264,7 +286,9 @@ describe("project skills and status", () => {
   });
 
   it("reports the link state of the project skills directory", async () => {
-    if (isWindows()) return;
+    if (isWindows()) {
+      return;
+    }
     const h = await newHarness();
     const root = await newProject(h, '[skills.mine]\nsource = "skills/mine"\n');
     await h.writeFile(join(root, "skills", "mine", "SKILL.md"), "# mine\n");
@@ -283,7 +307,9 @@ describe("project skills and status", () => {
 
 describe("project update", () => {
   it("overwrites a clean copy with the configured ref", async () => {
-    if (isWindows()) return;
+    if (isWindows()) {
+      return;
+    }
     const h = await newHarness();
     const repo = await newSkillRepo(h, "# version one\n");
     const root = await newProject(
@@ -314,7 +340,9 @@ describe("project update", () => {
   });
 
   it("refuses an edited copy without --force and obeys --force", async () => {
-    if (isWindows()) return;
+    if (isWindows()) {
+      return;
+    }
     const h = await newHarness();
     const repo = await newSkillRepo(h, "# version one\n");
     const root = await newProject(
@@ -338,7 +366,9 @@ describe("project update", () => {
   });
 
   it("errors outside a project", async () => {
-    if (isWindows()) return;
+    if (isWindows()) {
+      return;
+    }
     const h = await newHarness();
 
     const { stderr, exitCode } = await h.run("update");
@@ -349,7 +379,9 @@ describe("project update", () => {
   });
 
   it("errors on a skill the project does not declare", async () => {
-    if (isWindows()) return;
+    if (isWindows()) {
+      return;
+    }
     const h = await newHarness();
     const root = await newProject(h, '[skills.mine]\nsource = "skills/mine"\n');
 

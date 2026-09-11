@@ -96,7 +96,9 @@ export const createResolveProjectSkills =
             entry.name,
             entry.entry,
           );
-          if (commit !== null) locked[entry.name] = { commit };
+          if (commit !== null) {
+            locked[entry.name] = { commit };
+          }
         }
       }
       skills.push({

@@ -15,8 +15,12 @@ let binaryUnderTest = "";
 let binaryResolve: Promise<string> | null = null;
 
 const resolveBinary = (): Promise<string> => {
-  if (binaryUnderTest) return Promise.resolve(binaryUnderTest);
-  if (binaryResolve) return binaryResolve;
+  if (binaryUnderTest) {
+    return Promise.resolve(binaryUnderTest);
+  }
+  if (binaryResolve) {
+    return binaryResolve;
+  }
   binaryResolve = (async () => {
     const here = new URL(import.meta.url).pathname;
     const slash = here.lastIndexOf("/");

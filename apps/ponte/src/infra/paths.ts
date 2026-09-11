@@ -12,7 +12,9 @@ export const currentDirectory = (): string => process.cwd();
 
 export const homeDirectory = (): string => {
   const home = Bun.env.HOME ?? process.env.USERPROFILE;
-  if (!home) throw new Error("cannot determine the home directory; set HOME");
+  if (!home) {
+    throw new Error("cannot determine the home directory; set HOME");
+  }
   return home;
 };
 

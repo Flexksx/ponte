@@ -91,7 +91,9 @@ export const createSyncVendors = (deps: SyncDeps) => {
   const materializedOverridePath = async (
     override: string,
   ): Promise<string> => {
-    if (await deps.fileExists(override)) return override;
+    if (await deps.fileExists(override)) {
+      return override;
+    }
     await deps.writeText(deps.overridePromptPath, override);
     return deps.overridePromptPath;
   };
@@ -114,7 +116,9 @@ export const createSyncVendors = (deps: SyncDeps) => {
       request.promptOverride === undefined
         ? await configuredPromptPath(config)
         : ok(await materializedOverridePath(request.promptOverride));
-    if (!promptResult.ok) return promptResult;
+    if (!promptResult.ok) {
+      return promptResult;
+    }
 
     const plans = await deps.buildVendorPlans(config, promptResult.value);
     const stale: Record<string, readonly string[]> = {};
@@ -132,7 +136,9 @@ export const createSyncVendors = (deps: SyncDeps) => {
     apply: boolean,
   ): Promise<Result<SyncReport, string>> => {
     const result = await pendingSync(request);
-    if (!result.ok) return result;
+    if (!result.ok) {
+      return result;
+    }
     const pending = result.value;
     if (apply) {
       for (const vendor of pending.vendors) {

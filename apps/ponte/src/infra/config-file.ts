@@ -6,7 +6,9 @@ import { configDirectoryPath, configFilePath, promptFilePath } from "./paths";
 
 export const readConfig = async (): Promise<Config | null> => {
   const file = Bun.file(configFilePath());
-  if (!(await file.exists())) return null;
+  if (!(await file.exists())) {
+    return null;
+  }
   const parsed = Bun.TOML.parse(await file.text());
   return resolveConfigPaths(decodeConfig(parsed), configDirectoryPath());
 };
@@ -19,7 +21,9 @@ export const writeConfig = async (config: Config): Promise<void> => {
 
 export const readPrompt = async (filename: string): Promise<string | null> => {
   const file = Bun.file(promptFilePath(filename));
-  if (!(await file.exists())) return null;
+  if (!(await file.exists())) {
+    return null;
+  }
   return file.text();
 };
 
@@ -36,6 +40,8 @@ export const resolveContent = async (
   fileOrLiteral: string,
 ): Promise<string> => {
   const file = Bun.file(fileOrLiteral);
-  if (await file.exists()) return file.text();
+  if (await file.exists()) {
+    return file.text();
+  }
   return fileOrLiteral;
 };

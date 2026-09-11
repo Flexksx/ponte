@@ -79,7 +79,9 @@ export const parseVendorNames = (chunks: readonly string[]): VendorName[] => {
   for (const chunk of chunks) {
     for (const raw of chunk.split(VENDOR_SEPARATOR)) {
       const name = raw.trim();
-      if (!isVendor(name)) throw new UnknownVendorError(name);
+      if (!isVendor(name)) {
+        throw new UnknownVendorError(name);
+      }
       names.push(name);
     }
   }

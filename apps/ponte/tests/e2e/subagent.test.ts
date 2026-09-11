@@ -7,7 +7,9 @@ const isWindows = () => process.platform === "win32";
 
 describe("subagent sync", () => {
   it("flattens local subagent files into every vendor agents dir", async () => {
-    if (isWindows()) return; // symlink assertions require Unix
+    if (isWindows()) {
+      return; // symlink assertions require Unix
+    }
     const h = await newHarness();
     await h.bootstrap();
 
@@ -27,7 +29,9 @@ describe("subagent sync", () => {
   });
 
   it("symlinks each subagent file to its source", async () => {
-    if (isWindows()) return;
+    if (isWindows()) {
+      return;
+    }
     const h = await newHarness();
     await h.bootstrap();
 
@@ -44,7 +48,9 @@ describe("subagent sync", () => {
   });
 
   it("links a subagent added after the first sync", async () => {
-    if (isWindows()) return;
+    if (isWindows()) {
+      return;
+    }
     const h = await newHarness();
     await h.bootstrap();
     await h.mustRun("sync");

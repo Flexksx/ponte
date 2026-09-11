@@ -31,8 +31,9 @@ export const createSyncProject =
     );
     if (apply) {
       await deps.applyPlan(resolution.plan, stale);
-      if (resolution.vendored.length > 0)
+      if (resolution.vendored.length > 0) {
         await deps.writeProjectLock(project.layout, resolution.lock);
+      }
     }
     return {
       root: project.layout.root,

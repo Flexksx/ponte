@@ -47,8 +47,9 @@ const write = (line: string): void => process.stdout.write(line);
 
 const getConfig = async (app: App): Promise<Config> => {
   const config = await app.readConfig();
-  if (config === null)
+  if (config === null) {
     throw new Error("config not initialized - run `ponte sync` first");
+  }
   return config;
 };
 
@@ -63,14 +64,18 @@ const getProject = async (app: App): Promise<Project> => {
 };
 
 const printBootstrap = (report: SyncReport): void => {
-  if (report.bootstrap === null) return;
+  if (report.bootstrap === null) {
+    return;
+  }
   write(`Initialized ponte config at ${report.bootstrap.configDirectory}\n`);
   write("  config.toml - all vendors enabled, no skills\n");
   write(`  ${report.bootstrap.systemPromptFile} - empty\n\n`);
 };
 
 const printStale = (stale: number, dryRun: boolean): void => {
-  if (stale === 0) return;
+  if (stale === 0) {
+    return;
+  }
   const removal = dryRun ? "would be removed" : "removed";
   write(`${chalk.dim(`${stale} stale link(s) ${removal}.`)}\n`);
 };
@@ -101,8 +106,9 @@ const runSyncCommand = async (app: App, args: string[]): Promise<void> => {
     },
     allowPositionals: true,
   });
-  if (positionals.length > 0)
+  if (positionals.length > 0) {
     throw new Error(`unexpected argument for sync: ${positionals[0]}`);
+  }
 
   const override = values["global-instructions"];
   const agents = values.agents;
@@ -124,7 +130,9 @@ const runSyncCommand = async (app: App, args: string[]): Promise<void> => {
     requestedVendors: Array.isArray(agents) ? agents : [],
   };
   const result = await app.syncVendors(request, !dryRun);
-  if (!result.ok) throw new Error(result.error);
+  if (!result.ok) {
+    throw new Error(result.error);
+  }
   printBootstrap(result.value);
   const verb = dryRun ? "Dry run - would link" : "Linked";
   write(`${verb} to: ${result.value.vendors.join(", ")}\n`);
@@ -167,17 +175,22 @@ const printProjectStatus = (report: ProjectStatusReport): void => {
 };
 
 const runStatusCommand = async (app: App, args: string[]): Promise<void> => {
-  if (args.length > 0)
+  if (args.length > 0) {
     throw new Error(`unexpected argument for status: ${args[0]}`);
+  }
   const project = await app.findProject();
   if (project !== null) {
     printProjectStatus(await app.getProjectStatusReport(project));
     return;
   }
   const config = await getConfig(app);
-  if (config === null) return;
+  if (config === null) {
+    return;
+  }
   const result = await app.getStatusReport(config);
-  if (!result.ok) throw new Error(result.error);
+  if (!result.ok) {
+    throw new Error(result.error);
+  }
   printStatus(result.value);
 };
 
@@ -226,15 +239,18 @@ const printProjectSkills = (rows: readonly ProjectSkillRow[]): void => {
 };
 
 const runSkillsCommand = async (app: App, args: string[]): Promise<void> => {
-  if (args.length > 0)
+  if (args.length > 0) {
     throw new Error(`unexpected argument for skills: ${args[0]}`);
+  }
   const project = await app.findProject();
   if (project !== null) {
     printProjectSkills(await app.listProjectSkills(project));
     return;
   }
   const config = await getConfig(app);
-  if (config === null) return;
+  if (config === null) {
+    return;
+  }
   printEntries("skills", config);
 };
 
@@ -244,16 +260,21 @@ const runUpdateCommand = async (app: App, args: string[]): Promise<void> => {
     options: { force: { type: "boolean" } },
     allowPositionals: true,
   });
-  if (positionals.length > 1)
+  if (positionals.length > 1) {
     throw new Error(`unexpected argument for update: ${positionals[1]}`);
+  }
   const project = await getProject(app);
-  if (project === null) return;
+  if (project === null) {
+    return;
+  }
   const result = await app.runProjectUpdate(
     project,
     positionals[0],
     values.force === true,
   );
-  if (!result.ok) throw new Error(result.error);
+  if (!result.ok) {
+    throw new Error(result.error);
+  }
   if (result.value.updated.length === 0) {
     write("No vendored skills to update.\n");
     return;
@@ -269,17 +290,22 @@ const runUpdateCommand = async (app: App, args: string[]): Promise<void> => {
 };
 
 const runSubagentsCommand = async (app: App, args: string[]): Promise<void> => {
-  if (args.length > 0)
+  if (args.length > 0) {
     throw new Error(`unexpected argument for subagents: ${args[0]}`);
+  }
   const config = await getConfig(app);
-  if (config === null) return;
+  if (config === null) {
+    return;
+  }
   printEntries("subagents", config);
 };
 
 const runSyspromptCommand = async (app: App, args: string[]): Promise<void> => {
   const [subcommand, argument] = args;
   const config = await getConfig(app);
-  if (config === null) return;
+  if (config === null) {
+    return;
+  }
   if (subcommand === "set") {
     if (argument === undefined) {
       throw new Error("missing argument for sysprompt set <file-or-string>");
@@ -355,7 +381,9 @@ const printUsage = (commands: readonly Command[]): void => {
 };
 
 const disableColorIfRequested = (): void => {
-  if ((Bun.env.NO_COLOR ?? "") !== "") chalk.level = 0;
+  if ((Bun.env.NO_COLOR ?? "") !== "") {
+    chalk.level = 0;
+  }
 };
 
 const formatError = (error: unknown): string =>

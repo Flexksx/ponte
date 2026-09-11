@@ -27,7 +27,9 @@ export const parseSource = (
     : { type: "local", path: source };
 
 export const describeSource = (source: SkillSource): string => {
-  if (source.type === "local") return source.path;
+  if (source.type === "local") {
+    return source.path;
+  }
   const ref = source.ref ? `@${source.ref}` : "";
   const subdir = source.subdir ? ` (subdir: ${source.subdir})` : "";
   return `${source.url}${ref}${subdir}`;

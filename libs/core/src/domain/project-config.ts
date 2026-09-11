@@ -30,7 +30,9 @@ export const PROJECT_CONFIG_FILE = "ponte.toml";
 export const getProjectEnabledVendors = (
   config: ProjectConfig,
 ): VendorName[] | undefined => {
-  if (config.vendors === undefined) return undefined;
+  if (config.vendors === undefined) {
+    return undefined;
+  }
   return VENDORS.filter(name => config.vendors?.[name]?.enabled === true);
 };
 
@@ -54,7 +56,9 @@ export const getUpdatableSkill = (
   name: string,
 ): Result<readonly [string, SourceEntry], string> => {
   const entry = config.skills[name];
-  if (entry === undefined) return err(`unknown project skill: ${name}`);
+  if (entry === undefined) {
+    return err(`unknown project skill: ${name}`);
+  }
   if (!isGitSource(entry.source)) {
     return err(`${name} is a local skill, so there is nothing to update`);
   }

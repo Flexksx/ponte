@@ -8,7 +8,7 @@ SOURCES=(
   libs/core/tests
 )
 
-biome lint --error-on-warnings "${SOURCES[@]}"
+biome lint --fix --unsafe --error-on-warnings "${SOURCES[@]}"
 
 if grep -rnE '^ *(export )?(async )?function ' "${SOURCES[@]}" --include='*.ts' --exclude='*.d.ts'; then
   echo "error arrow-functions-only: declare every function as const name = () => {}" >&2

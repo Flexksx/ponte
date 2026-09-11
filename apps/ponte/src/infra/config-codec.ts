@@ -31,7 +31,9 @@ const readString = (
   path: string,
   problems: string[],
 ): string | undefined => {
-  if (value === undefined) return undefined;
+  if (value === undefined) {
+    return undefined;
+  }
   if (typeof value !== "string") {
     problems.push(`${path}: must be a string`);
     return undefined;
@@ -56,7 +58,9 @@ const readBoolean = (
   path: string,
   problems: string[],
 ): boolean | undefined => {
-  if (value === undefined) return undefined;
+  if (value === undefined) {
+    return undefined;
+  }
   if (typeof value !== "boolean") {
     problems.push(`${path}: must be a boolean`);
     return undefined;
@@ -69,7 +73,9 @@ const readTable = (
   path: string,
   problems: string[],
 ): Record<string, unknown> | undefined => {
-  if (value === undefined) return undefined;
+  if (value === undefined) {
+    return undefined;
+  }
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     problems.push(`${path}: must be a table`);
     return undefined;
@@ -89,12 +95,18 @@ const readEntries = <E>(
 ): Record<string, E> => {
   const entries: Record<string, E> = {};
   const table = readTable(value, path, problems);
-  if (!table) return entries;
+  if (!table) {
+    return entries;
+  }
   for (const [name, raw] of Object.entries(table)) {
     const rawEntry = readTable(raw, `${path}.${name}`, problems);
-    if (!rawEntry) continue;
+    if (!rawEntry) {
+      continue;
+    }
     const entry = readEntry(rawEntry, `${path}.${name}`, problems);
-    if (entry !== undefined) entries[name] = entry;
+    if (entry !== undefined) {
+      entries[name] = entry;
+    }
   }
   return entries;
 };
@@ -138,7 +150,9 @@ const readSourceEntry = (
   problems: string[],
 ): SourceEntry | undefined => {
   const source = readRequiredString(raw.source, `${path}.source`, problems);
-  if (source === undefined) return undefined;
+  if (source === undefined) {
+    return undefined;
+  }
   const ref = readString(raw.ref, `${path}.ref`, problems);
   const subdir = readString(raw.subdir, `${path}.subdir`, problems);
   return {
@@ -169,7 +183,9 @@ export const decodeConfig = (value: unknown): Config => {
       readSourceEntry,
     ),
   };
-  if (problems.length > 0) throw new ConfigError(problems);
+  if (problems.length > 0) {
+    throw new ConfigError(problems);
+  }
   return config;
 };
 
@@ -181,7 +197,9 @@ const tomlString = (text: string): string => JSON.stringify(text);
 export const encodeConfig = (config: Config): string => {
   const lines = [`system_prompt_file = ${tomlString(config.systemPromptFile)}`];
   for (const [name, vendor] of Object.entries(config.vendors)) {
-    if (vendor === undefined) continue;
+    if (vendor === undefined) {
+      continue;
+    }
     lines.push("", `[vendors.${tomlKey(name)}]`, `enabled = ${vendor.enabled}`);
   }
   for (const table of ["skills", "subagents"] as const) {
@@ -191,8 +209,12 @@ export const encodeConfig = (config: Config): string => {
         `[${table}.${tomlKey(name)}]`,
         `source = ${tomlString(entry.source)}`,
       );
-      if (entry.ref) lines.push(`ref = ${tomlString(entry.ref)}`);
-      if (entry.subdir) lines.push(`subdir = ${tomlString(entry.subdir)}`);
+      if (entry.ref) {
+        lines.push(`ref = ${tomlString(entry.ref)}`);
+      }
+      if (entry.subdir) {
+        lines.push(`subdir = ${tomlString(entry.subdir)}`);
+      }
     }
   }
   return `${lines.join("\n")}\n`;
@@ -202,7 +224,9 @@ export const decodeProjectConfig = (value: unknown): ProjectConfig => {
   const problems: string[] = [];
   const root = readTable(value, PROJECT_CONFIG_FILE, problems) ?? {};
   for (const key of Object.keys(root)) {
-    if (PROJECT_KEYS.includes(key)) continue;
+    if (PROJECT_KEYS.includes(key)) {
+      continue;
+    }
     problems.push(
       `${key}: unknown key, ${PROJECT_CONFIG_FILE} supports only ${PROJECT_KEYS.join(", ")}`,
     );
@@ -215,7 +239,9 @@ export const decodeProjectConfig = (value: unknown): ProjectConfig => {
     ...(vendors !== undefined && { vendors }),
     skills: readEntries(root.skills, "skills", problems, readSourceEntry),
   };
-  if (problems.length > 0) throw new ConfigError(problems);
+  if (problems.length > 0) {
+    throw new ConfigError(problems);
+  }
   return config;
 };
 
@@ -234,7 +260,9 @@ export const decodeLock = (value: unknown): ProjectLock => {
   const lock: ProjectLock = {
     skills: readEntries(root.skills, "skills", problems, readLockEntry),
   };
-  if (problems.length > 0) throw new ConfigError(problems);
+  if (problems.length > 0) {
+    throw new ConfigError(problems);
+  }
   return lock;
 };
 

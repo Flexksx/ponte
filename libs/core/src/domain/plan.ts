@@ -10,26 +10,6 @@ export type VendorPlan = {
 
 export type VendorState = "in sync" | "drifted" | "not synced" | "disabled";
 
-const skillDirectoryLinks = (
-  layout: VendorLayout,
-  skills: readonly ResolvedEntry[],
-): Link[] =>
-  skills.map(skill => ({
-    path: join(layout.skills, skill.name),
-    target: skill.sourceDirectory,
-  }));
-
-const flattenedSubagentLinks = (
-  layout: VendorLayout,
-  subagents: readonly ResolvedEntry[],
-): Link[] =>
-  subagents.flatMap(subagent =>
-    subagent.files.map(file => ({
-      path: join(layout.agents, file),
-      target: join(subagent.sourceDirectory, file),
-    })),
-  );
-
 export const buildVendorPlan = (
   layout: VendorLayout,
   promptPath: string,
@@ -38,8 +18,16 @@ export const buildVendorPlan = (
 ): VendorPlan => ({
   links: [
     { path: layout.instruction, target: promptPath },
-    ...skillDirectoryLinks(layout, skills),
-    ...flattenedSubagentLinks(layout, subagents),
+    ...skills.map(skill => ({
+      path: join(layout.skills, skill.name),
+      target: skill.sourceDirectory,
+    })),
+    ...subagents.flatMap(subagent =>
+      subagent.files.map(file => ({
+        path: join(layout.agents, file),
+        target: join(subagent.sourceDirectory, file),
+      })),
+    ),
   ],
   ownedDirectories: [layout.skills, layout.agents],
 });
@@ -56,36 +44,15 @@ export const getVendorState = (
   plan: VendorPlan,
   actual: ReadonlyMap<string, string>,
 ): VendorState => {
-  if (actual.size === 0) return "not synced";
+  if (actual.size === 0) {
+    return "not synced";
+  }
   const correct = plan.links.every(
     link => actual.get(link.path) === link.target,
   );
   return correct && getStaleLinkPaths(plan, actual).length === 0
     ? "in sync"
     : "drifted";
-};
-
-const isInsideProject = (root: string, path: string): boolean => {
-  const inside = relative(root, path);
-  return inside !== "" && !inside.startsWith("..") && !isAbsolute(inside);
-};
-
-const skillLinkTarget = (
-  layout: ProjectLayout,
-  linkPath: string,
-  directory: string,
-): string =>
-  isInsideProject(layout.root, directory)
-    ? relative(dirname(linkPath), directory)
-    : directory;
-
-const skillLink = (
-  layout: ProjectLayout,
-  baseDir: string,
-  skill: ProjectSkillTarget,
-): Link => {
-  const path = join(baseDir, skill.name);
-  return { path, target: skillLinkTarget(layout, path, skill.directory) };
 };
 
 export const buildProjectPlan = (
@@ -95,14 +62,19 @@ export const buildProjectPlan = (
   const allDirectories = [layout.skills, ...layout.vendorSkillDirectories];
   return {
     links: allDirectories.flatMap(dir =>
-      skills.map(skill => skillLink(layout, dir, skill)),
+      skills.map(skill => {
+        const linkPath = join(dir, skill.name);
+        const rel = relative(layout.root, skill.directory);
+        const isInside =
+          rel !== "" && !rel.startsWith("..") && !isAbsolute(rel);
+        return {
+          path: linkPath,
+          target: isInside
+            ? relative(dirname(linkPath), skill.directory)
+            : skill.directory,
+        };
+      }),
     ),
     ownedDirectories: allDirectories,
   };
 };
-
-export const getEffectiveVendorState = (
-  plan: VendorPlan,
-  actual: ReadonlyMap<string, string>,
-  enabled: boolean,
-): VendorState => (enabled ? getVendorState(plan, actual) : "disabled");

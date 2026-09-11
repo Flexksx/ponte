@@ -21,7 +21,9 @@ const writeConfigWithGitSkill = async (
 
 describe("skill sync", () => {
   it("appears in every vendor skills dir after sync", async () => {
-    if (isWindows()) return; // symlink assertions require Unix
+    if (isWindows()) {
+      return; // symlink assertions require Unix
+    }
     const h = await newHarness();
     await h.bootstrap();
 
@@ -39,7 +41,9 @@ describe("skill sync", () => {
   });
 
   it("symlinks the skill straight to its source directory", async () => {
-    if (isWindows()) return;
+    if (isWindows()) {
+      return;
+    }
     const h = await newHarness();
     await h.bootstrap();
 
@@ -56,7 +60,9 @@ describe("skill sync", () => {
   });
 
   it("symlinks the instruction file to the configured prompt", async () => {
-    if (isWindows()) return;
+    if (isWindows()) {
+      return;
+    }
     const h = await newHarness();
     await h.bootstrap();
 
@@ -68,7 +74,9 @@ describe("skill sync", () => {
   });
 
   it("links a skill added after the first sync", async () => {
-    if (isWindows()) return;
+    if (isWindows()) {
+      return;
+    }
     const h = await newHarness();
     await h.bootstrap();
 
@@ -85,7 +93,9 @@ describe("skill sync", () => {
   });
 
   it("removes the link when a skill leaves the config", async () => {
-    if (isWindows()) return;
+    if (isWindows()) {
+      return;
+    }
     const h = await newHarness();
     await h.bootstrap();
 
@@ -110,7 +120,9 @@ describe("skill sync", () => {
   });
 
   it("leaves a directory it did not create alone", async () => {
-    if (isWindows()) return;
+    if (isWindows()) {
+      return;
+    }
     const h = await newHarness();
     await h.bootstrap();
 
@@ -123,7 +135,9 @@ describe("skill sync", () => {
   });
 
   it("clones and links a git skill", async () => {
-    if (isWindows()) return;
+    if (isWindows()) {
+      return;
+    }
     const h = await newHarness();
     await h.bootstrap();
 

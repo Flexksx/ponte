@@ -46,9 +46,13 @@ const updateTargets = (
   project: Project,
   name: string | undefined,
 ): Result<readonly Target[], string> => {
-  if (name === undefined) return ok(getUpdatableSkills(project.config));
+  if (name === undefined) {
+    return ok(getUpdatableSkills(project.config));
+  }
   const result = getUpdatableSkill(project.config, name);
-  if (!result.ok) return result;
+  if (!result.ok) {
+    return result;
+  }
   return ok([result.value]);
 };
 
@@ -59,9 +63,13 @@ export const createRunProjectUpdate = (deps: UpdateDeps) => {
     [name, entry]: Target,
   ): Promise<boolean> => {
     const directory = vendoredSkillPath(layout, name);
-    if (!(await deps.directoryExists(directory))) return false;
+    if (!(await deps.directoryExists(directory))) {
+      return false;
+    }
     const commit = lock.skills[name]?.commit;
-    if (commit === undefined) return true;
+    if (commit === undefined) {
+      return true;
+    }
     const pristine = await deps.resolveSource(
       parseSource(entry.source, commit, entry.subdir),
     );
@@ -75,7 +83,9 @@ export const createRunProjectUpdate = (deps: UpdateDeps) => {
   ): Promise<string[]> => {
     const dirty: string[] = [];
     for (const target of targets) {
-      if (await isDirty(layout, lock, target)) dirty.push(target[0]);
+      if (await isDirty(layout, lock, target)) {
+        dirty.push(target[0]);
+      }
     }
     return dirty;
   };
@@ -86,7 +96,9 @@ export const createRunProjectUpdate = (deps: UpdateDeps) => {
     force: boolean,
   ): Promise<Result<ProjectUpdateReport, string>> => {
     const targetsResult = updateTargets(project, name);
-    if (!targetsResult.ok) return targetsResult;
+    if (!targetsResult.ok) {
+      return targetsResult;
+    }
     const targets = targetsResult.value;
 
     const lock = await deps.readProjectLock(project.layout);
@@ -103,7 +115,9 @@ export const createRunProjectUpdate = (deps: UpdateDeps) => {
     for (const [skill, entry] of targets) {
       await deps.removeDirectory(vendoredSkillPath(project.layout, skill));
       const commit = await deps.copyVendorSkill(project.layout, skill, entry);
-      if (commit !== null) locked[skill] = { commit };
+      if (commit !== null) {
+        locked[skill] = { commit };
+      }
       updated.push({ name: skill, commit });
     }
     await deps.writeProjectLock(project.layout, { skills: locked });

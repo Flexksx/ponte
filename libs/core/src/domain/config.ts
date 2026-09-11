@@ -28,17 +28,6 @@ export const createDefaultConfig = (): Config => ({
   subagents: {},
 });
 
-export const getEnabledVendors = (config: Config): VendorName[] =>
-  VENDORS.filter(vendor => config.vendors[vendor]?.enabled === true);
-
-const withAbsoluteSource = (
-  entry: SourceEntry,
-  configDirectory: string,
-): SourceEntry =>
-  isGitSource(entry.source) || isAbsolute(entry.source)
-    ? entry
-    : { ...entry, source: join(configDirectory, entry.source) };
-
 export const resolveSourcePaths = (
   entries: Readonly<Record<string, SourceEntry>>,
   configDirectory: string,
@@ -46,7 +35,9 @@ export const resolveSourcePaths = (
   Object.fromEntries(
     Object.entries(entries).map(([name, entry]) => [
       name,
-      withAbsoluteSource(entry, configDirectory),
+      isGitSource(entry.source) || isAbsolute(entry.source)
+        ? entry
+        : { ...entry, source: join(configDirectory, entry.source) },
     ]),
   );
 
@@ -71,4 +62,4 @@ export const resolveVendors = (
 ): VendorName[] =>
   requestedVendors.length > 0
     ? parseVendorNames(requestedVendors)
-    : getEnabledVendors(config);
+    : VENDORS.filter(vendor => config.vendors[vendor]?.enabled === true);

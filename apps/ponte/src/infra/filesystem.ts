@@ -31,7 +31,9 @@ export const listFiles = async (directory: string): Promise<string[]> => {
   const names = await readdir(directory, { recursive: true });
   const files: string[] = [];
   for (const name of names) {
-    if ((await stat(join(directory, name))).isFile()) files.push(name);
+    if ((await stat(join(directory, name))).isFile()) {
+      files.push(name);
+    }
   }
   return files.sort();
 };
@@ -53,10 +55,15 @@ const treeFiles = async (root: string, inside: string): Promise<string[]> => {
   const entries = await readdir(join(root, inside), { withFileTypes: true });
   const files: string[] = [];
   for (const entry of entries) {
-    if (entry.name === GIT_DIRECTORY) continue;
+    if (entry.name === GIT_DIRECTORY) {
+      continue;
+    }
     const path = inside === "" ? entry.name : join(inside, entry.name);
-    if (entry.isDirectory()) files.push(...(await treeFiles(root, path)));
-    else files.push(path);
+    if (entry.isDirectory()) {
+      files.push(...(await treeFiles(root, path)));
+    } else {
+      files.push(path);
+    }
   }
   return files;
 };
@@ -74,9 +81,13 @@ export const directoriesDiffer = async (
 ): Promise<boolean> => {
   const leftFiles = (await treeFiles(left, "")).sort();
   const rightFiles = (await treeFiles(right, "")).sort();
-  if (leftFiles.join("\n") !== rightFiles.join("\n")) return true;
+  if (leftFiles.join("\n") !== rightFiles.join("\n")) {
+    return true;
+  }
   for (const name of leftFiles) {
-    if (await filesDiffer(join(left, name), join(right, name))) return true;
+    if (await filesDiffer(join(left, name), join(right, name))) {
+      return true;
+    }
   }
   return false;
 };

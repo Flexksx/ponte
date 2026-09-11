@@ -49,7 +49,9 @@ export const resolveSourceDetails = async (
     }
     return { directory: source.path, commit: null };
   }
-  if (!source.ref) throw new MissingGitRefError(source.url);
+  if (!source.ref) {
+    throw new MissingGitRefError(source.url);
+  }
   const repo = join(cacheDir, cloneDirectoryName(source.url, source.ref));
   await ensureCloned(repo, source.url);
   await runGit(["checkout", source.ref], repo);

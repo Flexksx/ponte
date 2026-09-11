@@ -20,7 +20,9 @@ export const createFindProject =
   (deps: FindProjectDeps): FindProject =>
   async () => {
     const root = await deps.findProjectRoot(deps.cwd);
-    if (root === null) return null;
+    if (root === null) {
+      return null;
+    }
     const config = await deps.readProjectConfig(root);
     const enabled = getProjectEnabledVendors(config);
     return { layout: projectLayout(root, deps.platform, enabled), config };
