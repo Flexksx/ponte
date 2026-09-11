@@ -2,8 +2,6 @@
   perSystem = {pkgs, ...}: let
     bun = pkgs.bun;
 
-    # `bun install` needs the network, so it lives in a fixed-output
-    # derivation. Update outputHash whenever apps/ponte/bun.lock changes.
     bunDeps = pkgs.stdenv.mkDerivation {
       name = "ponte-bun-deps";
       version = "0.1.0";
@@ -33,7 +31,7 @@
 
       outputHashMode = "recursive";
       outputHashAlgo = "sha256";
-      outputHash = "sha256-rWKKCIIIOcvCxFU/Jd31C06XllOJj0r+Kn94+IkmdZU=";
+      outputHash = "sha256-2+Yz0wJTxFoOhyfVSJFE0p8keVPL2yobWn0V468EJdA=";
     };
   in {
     packages.default = pkgs.stdenv.mkDerivation {
