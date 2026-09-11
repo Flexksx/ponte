@@ -1,4 +1,7 @@
 {
   "private": true,
-  "workspaces": ["apps/*", "libs/*"]
+  "workspaces": ["apps/*", "libs/*"],
+  "scripts": {
+    "postinstall": "bunx bun2nix > bun.nix"
+  }
 }

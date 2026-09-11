@@ -1,6 +1,11 @@
 pre-commit:
   parallel: true
   commands:
+    bun-nix-sync:
+      glob:
+        - "bun.lock"
+      run: bunx bun2nix > bun.nix && git add bun.nix
+      stage_fixed: true
     format-nix:
       glob:
         - "*.nix"
