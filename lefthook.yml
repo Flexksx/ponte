@@ -18,9 +18,16 @@ pre-commit:
         - "**/*.md"
       run: rumdl check --fix {staged_files}
       stage_fixed: true
+    no-nix-develop:
+      glob:
+        - ".github/workflows/*.yml"
+        - ".github/workflows/*.yaml"
+      run: bash scripts/ci/no-nix-develop.sh
 
 pre-push:
   parallel: true
   commands:
     lint:
       run: just lint
+    no-nix-develop:
+      run: bash scripts/ci/no-nix-develop.sh
