@@ -5,16 +5,25 @@ import type {
   WritePrompt,
 } from "@ponte/core";
 
+type ReadSystemPromptDeps = {
+  readPrompt: ReadPrompt;
+};
+
 export const createReadSystemPrompt =
-  (readPrompt: ReadPrompt) =>
+  (deps: ReadSystemPromptDeps) =>
   (config: Config): Promise<string | null> =>
-    readPrompt(config.systemPromptFile);
+    deps.readPrompt(config.systemPromptFile);
+
+type SetSystemPromptDeps = {
+  writePrompt: WritePrompt;
+  resolveContent: ResolveContent;
+};
 
 export const createSetSystemPrompt =
-  (writePrompt: WritePrompt, resolveContent: ResolveContent) =>
+  (deps: SetSystemPromptDeps) =>
   async (config: Config, fileOrLiteral: string): Promise<void> => {
-    await writePrompt(
+    await deps.writePrompt(
       config.systemPromptFile,
-      await resolveContent(fileOrLiteral),
+      await deps.resolveContent(fileOrLiteral),
     );
   };

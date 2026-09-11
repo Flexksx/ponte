@@ -17,16 +17,18 @@ export type BuildVendorPlans = (
   promptPath: string,
 ) => Promise<Record<VendorName, VendorPlan>>;
 
+type BuildVendorPlansDeps = {
+  resolveSource: ResolveSource;
+  listFiles: ListFiles;
+  home: string;
+  platform: Platform;
+};
+
 export const createBuildVendorPlans =
-  (
-    resolveSource: ResolveSource,
-    listFiles: ListFiles,
-    home: string,
-    platform: Platform,
-  ): BuildVendorPlans =>
+  (deps: BuildVendorPlansDeps): BuildVendorPlans =>
   async (config, promptPath) => {
     const resolveDirectory = (entry: SourceEntry): Promise<string> =>
-      resolveSource(parseSource(entry.source, entry.ref, entry.subdir));
+      deps.resolveSource(parseSource(entry.source, entry.ref, entry.subdir));
 
     const skills = await Promise.all(
       Object.entries(config.skills).map(
@@ -44,12 +46,12 @@ export const createBuildVendorPlans =
         return {
           name,
           sourceDirectory,
-          files: await listFiles(sourceDirectory),
+          files: await deps.listFiles(sourceDirectory),
         };
       }),
     );
 
-    const layouts = buildVendorLayouts(home, platform);
+    const layouts = buildVendorLayouts(deps.home, deps.platform);
     const plans = {} as Record<VendorName, VendorPlan>;
     for (const [name, layout] of Object.entries(layouts)) {
       plans[name as VendorName] = buildVendorPlan(

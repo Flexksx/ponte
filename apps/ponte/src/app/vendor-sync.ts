@@ -17,7 +17,7 @@ import {
   type WritePrompt,
   type WriteText,
 } from "@ponte/core";
-import type { BuildVendorPlans } from "./resolve";
+import type { BuildVendorPlans } from "./vendor-resolve";
 
 export type SyncRequest = {
   readonly promptOverride: string | undefined;

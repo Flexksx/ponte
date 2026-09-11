@@ -13,14 +13,12 @@ import {
 } from "@ponte/core";
 import chalk from "chalk";
 import { type App, bootstrap } from "../app/bootstrap";
-import type {
-  Project,
-  ProjectSkillRow,
-  ProjectStatusReport,
-} from "../app/project";
+import type { Project } from "../app/find-project";
+import type { ProjectSkillRow } from "../app/project-skills";
+import type { ProjectStatusReport } from "../app/project-status";
 import type { ProjectSyncReport } from "../app/project-sync";
-import type { StatusReport } from "../app/status";
-import type { SyncReport } from "../app/sync";
+import type { StatusReport } from "../app/vendor-status";
+import type { SyncReport } from "../app/vendor-sync";
 import manualText from "./manual.md" with { type: "text" };
 
 type Command = {

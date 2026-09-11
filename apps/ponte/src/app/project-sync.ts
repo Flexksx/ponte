@@ -4,7 +4,8 @@ import {
   type ReadSymlinks,
   type WriteProjectLock,
 } from "@ponte/core";
-import type { Project, ResolveProjectSkills } from "./project";
+import type { Project } from "./find-project";
+import type { ResolveProjectSkills } from "./project-resolve";
 
 export type ProjectSyncReport = {
   readonly root: string;
@@ -13,23 +14,25 @@ export type ProjectSyncReport = {
   readonly stale: number;
 };
 
+type SyncProjectDeps = {
+  resolveProjectSkills: ResolveProjectSkills;
+  readSymlinks: ReadSymlinks;
+  applyPlan: ApplyPlan;
+  writeProjectLock: WriteProjectLock;
+};
+
 export const createSyncProject =
-  (
-    resolveProjectSkills: ResolveProjectSkills,
-    readSymlinks: ReadSymlinks,
-    applyPlan: ApplyPlan,
-    writeProjectLock: WriteProjectLock,
-  ) =>
+  (deps: SyncProjectDeps) =>
   async (project: Project, apply: boolean): Promise<ProjectSyncReport> => {
-    const resolution = await resolveProjectSkills(project, apply);
+    const resolution = await deps.resolveProjectSkills(project, apply);
     const stale = getStaleLinkPaths(
       resolution.plan,
-      await readSymlinks(resolution.plan),
+      await deps.readSymlinks(resolution.plan),
     );
     if (apply) {
-      await applyPlan(resolution.plan, stale);
+      await deps.applyPlan(resolution.plan, stale);
       if (resolution.vendored.length > 0)
-        await writeProjectLock(project.layout, resolution.lock);
+        await deps.writeProjectLock(project.layout, resolution.lock);
     }
     return {
       root: project.layout.root,

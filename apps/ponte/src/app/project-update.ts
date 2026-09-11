@@ -16,7 +16,8 @@ import {
   vendoredSkillPath,
   type WriteProjectLock,
 } from "@ponte/core";
-import type { CopyVendorSkill, Project } from "./project";
+import type { Project } from "./find-project";
+import type { CopyVendorSkill } from "./project-resolve";
 
 export type UpdatedSkill = {
   readonly name: string;

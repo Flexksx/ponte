@@ -39,29 +39,30 @@ import {
   readProjectLock,
   writeProjectLock,
 } from "../infra/project-file";
-import type {
-  FindProject,
-  GetProjectStatusReport,
-  ListProjectSkills,
-  Project,
-} from "./project";
+import type { Project } from "./find-project";
+import { createFindProject, type FindProject } from "./find-project";
 import {
   createCopyVendorSkill,
-  createFindProject,
-  createGetProjectStatusReport,
-  createListProjectSkills,
   createResolveProjectSkills,
-} from "./project";
+} from "./project-resolve";
+import {
+  createListProjectSkills,
+  type ListProjectSkills,
+} from "./project-skills";
+import {
+  createGetProjectStatusReport,
+  type GetProjectStatusReport,
+} from "./project-status";
 import type { ProjectSyncReport } from "./project-sync";
 import { createSyncProject } from "./project-sync";
 import type { ProjectUpdateReport } from "./project-update";
 import { createRunProjectUpdate } from "./project-update";
-import { createBuildVendorPlans } from "./resolve";
-import type { StatusReport } from "./status";
-import { createGetStatusReport } from "./status";
-import type { SyncReport, SyncRequest } from "./sync";
-import { createSyncVendors } from "./sync";
 import { createReadSystemPrompt, createSetSystemPrompt } from "./sysprompt";
+import { createBuildVendorPlans } from "./vendor-resolve";
+import type { StatusReport } from "./vendor-status";
+import { createGetStatusReport } from "./vendor-status";
+import type { SyncReport, SyncRequest } from "./vendor-sync";
+import { createSyncVendors } from "./vendor-sync";
 
 export type App = {
   findProject: FindProject;
@@ -99,50 +100,50 @@ export const bootstrap = (): App => {
   const promptPath = (filename: string) =>
     resolvePromptPath(configDir, filename);
 
-  const buildVendorPlans = createBuildVendorPlans(
+  const buildVendorPlans = createBuildVendorPlans({
     resolveSource,
     listFiles,
     home,
     platform,
-  );
-  const copyVendorSkill = createCopyVendorSkill(
+  });
+  const copyVendorSkill = createCopyVendorSkill({
     resolveSourceDetails,
     copyDirectoryWithoutGit,
-  );
-  const resolveProjectSkills = createResolveProjectSkills(
+  });
+  const resolveProjectSkills = createResolveProjectSkills({
     readProjectLock,
     resolveSource,
     directoryExists,
     copyVendorSkill,
-  );
+  });
 
   return {
-    findProject: createFindProject(
+    findProject: createFindProject({
       findProjectRoot,
       readProjectConfig,
       cwd,
       platform,
-    ),
+    }),
     readConfig,
-    readSystemPrompt: createReadSystemPrompt(readPrompt),
-    setSystemPrompt: createSetSystemPrompt(writePrompt, resolveContent),
-    listProjectSkills: createListProjectSkills(readProjectLock),
-    getProjectStatusReport: createGetProjectStatusReport(
+    readSystemPrompt: createReadSystemPrompt({ readPrompt }),
+    setSystemPrompt: createSetSystemPrompt({ writePrompt, resolveContent }),
+    listProjectSkills: createListProjectSkills({ readProjectLock }),
+    getProjectStatusReport: createGetProjectStatusReport({
       resolveProjectSkills,
       readSymlinks,
-    ),
-    syncProject: createSyncProject(
+    }),
+    syncProject: createSyncProject({
       resolveProjectSkills,
       readSymlinks,
       applyPlan,
       writeProjectLock,
-    ),
-    getStatusReport: createGetStatusReport(
+    }),
+    getStatusReport: createGetStatusReport({
       fileExists,
       readSymlinks,
       buildVendorPlans,
-      promptPath,
-    ),
+      resolvePromptPath: promptPath,
+    }),
     syncVendors: createSyncVendors({
       readConfig,
       writeConfig,
