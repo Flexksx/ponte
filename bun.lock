@@ -18,6 +18,9 @@
     "libs/core": {
       "name": "@ponte/core",
       "version": "0.0.1",
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
     },
   },
   "packages": {
