@@ -1,0 +1,44 @@
+$schema: 'https://moonrepo.dev/schemas/project.json'
+
+language: 'typescript'
+layer: 'tool'
+
+workspace:
+  inheritedTasks:
+    include: []
+
+tasks:
+  install:
+    command: 'bun install'
+    toolchains: 'system'
+    inputs:
+      - 'package.json'
+      - 'bun.lock'
+      - 'apps/*/package.json'
+      - 'libs/*/package.json'
+    options:
+      runFromWorkspaceRoot: true
+
+  format:
+    command: 'biome format --write .'
+    toolchains: 'system'
+    options:
+      runFromWorkspaceRoot: true
+
+  lint:
+    command: 'biome lint --error-on-warnings .'
+    toolchains: 'system'
+    options:
+      runFromWorkspaceRoot: true
+
+  arrow-functions-only:
+    script: |
+      if grep -rnE '^ *(export )?(async )?function ' \
+          apps/*/src apps/*/tests libs/*/src libs/*/tests \
+          --include='*.ts' --exclude='*.d.ts'; then
+        echo "error arrow-functions-only: declare every function as const name = () => {}" >&2
+        exit 1
+      fi
+    toolchains: 'system'
+    options:
+      runFromWorkspaceRoot: true

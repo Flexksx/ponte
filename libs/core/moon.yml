@@ -1,0 +1,34 @@
+$schema: 'https://moonrepo.dev/schemas/project.json'
+
+language: 'typescript'
+layer: 'library'
+tags: ['typescript']
+
+tasks:
+  typecheck:
+    script: |
+      bunx tsc --noEmit -p tsconfig.json
+      bunx tsc --noEmit -p tsconfig.test.json
+    toolchains: 'system'
+    inputs:
+      - '@group(sources)'
+      - '@group(tests)'
+      - 'tsconfig.json'
+      - 'tsconfig.test.json'
+
+  architecture:
+    command: 'bunx depcruise src --config .dependency-cruiser.jsonc --output-type err-long'
+    toolchains: 'system'
+    inputs:
+      - 'src/**/*'
+      - '.dependency-cruiser.jsonc'
+
+  domain-sync:
+    script: |
+      if grep -rnE '\b(async|await|Promise)\b' src/domain --include='*.ts'; then
+        echo "error domain-is-synchronous: the domain layer must stay synchronous" >&2
+        exit 1
+      fi
+    toolchains: 'system'
+    inputs:
+      - 'src/domain/**/*'

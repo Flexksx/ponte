@@ -5,6 +5,19 @@ result-*
 
 # Build output
 /out/
+*.bun-build
+
+# Moon task runner
+.moon/cache/
 
 # Bun package cache
 node_modules/
+
+# Environment files
+.env
+
+# SvelteKit
+.svelte-kit/
+
+# Drizzle migrations (generated)
+apps/restapi/drizzle/

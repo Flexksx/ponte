@@ -1,0 +1,32 @@
+$schema: 'https://moonrepo.dev/schemas/tasks.json'
+
+inheritedBy:
+  tags: ['typescript']
+
+fileGroups:
+  sources:
+    - 'src/**/*'
+  tests:
+    - 'tests/**/*'
+
+tasks:
+  test:
+    command: 'bun test ./tests'
+    toolchains: 'system'
+    inputs:
+      - '@group(sources)'
+      - '@group(tests)'
+
+  typecheck:
+    command: 'bunx tsc --noEmit'
+    toolchains: 'system'
+    inputs:
+      - '@group(sources)'
+      - 'tsconfig.json'
+
+  conventions:
+    command: 'bun run $workspaceRoot/scripts/check-conventions.ts src'
+    toolchains: 'system'
+    inputs:
+      - '@group(sources)'
+      - '/scripts/check-conventions.ts'

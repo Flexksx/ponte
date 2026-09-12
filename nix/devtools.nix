@@ -16,7 +16,7 @@
     };
 
     config = {
-      shellPackages = with pkgs; [just alejandra lefthook rumdl];
+      shellPackages = (with pkgs; [just alejandra lefthook rumdl]) ++ [config.packages.moon];
 
       devShells.default = pkgs.mkShell {
         name = "ponte-dev-env";

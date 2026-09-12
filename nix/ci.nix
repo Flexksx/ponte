@@ -46,8 +46,32 @@
         dontUseBunCheck = true;
         buildPhase = ''
           runHook preBuild
-          patchShebangs node_modules apps/ponte/node_modules
-          bash ./scripts/lint.sh
+          patchShebangs node_modules
+
+          biome lint --error-on-warnings .
+
+          if grep -rnE '^ *(export )?(async )?function ' \
+              apps/*/src apps/*/tests libs/*/src libs/*/tests \
+              --include='*.ts' --exclude='*.d.ts'; then
+            echo "error arrow-functions-only" >&2; exit 1
+          fi
+
+          bun run scripts/check-conventions.ts apps/cli/src
+          bun run scripts/check-conventions.ts apps/restapi/src
+          bun run scripts/check-conventions.ts libs/core/src
+
+          (cd apps/cli && ../../node_modules/.bin/tsc --noEmit -p tsconfig.json)
+          (cd apps/restapi && ../../node_modules/.bin/tsc --noEmit -p tsconfig.json)
+          (cd libs/core && ../../node_modules/.bin/tsc --noEmit -p tsconfig.json)
+          (cd libs/core && ../../node_modules/.bin/tsc --noEmit -p tsconfig.test.json)
+
+          (cd apps/cli && ../../node_modules/.bin/depcruise src --config .dependency-cruiser.jsonc --output-type err-long)
+          (cd libs/core && ../../node_modules/.bin/depcruise src --config .dependency-cruiser.jsonc --output-type err-long)
+
+          if grep -rnE '\b(async|await|Promise)\b' libs/core/src/domain --include='*.ts'; then
+            echo "error domain-is-synchronous" >&2; exit 1
+          fi
+
           runHook postBuild
         '';
         installPhase = "touch $out";

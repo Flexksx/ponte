@@ -3,5 +3,9 @@
   "workspaces": ["apps/*", "libs/*"],
   "scripts": {
     "postinstall": "bunx bun2nix > bun.nix"
+  },
+  "devDependencies": {
+    "dependency-cruiser": "^18.2.0",
+    "typescript": "^6"
   }
 }

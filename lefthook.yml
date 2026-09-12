@@ -4,12 +4,13 @@ pre-commit:
     bun-nix-sync:
       glob:
         - "bun.lock"
-      run: bunx bun2nix > bun.nix && git add bun.nix
+      run: bunx bun2nix > bun.nix && alejandra bun.nix && git add bun.nix
       stage_fixed: true
     format-nix:
       glob:
         - "*.nix"
         - "**/*.nix"
+      exclude: "bun.nix"
       run: alejandra {staged_files}
       stage_fixed: true
     check-biome:

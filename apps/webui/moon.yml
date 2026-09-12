@@ -1,0 +1,33 @@
+$schema: 'https://moonrepo.dev/schemas/project.json'
+
+language: 'typescript'
+layer: 'application'
+stack: 'frontend'
+tags: ['typescript']
+
+tasks:
+  dev:
+    command: 'bunx vite dev'
+    toolchains: 'system'
+    options:
+      cache: false
+      persistent: true
+
+  build:
+    command: 'bunx vite build'
+    toolchains: 'system'
+    inputs:
+      - 'src/**/*'
+      - 'static/**/*'
+      - 'svelte.config.js'
+      - 'vite.config.ts'
+
+  typecheck:
+    script: |
+      bunx svelte-kit sync
+      bunx svelte-check --tsconfig ./tsconfig.json
+    toolchains: 'system'
+    inputs:
+      - 'src/**/*'
+      - 'tsconfig.json'
+      - 'svelte.config.js'

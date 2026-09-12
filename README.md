@@ -37,7 +37,7 @@ Because the links point straight at your sources:
 nix profile install github:flexksx/ponte
 
 # From source (Bun)
-bun build ./apps/ponte/src/index.ts --compile --outfile ./out/ponte
+bun build ./apps/cli/src/index.ts --compile --outfile ./out/ponte
 ```
 
 A [home-manager module](#nix--home-manager-reference) is also available.
@@ -78,7 +78,7 @@ To add a skill, declare it in `~/.config/ponte/config.toml` and run
 source = "skills/my-skill"   # relative to ~/.config/ponte/
 ```
 
-See [the CLI manual](apps/ponte/src/cli/manual.md) for the full CLI reference and usage guide.
+See [the CLI manual](apps/cli/src/cli/manual.md) for the full CLI reference and usage guide.
 
 ## Project mode
 
@@ -259,4 +259,4 @@ and are omitted from `config.toml` when empty.
 
 ## Documentation
 
-See [the CLI manual](apps/ponte/src/cli/manual.md) for the full configuration reference and usage guide.
+See [the CLI manual](apps/cli/src/cli/manual.md) for the full configuration reference and usage guide.

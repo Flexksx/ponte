@@ -1,0 +1,27 @@
+$schema: 'https://moonrepo.dev/schemas/project.json'
+
+language: 'typescript'
+layer: 'application'
+tags: ['typescript']
+
+dependsOn:
+  - 'core'
+
+tasks:
+  build:
+    script: |
+      mkdir -p $workspaceRoot/out
+      bun build src/index.ts --compile --outfile $workspaceRoot/out/ponte
+    toolchains: 'system'
+    inputs:
+      - 'src/**/*'
+      - '/libs/core/src/**/*'
+    outputs:
+      - '/out/ponte'
+
+  architecture:
+    command: 'bunx depcruise src --config .dependency-cruiser.jsonc --output-type err-long'
+    toolchains: 'system'
+    inputs:
+      - 'src/**/*'
+      - '.dependency-cruiser.jsonc'

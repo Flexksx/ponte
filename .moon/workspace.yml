@@ -1,0 +1,12 @@
+$schema: 'https://moonrepo.dev/schemas/workspace.json'
+
+projects:
+  globs:
+    - 'apps/*/moon.yml'
+    - 'libs/*/moon.yml'
+  sources:
+    repo: '.'
+
+vcs:
+  defaultBranch: 'main'
+  provider: 'github'

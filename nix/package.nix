@@ -8,7 +8,7 @@
       version = "0.1.0";
       src = ../.;
       inherit bunDeps;
-      module = "apps/ponte/src/index.ts";
+      module = "apps/cli/src/index.ts";
     };
   };
 }

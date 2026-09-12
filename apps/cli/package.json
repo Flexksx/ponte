@@ -9,8 +9,6 @@
     "chalk": "^6.0.0"
   },
   "devDependencies": {
-    "@types/bun": "latest",
-    "dependency-cruiser": "^18.2.0",
-    "typescript": "^6"
+    "@types/bun": "latest"
   }
 }
