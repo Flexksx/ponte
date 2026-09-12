@@ -30,6 +30,11 @@ pre-commit:
         - ".github/workflows/*.yaml"
       run: bash scripts/ci/no-nix-develop.sh
 
+commit-msg:
+  commands:
+    no-ai-coauthor:
+      run: bash scripts/ci/no-ai-coauthor.sh {1}
+
 pre-push:
   parallel: true
   commands:
