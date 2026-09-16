@@ -1,31 +1,34 @@
 # ponte manual
 
-## Overview
-
-ponte manages AI agent configuration — system prompts, skills, and
-subagents — across multiple vendors from a single source of truth.
-
-Supported vendors: `claude-code`, `codex`, `antigravity-cli`,
+ponte keeps one copy of your agent instructions and links it into every AI
+coding tool you use. Vendors: `claude-code`, `codex`, `antigravity-cli`,
 `cursor-agent`, `opencode`, `pi-agent`.
 
-A repository can also carry its own skills in a `ponte.toml` file. Read
-[Project mode](#project-mode) for that workflow.
+ponte runs in one of two modes:
 
-### How it works
+- Global mode reads `~/.config/ponte/config.toml` and links into your home
+  directory. It carries a system prompt, skills, and subagents.
+- Project mode reads `ponte.toml` in a repository and links inside that
+  repository. It carries skills only.
 
-1. You declare the system prompt, the skills, and the subagents in
-   `~/.config/ponte/config.toml`.
-2. `ponte sync` resolves every source. A local source resolves to its
+Every command walks up from the working directory to look for `ponte.toml`.
+If a command finds the file, that directory is the project root and the
+command runs in project mode. If no directory holds the file, the command
+runs in global mode. No flag selects the mode.
+
+## How sync works
+
+1. `ponte sync` resolves every source. A local source resolves to its
    directory. A git source resolves to a clone under
    `~/.cache/ponte/sources/`.
-3. `ponte sync` then creates one symlink per item in each enabled
-   vendor directory.
-4. `ponte sync` removes symlinks that the configuration no longer
-   declares. It never removes a real file or a real directory.
+2. It creates one link in each enabled vendor directory. A link here is a
+   symbolic link.
+3. It removes the links that the configuration no longer declares. It never
+   removes a real file or a real directory.
 
-The symlinks point at the source, so an edit to a source file reaches
-every vendor at once. Run `ponte sync` again only when you add an item,
-remove an item, or want a git source to fetch a new ref.
+A link points at the source, so an edit reaches every vendor at once. Run
+`ponte sync` again when you add an item, remove an item, or want a git
+source at a new ref.
 
 ```text
 ~/.config/ponte/          source (editable)
@@ -39,19 +42,59 @@ remove an item, or want a git source to fetch a new ref.
 ~/.claude/agents/code-investigator.md  → ~/.config/ponte/subagents/claude/code-investigator.md
 ```
 
+## Sources
+
+Every skill and every subagent takes a `source`. A string that starts with
+`https://`, `http://`, `git@`, or `file://` is a git URL. Any other string
+is a filesystem path. A relative path resolves against the configuration
+directory. An absolute path is used as-is.
+
+A git source takes two more fields:
+
+| Field | Meaning |
+|-------|---------|
+| `ref` | Branch, tag, or commit. Prefer a full commit SHA, because a branch moves. |
+| `subdir` | Subdirectory inside the repository. Omit it to use the repository root. |
+
+ponte clones the repository into `~/.cache/ponte/sources/` and checks out
+`ref` on every sync. The cache directory is keyed by URL and ref together,
+so two skills can use the same repository at different refs.
+
+### Skills
+
+A skill is a directory with a `SKILL.md` file in it. The vendor links to
+the directory, so the other files in it are available too.
+
+```text
+my-skill/
+  SKILL.md            required
+  references/         optional
+    guide.md
+```
+
+### Subagents
+
+A subagent source resolves to a directory of agent definition files, not to
+one skill directory. `ponte sync` links every regular file under it,
+flattened by basename, into each enabled vendor agents directory. With
+`source = "subagents/claude"`, the file
+`subagents/claude/code-investigator.md` lands at
+`~/.claude/agents/code-investigator.md`.
+
+In practice only `claude-code` reads an agents directory. The other vendors
+get the files at `<vendor-root>/agents/` anyway.
+
 ---
 
-## Configuration
+## Global configuration
 
-All configuration lives in `~/.config/ponte/config.toml`. Running
-`ponte sync` for the first time creates this file with defaults.
-
-### Full schema
+All global configuration lives in `~/.config/ponte/config.toml`. The first
+`ponte sync` creates the file with defaults.
 
 ```toml
-# Path to the system prompt file. A bare filename is resolved relative to
-# ~/.config/ponte/; an absolute path is read as-is, letting an external repo
-# own the prompt. Defaults to AGENTS.md when omitted.
+# Path to the system prompt file. A bare filename resolves against
+# ~/.config/ponte/. An absolute path is read as-is, so an external repo can
+# own the prompt. Defaults to AGENTS.md.
 system_prompt_file = "AGENTS.md"
 
 # Per-vendor toggles. Each key must be a known vendor name.
@@ -63,138 +106,61 @@ cursor-agent    = { enabled = false }
 opencode        = { enabled = true }
 pi-agent        = { enabled = true }
 
-# Skills — one [skills.<name>] section per skill.
-# Each skill is a directory containing a SKILL.md file plus any supporting files.
-# Every enabled vendor gets a link to the skill directory.
-
+# One [skills.<name>] section per skill.
 [skills.software-engineering]
-source = "skills/software-engineering"   # relative to ~/.config/ponte/
+source = "skills/software-engineering"
 
 [skills.ast-grep]
 source = "https://github.com/example/ast-grep-skill"
-ref    = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"   # full commit SHA recommended
-subdir = ""   # optional: subdirectory inside the repo that contains the skill
+ref    = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
+subdir = ""
 
-# Subagents — one [subagents.<name>] section per subagent.
-# Each subagent source resolves to a directory of agent definition files.
-# Each of those files gets a link in every enabled vendor agents directory.
-
+# One [subagents.<name>] section per subagent.
 [subagents.claude]
-source = "subagents/claude"   # relative to ~/.config/ponte/
+source = "subagents/claude"
 ```
 
-### Skill source types
-
-#### Local
-
-```toml
-[skills.my-skill]
-source = "skills/my-skill"
-```
-
-`source` is a filesystem path. Relative paths resolve against
-`~/.config/ponte/`. Absolute paths are used as-is. The path must be a
-directory containing a `SKILL.md` file.
-
-#### Git
-
-```toml
-[skills.my-skill]
-source = "https://github.com/owner/repo"
-ref    = "v1.2.0"
-subdir = "skills/my-skill"   # optional
-```
-
-`source` is treated as a git URL when it starts with `https://`,
-`http://`, `git@`, or `file://`. ponte clones the repo into
-`~/.cache/ponte/sources/` and checks out `ref` on every sync. `ref` can
-be a branch name, tag, or commit SHA. Prefer a full commit SHA, because
-a branch name moves.
-
-The `subdir` field scopes the skill to a subdirectory of the repo. Omit
-it to use the repo root.
-
-The clone directory is keyed by URL and ref together. Two skills can
-use the same repo at different refs.
-
-### Skill directory layout
-
-A skill directory must contain a `SKILL.md` file. The vendor links to
-the directory, so every other file in it is available too.
-
-```text
-my-skill/
-  SKILL.md            required
-  references/         optional
-    guide.md
-```
-
-### Subagents
-
-Subagents are vendor agent definitions (e.g. Claude Code's
-`~/.claude/agents/*.md`). Declare them with one `[subagents.<name>]`
-section per subagent. The `source` field uses the same schema as
-skills, but each source resolves to a **directory of agent files**
-rather than a single skill directory.
-
-```toml
-[subagents.claude]
-source = "subagents/claude"   # relative to ~/.config/ponte/
-```
-
-On `ponte sync`, every regular file under the resolved directory is
-symlinked, flattened by basename, into each enabled vendor's agents
-directory. With the example above,
-`subagents/claude/code-investigator.md` lands at
-`~/.claude/agents/code-investigator.md`.
-
-Subagents follow the same "sync to every enabled vendor" model as
-skills. In practice only `claude-code` consumes an agents directory;
-other vendors receive the files at `<vendor-root>/agents/` regardless.
+| Key | Type | Default | Meaning |
+|-----|------|---------|---------|
+| `system_prompt_file` | string | `AGENTS.md` | Path to the system prompt file. |
+| `[vendors.<vendor>].enabled` | bool | `true` | Whether a sync targets that vendor. |
+| `[skills.<name>].source` | string | — | Path or git URL. |
+| `[skills.<name>].ref` | string | — | Git only. |
+| `[skills.<name>].subdir` | string | — | Git only. |
+| `[subagents.<name>]` | table | — | Same three fields as a skill. |
 
 ---
 
 ## Project mode
 
-A repository can carry its own skills. Put a `ponte.toml` file in the
-repository root and declare the skills there.
-
-Every command walks up from the working directory to find `ponte.toml`. If a
-command finds the file, that directory is the project root and the command
-runs in project mode. If no directory on the way up holds the file, every
-command behaves exactly as described above.
+Put a `ponte.toml` file in the repository root and declare the skills in it.
 
 Project mode never reads and never creates `~/.config/ponte/`, and it needs
-no system prompt. The only shared resource it uses is the git cache at
-`~/.cache/ponte/sources/`.
-
-### Project schema
+no system prompt. The only shared resource it uses is the git cache.
 
 ```toml
-# Per-vendor toggles (optional). Omit the section to link into every
-# vendor. When present, only vendors with enabled = true get links.
+# Per-vendor toggles. Omit the section to link into every vendor. When the
+# section is present, only a vendor with enabled = true gets links.
 [vendors.claude-code]
 enabled = true
 
 [vendors.codex]
 enabled = false
 
-# Skills - one [skills.<name>] section per skill.
 [skills.ast-grep]
 source = "https://github.com/example/ast-grep-skill"
-ref    = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"   # full commit SHA recommended
-subdir = ""   # optional: subdirectory inside the repo that contains the skill
+ref    = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
+subdir = ""
 
 [skills.house-style]
 source = "skills/house-style"   # relative to the project root
 ```
 
-The `source`, `ref` and `subdir` fields carry the same meanings as in
-`config.toml`. A relative local path resolves against the project root. The
-keys `system_prompt_file` and `[subagents]` are not part of the project
-schema.
+A relative local path resolves against the project root. The keys
+`system_prompt_file` and `[subagents]` are not part of the project schema.
+Any other top-level key is an error.
 
-### Project layout
+### Layout
 
 ```text
 <project>/
@@ -213,20 +179,19 @@ schema.
     house-style  → ../../skills/house-style
 ```
 
-`ponte sync` links every skill into `.agents/skills/` and into each
-enabled vendor's project-level skill directory. Claude Code reads
-`.claude/skills/`, Codex reads `.codex/skills/`, and so on.
+`ponte sync` links every skill into `.agents/skills/` and into each enabled
+vendor project-level skill directory. Claude Code reads `.claude/skills/`,
+Codex reads `.codex/skills/`, and so on.
 
 ### Vendoring
 
-`ponte sync` fetches a git source through `~/.cache/ponte/sources/`, then
-copies the resolved directory to `.ponte/sources/<name>`. The copy holds no
-`.git` directory, so the project owns the files.
+`ponte sync` fetches a git source through the cache, then copies the
+resolved directory to `.ponte/sources/<name>`. The copy holds no `.git`
+directory, so the project owns the files.
 
-`ponte sync` copies a skill only when `.ponte/sources/<name>` is absent. A
-later sync leaves the copy alone. An edit to a vendored skill is a normal
-change: commit it. To take a new version of the skill, run
-`ponte update <name>`.
+`ponte sync` copies a skill only when `.ponte/sources/<name>` is absent, so
+a local edit survives every later sync. Commit the edit. To take a new
+version of the skill, run `ponte update <name>`.
 
 A local source is never copied. The link points straight at the directory.
 
@@ -240,23 +205,26 @@ commit = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
 ```
 
 `ponte sync` writes an entry when it vendors a skill. `ponte update` writes
-the new commit. `ponte update` also reads the file to find local edits.
+the new commit and reads the file to find local edits.
 
 ### What to commit
 
 Commit `ponte.toml`, `.ponte/`, and the skill links (`.agents/skills/`,
-`.claude/skills/`, `.codex/skills/`, and so on). A link to a path inside
-the project is relative, so it keeps working in every clone. A link to a
-local source outside the project stays absolute.
+`.claude/skills/`, `.codex/skills/`, and so on). A link to a path inside the
+project is relative, so it keeps working in every clone. A link to a local
+source outside the project stays absolute.
 
 ---
 
 ## CLI reference
 
+Every command exits 0 on success and non-zero on any error.
+
 ### `ponte sync`
 
 Resolve every source, then link the results into each enabled vendor
-directory.
+directory. The first global run creates `~/.config/ponte/config.toml` and an
+empty `AGENTS.md`.
 
 ```text
 ponte sync [flags]
@@ -264,26 +232,21 @@ ponte sync [flags]
 
 | Flag | Short | Description |
 |------|-------|-------------|
-| `--global-instructions <file-or-string>` | `-g` | Use another system prompt for this run. If the argument is a path to a file, the vendors link to that file. If it is a string, ponte writes it to `~/.local/share/ponte/instruction` and the vendors link there. The configured `AGENTS.md` does not change. |
-| `--agents <list>` | `-a` | Comma-separated list of vendors to target, in place of the configuration. Example: `claude-code,codex`. |
+| `--global-instructions <file-or-string>` | `-g` | Use another system prompt for this run. For a path to a file, the vendors link to that file. For a string, ponte writes it to `~/.local/share/ponte/instruction` and the vendors link there. The configured `AGENTS.md` does not change. |
+| `--agents <list>` | `-a` | Comma-separated vendors to target, in place of the configuration. Example: `claude-code,codex`. |
 | `--dry-run` | | Resolve every source and report the vendors and the stale link count, without any write. |
 
-If no configuration file exists, `ponte sync` first creates
-`~/.config/ponte/config.toml` and an empty `AGENTS.md`.
+In project mode, `ponte sync` also vendors the missing git skills. It
+reports the project root, the number of vendored skills, the number of
+links, and the number of removed links. The `-g` and `-a` flags belong to a
+global sync, so `ponte sync` rejects them inside a project.
 
-`ponte sync` removes a symlink in a vendor `skills` or `agents`
-directory when the configuration no longer declares it. A real file or
-a real directory in those locations is never removed.
-
-In project mode, `ponte sync` vendors the missing git skills, links every
-skill into `.agents/skills/` and each enabled vendor's skill directory, and
-removes the stale links. It reports the project root, the number of vendored
-skills, the number of links, and the number of removed links. The `-g` and
-`-a` flags belong to a global sync, so `ponte sync` rejects them inside a
-project.
-
-**Exit codes:** 0 on success. Non-zero on any error, for example an
-unknown agent, a source that does not resolve, or a filesystem error.
+```sh
+ponte sync
+ponte sync -a claude-code
+ponte sync --dry-run
+ponte sync -g "Temporary debugging instructions"
+```
 
 ---
 
@@ -303,36 +266,34 @@ ponte update [name] [--force]
 
 `ponte update` resolves the source at the `ref` in `ponte.toml`, replaces
 `.ponte/sources/<name>` with the fresh checkout, and writes the new commit
-to `.ponte/lock.toml`.
+to the lock file.
 
 Before the first overwrite, `ponte update` checks out the locked commit in
-the git cache and compares that tree with the vendored copy. If a tree
-differs, or the lock file holds no entry for the skill, the command stops
-and writes the skill names. Pass `--force` to overwrite anyway.
-
-**Exit codes:** 0 on success. Non-zero outside a project, for an unknown
-skill name, for a local skill, or for a copy with local edits.
+the cache and compares that tree with the vendored copy. If a tree differs,
+or the lock file holds no entry for the skill, the command stops and writes
+the skill names. Pass `--force` to overwrite anyway.
 
 ---
 
 ### `ponte status`
 
-Show, for each vendor, whether its links match the configuration.
+Show, for each vendor, whether its links match the configuration. The first
+line names the system prompt file.
 
 ```text
 ponte status
 ```
 
-The first line names the system prompt file. Each vendor row shows:
-
 | Column | Meaning |
 |--------|---------|
 | `VENDOR` | The vendor name. |
-| `ENABLED` | Whether the vendor is enabled in `config.toml`. |
-| `LINKS` | The number of ponte symlinks in the vendor directories, or `—` when there are none. |
-| `STATE` | `in sync` (every link is correct and no extra link remains), `drifted` (a link is missing, points elsewhere, or the configuration no longer declares it), `not synced` (no links), or `disabled` (a sync does not touch it). |
+| `ENABLED` | Whether the vendor is enabled. |
+| `LINKS` | The number of ponte links in the vendor directories, or `—` when there are none. |
+| `STATE` | `in sync`, `drifted`, `not synced`, or `disabled`. |
 
-`ponte status` resolves git sources, exactly as a real sync does.
+A vendor is `drifted` when a link is missing, points elsewhere, or the
+configuration no longer declares it. `ponte status` resolves git sources,
+exactly as a real sync does.
 
 In project mode, `ponte status` prints the project root, the path of
 `.agents/skills`, the total link count across all vendor directories, and
@@ -340,66 +301,56 @@ one state for the whole set.
 
 ---
 
-### `ponte subagents`
-
-List the subagents declared in `config.toml`, with each subagent's name, source
-type, and resolved source. Mirrors `ponte skills`.
-
-```text
-ponte subagents
-```
-
-Prints `No subagents configured.` when the config declares none.
-
----
-
 ### `ponte skills`
 
-List the skills declared in `config.toml`, with each skill's name,
-source type, and resolved source (local path, or git URL with ref and
-optional subdir).
+List the declared skills with each name, source type, and resolved source.
+Prints `No skills configured.` when the configuration declares none.
 
 ```text
 ponte skills
 ```
 
-Prints `No skills configured.` when the config declares none.
+In project mode, the `KIND` column holds `vendored` for a git source and
+`local` for a path. The `COMMIT` column holds the short commit from the lock
+file, or `—` when the lock file has no entry for the skill.
 
-In project mode, `ponte skills` lists the skills from `ponte.toml`. The
-`KIND` column holds `vendored` for a git source and `local` for a path. The
-`COMMIT` column holds the short commit from `.ponte/lock.toml`, or `—` when
-the lock file has no entry for the skill.
+---
+
+### `ponte subagents`
+
+List the declared subagents with each name, source type, and resolved
+source. Prints `No subagents configured.` when the configuration declares
+none.
+
+```text
+ponte subagents
+```
 
 ---
 
 ### `ponte sysprompt`
 
-Print the current system prompt — the contents of the file
-`system_prompt_file` points to — to stdout, so it can be piped or
-redirected.
+Print the current system prompt to stdout, so you can pipe or redirect it.
+Prints a notice to stderr when no system prompt is set.
 
 ```text
 ponte sysprompt
 ponte sysprompt > current-prompt.md
 ```
 
-Prints a notice to stderr when no system prompt is set.
-
 ---
 
 ### `ponte sysprompt set <file-or-string>`
 
-Persistently write the system prompt to `~/.config/ponte/AGENTS.md` (or
-whichever file `system_prompt_file` points to). Does not sync to
-vendors — run `ponte sync` afterwards.
+Write the system prompt to the file that `system_prompt_file` points at. For
+a path to an existing file, ponte writes the contents of that file.
+Otherwise ponte writes the argument itself. Run `ponte sync` afterwards to
+reach the vendors.
 
 ```text
 ponte sysprompt set ~/prompts/my-prompt.md
 ponte sysprompt set "You are a helpful assistant."
 ```
-
-If the argument is a path to an existing file, its contents are used.
-Otherwise the argument itself is written verbatim.
 
 ---
 
@@ -409,131 +360,32 @@ Print this manual to stdout.
 
 ```text
 ponte manual | less
-ponte manual > ~/ponte-manual.md
-```
-
----
-
-## Usage examples
-
-### Minimal setup
-
-```sh
-ponte sync                            # bootstrap config
-ponte sysprompt set my-prompt.md     # set system prompt
-ponte sync                            # activate
-```
-
-### Declare a local skill
-
-Add to `~/.config/ponte/config.toml`:
-
-```toml
-[skills.my-skill]
-source = "skills/my-skill"
-```
-
-Create `~/.config/ponte/skills/my-skill/SKILL.md`, then:
-
-```sh
-ponte sync
-```
-
-The skill appears at `~/.claude/skills/my-skill`, `~/.codex/skills/my-skill`, etc.
-
-### Declare a git-backed skill
-
-```toml
-[skills.external-skill]
-source = "https://github.com/owner/skills-repo"
-ref    = "abc123def456"
-subdir = "external-skill"
-```
-
-### Remove a skill everywhere
-
-Delete the `[skills.<name>]` section, then sync:
-
-```sh
-ponte sync   # the link to that skill is removed from every vendor
-```
-
-### Sync to a specific vendor only
-
-```sh
-ponte sync -a claude-code
-```
-
-### Vendor a skill into a repository
-
-Add `ponte.toml` to the repository root:
-
-```toml
-[skills.house-style]
-source = "https://github.com/owner/skills-repo"
-ref    = "abc123def456"
-subdir = "house-style"
-```
-
-```sh
-ponte sync                              # copy the skill, then link it
-git add ponte.toml .ponte .agents       # commit the copy and the link
-```
-
-Later, to take a new version of the skill:
-
-```sh
-ponte update house-style
-```
-
-### Use another system prompt without changing the stored one
-
-```sh
-ponte sync -g "Temporary debugging instructions"
-```
-
-### Disable a vendor entirely
-
-```toml
-[vendors]
-codex = { enabled = false }
-```
-
-```sh
-ponte sync   # codex gets no links
 ```
 
 ---
 
 ## Migration from home-manager
 
-If you currently manage `~/.claude/`, `~/.codex/`, etc. via
-home-manager, the existing symlinks point into `/nix/store/` and will
-conflict with ponte's symlinks.
-
-Migration steps:
+If home-manager manages `~/.claude/` or `~/.codex/` today, the existing
+links point into `/nix/store/` and conflict with the links from ponte.
 
 1. Remove the relevant `home.file` or `programs.*` entries from your
    home-manager flake.
-2. Run `home-manager switch` — this removes the nix-store symlinks.
-3. Run `ponte sync`. ponte creates its own symlinks.
+2. Run `home-manager switch`. This removes the nix-store links.
+3. Run `ponte sync`.
 
-Do not run `ponte sync` before step 2 — home-manager's next activation
-will overwrite ponte's links.
+Do not run `ponte sync` before step 2. The next home-manager activation
+overwrites the links from ponte.
 
 ---
 
-## Caching
+## Cache
 
-**Git cache location:** `~/.cache/ponte/sources/<hash>/`
+The git cache is at `~/.cache/ponte/sources/<hash>/`. A repository already
+in the cache is fetched, not cloned again.
 
-The `<hash>` is derived from the URL and the ref together, so the same
-repo at two refs gets two clones. A repo already in the cache is
-fetched, not cloned again.
-
-Vendor symlinks for a git skill point into this cache. Do not delete a
-cache directory while a vendor links to it. To start again, remove
+Vendor links for a git skill point into the cache. Do not delete a cache
+directory while a vendor links to it. To start again, remove
 `~/.cache/ponte/sources/` and run `ponte sync`.
 
-A local skill needs no cache. Its symlink points straight at the source
-directory, so an edit is visible to every vendor at once.
+A local skill needs no cache.
