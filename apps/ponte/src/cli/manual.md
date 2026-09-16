@@ -62,15 +62,9 @@ so two skills can use the same repository at different refs.
 
 ### Skills
 
-A skill is a directory with a `SKILL.md` file in it. The vendor links to
-the directory, so the other files in it are available too.
-
-```text
-my-skill/
-  SKILL.md            required
-  references/         optional
-    guide.md
-```
+A skill source resolves to one skill directory, in the format at
+[agentskills.io](https://agentskills.io). The vendor links to the whole
+directory.
 
 ### Subagents
 
