@@ -11,23 +11,12 @@ import { dirname, join, resolve } from "node:path";
 import {
   buildVendorLayouts,
   type Platform,
-  type VendorLayout,
+  VENDORS,
   type VendorName,
 } from "@ponte/core";
 import { $ } from "bun";
 
 const PLATFORM: Platform = process.platform === "win32" ? "win32" : "posix";
-
-const mapLayouts = (
-  layouts: Record<VendorName, VendorLayout>,
-  pick: (layout: VendorLayout) => string,
-): Record<VendorName, string> => {
-  const paths = {} as Record<VendorName, string>;
-  for (const [name, layout] of Object.entries(layouts)) {
-    paths[name as VendorName] = pick(layout);
-  }
-  return paths;
-};
 
 let binaryUnderTest = "";
 let binaryResolve: Promise<string> | null = null;
@@ -219,16 +208,22 @@ export class Home {
     }
   }
 
-  private layouts(): Record<VendorName, VendorLayout> {
-    return buildVendorLayouts(this.home, PLATFORM);
-  }
-
   vendorPaths(): Record<VendorName, string> {
-    return mapLayouts(this.layouts(), layout => layout.instruction);
+    const layouts = buildVendorLayouts(this.home, PLATFORM);
+    const paths = {} as Record<VendorName, string>;
+    for (const name of VENDORS) {
+      paths[name] = layouts[name].instruction;
+    }
+    return paths;
   }
 
   vendorSkillsDirs(): Record<VendorName, string> {
-    return mapLayouts(this.layouts(), layout => layout.skills);
+    const layouts = buildVendorLayouts(this.home, PLATFORM);
+    const dirs = {} as Record<VendorName, string>;
+    for (const name of VENDORS) {
+      dirs[name] = layouts[name].skills;
+    }
+    return dirs;
   }
 
   vendorSkillPath(vendor: VendorName, skillName: string): string {
@@ -236,7 +231,12 @@ export class Home {
   }
 
   vendorAgentsDirs(): Record<VendorName, string> {
-    return mapLayouts(this.layouts(), layout => layout.agents);
+    const layouts = buildVendorLayouts(this.home, PLATFORM);
+    const dirs = {} as Record<VendorName, string>;
+    for (const name of VENDORS) {
+      dirs[name] = layouts[name].agents;
+    }
+    return dirs;
   }
 
   vendorAgentPath(vendor: VendorName, agentFile: string): string {
