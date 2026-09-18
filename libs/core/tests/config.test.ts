@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { join } from "node:path";
 import {
   type Config,
   isGitSource,
@@ -49,7 +50,7 @@ describe("parseSource", () => {
 describe("resolveConfigPaths", () => {
   it("expands relative local paths against the config dir", () => {
     const norm = resolveConfigPaths(cfgWith([{ source: "skills/s" }]), "/cfg");
-    expect(norm.skills[0]?.source).toBe("/cfg/skills/s");
+    expect(norm.skills[0]?.source).toBe(join("/cfg", "skills", "s"));
   });
 
   it("leaves git sources and absolute paths untouched", () => {

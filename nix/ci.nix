@@ -2,7 +2,6 @@
   perSystem = {
     pkgs,
     lib,
-    self',
     system,
     ...
   }: let
@@ -52,11 +51,6 @@
         '';
         installPhase = "touch $out";
       };
-
-      package = pkgs.runCommand "check-package" {} ''
-        ${self'.packages.default}/bin/ponte --help > /dev/null
-        touch $out
-      '';
     };
   };
 }

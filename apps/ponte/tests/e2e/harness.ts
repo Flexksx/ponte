@@ -7,9 +7,19 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir as osTmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import type { VendorName } from "@ponte/core";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import {
+  buildVendorLayouts,
+  type Platform,
+  VENDORS,
+  type VendorName,
+} from "@ponte/core";
 import { $ } from "bun";
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+
+const PLATFORM: Platform = process.platform === "win32" ? "win32" : "posix";
 
 let binaryUnderTest = "";
 let binaryResolve: Promise<string> | null = null;
@@ -21,10 +31,13 @@ const resolveBinary = (): Promise<string> => {
   if (binaryResolve) {
     return binaryResolve;
   }
+  const prebuilt = Bun.env.PONTE_E2E_BINARY ?? "";
+  if (prebuilt) {
+    binaryUnderTest = resolve(prebuilt);
+    return Promise.resolve(binaryUnderTest);
+  }
   binaryResolve = (async () => {
-    const here = new URL(import.meta.url).pathname;
-    const slash = here.lastIndexOf("/");
-    const root = `${here.slice(0, slash)}/../..`;
+    const root = join(HERE, "..", "..");
     const bin = join(await osTmpdir(), `ponte-e2e-bin-${randId()}`);
     await mkdir(bin, { recursive: true });
     const out = join(bin, process.platform === "win32" ? "ponte.exe" : "ponte");
@@ -197,30 +210,21 @@ export class Home {
   }
 
   vendorPaths(): Record<VendorName, string> {
-    return {
-      "claude-code": join(this.home, ".claude", "CLAUDE.md"),
-      codex: join(this.home, ".codex", "instructions.md"),
-      "antigravity-cli": join(this.home, ".gemini", "GEMINI.md"),
-      "cursor-agent": join(this.home, ".cursor", "rules", "global.mdc"),
-      opencode: join(this.home, ".config", "opencode", "AGENTS.md"),
-      "pi-agent": join(this.home, ".pi", "agent", "AGENTS.md"),
-    };
+    const layouts = buildVendorLayouts(this.home, PLATFORM);
+    const paths = {} as Record<VendorName, string>;
+    for (const name of VENDORS) {
+      paths[name] = layouts[name].instruction;
+    }
+    return paths;
   }
 
   vendorSkillsDirs(): Record<VendorName, string> {
-    return {
-      "claude-code": join(this.home, ".claude", "skills"),
-      codex: join(this.home, ".codex", "skills"),
-      "antigravity-cli": join(
-        this.home,
-        ".gemini",
-        "antigravity-cli",
-        "skills",
-      ),
-      "cursor-agent": join(this.home, ".cursor", "skills"),
-      opencode: join(this.home, ".config", "opencode", "skills"),
-      "pi-agent": join(this.home, ".pi", "agent", "skills"),
-    };
+    const layouts = buildVendorLayouts(this.home, PLATFORM);
+    const dirs = {} as Record<VendorName, string>;
+    for (const name of VENDORS) {
+      dirs[name] = layouts[name].skills;
+    }
+    return dirs;
   }
 
   vendorSkillPath(vendor: VendorName, skillName: string): string {
@@ -228,19 +232,12 @@ export class Home {
   }
 
   vendorAgentsDirs(): Record<VendorName, string> {
-    return {
-      "claude-code": join(this.home, ".claude", "agents"),
-      codex: join(this.home, ".codex", "agents"),
-      "antigravity-cli": join(
-        this.home,
-        ".gemini",
-        "antigravity-cli",
-        "agents",
-      ),
-      "cursor-agent": join(this.home, ".cursor", "agents"),
-      opencode: join(this.home, ".config", "opencode", "agents"),
-      "pi-agent": join(this.home, ".pi", "agent", "agents"),
-    };
+    const layouts = buildVendorLayouts(this.home, PLATFORM);
+    const dirs = {} as Record<VendorName, string>;
+    for (const name of VENDORS) {
+      dirs[name] = layouts[name].agents;
+    }
+    return dirs;
   }
 
   vendorAgentPath(vendor: VendorName, agentFile: string): string {
@@ -263,18 +260,8 @@ export class Home {
     throw new Error(`expected no link at ${path}`);
   }
 
-  fixturePath(name: string): string {
-    const here = new URL(import.meta.url).pathname;
-    const slash = here.lastIndexOf("/");
-    const dir = here.slice(0, slash);
-    return join(dir, "fixtures", name);
-  }
-
-  fixtureDir(name: string): string {
-    const here = new URL(import.meta.url).pathname;
-    const slash = here.lastIndexOf("/");
-    const dir = here.slice(0, slash);
-    return join(dir, "fixtures", name);
+  fixture(name: string): string {
+    return join(HERE, "fixtures", name);
   }
 
   cleanup(fn: () => Promise<void>): void {

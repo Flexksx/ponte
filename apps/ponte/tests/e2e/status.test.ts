@@ -20,7 +20,7 @@ describe("status", () => {
     await h.mustRun("sysprompt", "set", "v1");
 
     const cfg = await h.readFileText(h.configPath("config.toml"));
-    await h.appendConfig(sourceEntry("skills", h.fixtureDir("simple_skill")));
+    await h.appendConfig(sourceEntry("skills", h.fixture("simple_skill")));
     await h.mustRun("sync");
     await h.writeFile(h.configPath("config.toml"), cfg);
 

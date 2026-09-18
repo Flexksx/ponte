@@ -14,7 +14,7 @@ describe("sysprompt", () => {
   it("set reads a file when the argument exists", async () => {
     const h = await newHarness();
     await h.mustRun("sync");
-    const fixture = h.fixturePath("simple_prompt.md");
+    const fixture = h.fixture("simple_prompt.md");
     const want = await h.readFileText(fixture);
     await h.mustRun("sysprompt", "set", fixture);
     await h.assertFileEquals(h.configPath("AGENTS.md"), want);
@@ -33,7 +33,7 @@ describe("sysprompt", () => {
   it("set preserves multi-line file bytes across sync", async () => {
     const h = await newHarness();
     await h.mustRun("sync");
-    const fixture = h.fixturePath("unicode_prompt.md");
+    const fixture = h.fixture("unicode_prompt.md");
     const want = await h.readFileText(fixture);
     await h.mustRun("sysprompt", "set", fixture);
     await h.assertFileEquals(h.configPath("AGENTS.md"), want);

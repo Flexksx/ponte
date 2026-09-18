@@ -53,7 +53,7 @@ describe("skill sync", () => {
     const h = await newHarness();
     await h.bootstrap();
 
-    await addSkill(h, h.fixtureDir("simple_skill"));
+    await addSkill(h, h.fixture("simple_skill"));
 
     await h.mustRun("sync");
 
@@ -93,7 +93,7 @@ describe("skill sync", () => {
     const h = await newHarness();
     await h.bootstrap();
 
-    const skillFixtureDir = h.fixtureDir("simple_skill");
+    const skillFixtureDir = h.fixture("simple_skill");
     await addSkill(h, skillFixtureDir);
 
     await h.mustRun("sync");
@@ -127,11 +127,11 @@ describe("skill sync", () => {
     await h.bootstrap();
 
     const before = await h.readFileText(h.configPath("config.toml"));
-    await addSkill(h, h.fixtureDir("simple_skill"));
+    await addSkill(h, h.fixture("simple_skill"));
     await h.mustRun("sync");
     await h.assertSymlinkTo(
       h.vendorSkillPath("claude-code", "simple-skill"),
-      h.fixtureDir("simple_skill"),
+      h.fixture("simple_skill"),
     );
 
     await h.writeFile(h.configPath("config.toml"), before);
