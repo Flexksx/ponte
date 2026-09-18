@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   buildVendorPlan,
+  getProjectState,
   getStaleLinkPaths,
   getVendorState,
 } from "@ponte/core";
@@ -14,14 +15,8 @@ const layout = {
 const plan = buildVendorPlan(
   layout,
   "/cfg/AGENTS.md",
-  [{ name: "java", sourceDirectory: "/cfg/skills/java", files: [] }],
-  [
-    {
-      name: "team",
-      sourceDirectory: "/cfg/subagents/team",
-      files: ["a.md", "b.md"],
-    },
-  ],
+  [{ name: "java", sourceDirectory: "/cfg/skills/java" }],
+  [{ sourceDirectory: "/cfg/subagents/team", files: ["a.md", "b.md"] }],
 );
 
 const actualFor = (plan: {
@@ -84,5 +79,19 @@ describe("getVendorState", () => {
     const actual = actualFor(plan);
     actual.delete("/home/u/.claude/skills/java");
     expect(getVendorState(plan, actual)).toBe("drifted");
+  });
+});
+
+describe("getProjectState", () => {
+  it("has drifted when a skill is still to vendor and links exist", () => {
+    expect(getProjectState(plan, actualFor(plan), 1)).toBe("drifted");
+  });
+
+  it("reports not synced when nothing is linked yet", () => {
+    expect(getProjectState(plan, new Map(), 1)).toBe("not synced");
+  });
+
+  it("falls back to the vendor state when nothing is pending", () => {
+    expect(getProjectState(plan, actualFor(plan), 0)).toBe("in sync");
   });
 });

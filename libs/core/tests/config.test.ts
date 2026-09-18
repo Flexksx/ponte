@@ -5,14 +5,15 @@ import {
   parseSource,
   resolveConfigPaths,
   type SourceEntry,
+  sourceKey,
 } from "@ponte/core";
 
-const cfgWith = (skills: Record<string, SourceEntry> = {}) =>
+const cfgWith = (skills: readonly SourceEntry[] = []) =>
   ({
     systemPromptFile: "AGENTS.md",
     vendors: {},
     skills,
-    subagents: {},
+    subagents: [],
   }) as Config;
 
 describe("isGitSource", () => {
@@ -47,22 +48,30 @@ describe("parseSource", () => {
 
 describe("resolveConfigPaths", () => {
   it("expands relative local paths against the config dir", () => {
-    const norm = resolveConfigPaths(
-      cfgWith({ s: { source: "skills/s" } }),
-      "/cfg",
-    );
-    expect(norm.skills.s?.source).toBe("/cfg/skills/s");
+    const norm = resolveConfigPaths(cfgWith([{ source: "skills/s" }]), "/cfg");
+    expect(norm.skills[0]?.source).toBe("/cfg/skills/s");
   });
 
   it("leaves git sources and absolute paths untouched", () => {
     const norm = resolveConfigPaths(
-      cfgWith({
-        git: { source: "https://x/y" },
-        abs: { source: "/abs/path" },
-      }),
+      cfgWith([{ source: "https://x/y" }, { source: "/abs/path" }]),
       "/cfg",
     );
-    expect(norm.skills.git?.source).toBe("https://x/y");
-    expect(norm.skills.abs?.source).toBe("/abs/path");
+    expect(norm.skills[0]?.source).toBe("https://x/y");
+    expect(norm.skills[1]?.source).toBe("/abs/path");
+  });
+});
+
+describe("sourceKey", () => {
+  it("separates the source from the subdir", () => {
+    expect(sourceKey({ source: "https://x/y", subdir: "a" })).not.toBe(
+      sourceKey({ source: "https://x/ya", subdir: "" }),
+    );
+  });
+
+  it("treats an absent subdir as empty", () => {
+    expect(sourceKey({ source: "https://x/y" })).toBe(
+      sourceKey({ source: "https://x/y", subdir: "" }),
+    );
   });
 });

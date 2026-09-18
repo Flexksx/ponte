@@ -7,6 +7,7 @@ export * from "./domain/platform";
 export * from "./domain/project";
 export * from "./domain/project-config";
 export * from "./domain/result";
+export * from "./domain/skill";
 export * from "./domain/source";
 export * from "./domain/vendor";
 export * from "./ports/config";

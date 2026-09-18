@@ -3,7 +3,7 @@ import { mkdir, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { $ } from "bun";
 import type { Home } from "./harness";
-import { newHarness } from "./harness";
+import { newHarness, skillDoc, sourceEntry } from "./harness";
 
 const isWindows = () => process.platform === "win32";
 
@@ -50,8 +50,11 @@ const newProject = async (h: Home, config: string): Promise<string> => {
   return root;
 };
 
-const gitSkillConfig = (name: string, repo: SkillRepo, ref: string): string =>
-  `[skills.${name}]\nsource = ${JSON.stringify(repo.url)}\nref = ${JSON.stringify(ref)}\n`;
+const gitSkillConfig = (repo: SkillRepo, ref: string): string =>
+  sourceEntry("skills", repo.url, ref);
+
+const localSkillConfig = (source: string): string =>
+  sourceEntry("skills", source);
 
 describe("project sync", () => {
   it("finds the project from a subdirectory", async () => {
@@ -59,8 +62,8 @@ describe("project sync", () => {
       return;
     }
     const h = await newHarness();
-    const root = await newProject(h, '[skills.mine]\nsource = "skills/mine"\n');
-    await h.writeFile(join(root, "skills", "mine", "SKILL.md"), "# mine\n");
+    const root = await newProject(h, localSkillConfig("skills/mine"));
+    await h.writeSkill(join(root, "skills", "mine"), skillDoc("mine"));
     const deep = join(root, "src", "nested");
     await mkdir(deep, { recursive: true });
 
@@ -79,16 +82,19 @@ describe("project sync", () => {
       return;
     }
     const h = await newHarness();
-    const repo = await newSkillRepo(h, "# version one\n");
-    const root = await newProject(
+    const repo = await newSkillRepo(
       h,
-      gitSkillConfig("git-skill", repo, repo.sha),
+      skillDoc("git-skill", "# version one\n"),
     );
+    const root = await newProject(h, gitSkillConfig(repo, repo.sha));
 
     await h.mustRunIn(root, "sync");
 
     const vendored = h.vendoredSkillPath(root, "git-skill");
-    await h.assertFileEquals(join(vendored, "SKILL.md"), "# version one\n");
+    await h.assertFileEquals(
+      join(vendored, "SKILL.md"),
+      skillDoc("git-skill", "# version one\n"),
+    );
     expect(await h.exists(join(vendored, ".git"))).toBe(false);
     expect(await h.readFileText(h.lockPath(root))).toContain(repo.sha);
     await h.assertSymlinkTo(
@@ -97,7 +103,7 @@ describe("project sync", () => {
     );
     await h.assertFileEquals(
       join(h.projectSkillLink(root, "git-skill"), "SKILL.md"),
-      "# version one\n",
+      skillDoc("git-skill", "# version one\n"),
     );
     await h.close();
   });
@@ -107,19 +113,22 @@ describe("project sync", () => {
       return;
     }
     const h = await newHarness();
-    const repo = await newSkillRepo(h, "# version one\n");
-    const root = await newProject(
+    const repo = await newSkillRepo(
       h,
-      gitSkillConfig("git-skill", repo, repo.sha),
+      skillDoc("git-skill", "# version one\n"),
     );
+    const root = await newProject(h, gitSkillConfig(repo, repo.sha));
     await h.mustRunIn(root, "sync");
 
     const skillFile = join(h.vendoredSkillPath(root, "git-skill"), "SKILL.md");
-    await h.writeFile(skillFile, "# edited by hand\n");
+    await h.writeFile(skillFile, skillDoc("git-skill", "# edited by hand\n"));
     const { stdout } = await h.mustRunIn(root, "sync");
 
     expect(stdout).not.toContain("vendored into");
-    await h.assertFileEquals(skillFile, "# edited by hand\n");
+    await h.assertFileEquals(
+      skillFile,
+      skillDoc("git-skill", "# edited by hand\n"),
+    );
     await h.close();
   });
 
@@ -129,14 +138,11 @@ describe("project sync", () => {
     }
     const h = await newHarness();
     const outside = h.fixtureDir("simple_skill");
-    const root = await newProject(
-      h,
-      `[skills.simple]\nsource = ${JSON.stringify(outside)}\n`,
-    );
+    const root = await newProject(h, localSkillConfig(outside));
 
     await h.mustRunIn(root, "sync");
 
-    await h.assertSymlinkTo(h.projectSkillLink(root, "simple"), outside);
+    await h.assertSymlinkTo(h.projectSkillLink(root, "simple-skill"), outside);
     await h.close();
   });
 
@@ -145,8 +151,8 @@ describe("project sync", () => {
       return;
     }
     const h = await newHarness();
-    const root = await newProject(h, '[skills.mine]\nsource = "skills/mine"\n');
-    await h.writeFile(join(root, "skills", "mine", "SKILL.md"), "# mine\n");
+    const root = await newProject(h, localSkillConfig("skills/mine"));
+    await h.writeSkill(join(root, "skills", "mine"), skillDoc("mine"));
     await h.mustRunIn(root, "sync");
 
     const handmade = h.projectSkillLink(root, "handmade");
@@ -168,8 +174,8 @@ describe("project sync", () => {
       return;
     }
     const h = await newHarness();
-    const root = await newProject(h, '[skills.mine]\nsource = "skills/mine"\n');
-    await h.writeFile(join(root, "skills", "mine", "SKILL.md"), "# mine\n");
+    const root = await newProject(h, localSkillConfig("skills/mine"));
+    await h.writeSkill(join(root, "skills", "mine"), skillDoc("mine"));
 
     await h.mustRunIn(root, "sync");
 
@@ -184,8 +190,8 @@ describe("project sync", () => {
       return;
     }
     const h = await newHarness();
-    const root = await newProject(h, '[skills.mine]\nsource = "skills/mine"\n');
-    await h.writeFile(join(root, "skills", "mine", "SKILL.md"), "# mine\n");
+    const root = await newProject(h, localSkillConfig("skills/mine"));
+    await h.writeSkill(join(root, "skills", "mine"), skillDoc("mine"));
 
     await h.mustRunIn(root, "sync");
 
@@ -209,8 +215,8 @@ describe("project sync", () => {
       return;
     }
     const h = await newHarness();
-    const root = await newProject(h, '[skills.mine]\nsource = "skills/mine"\n');
-    await h.writeFile(join(root, "skills", "mine", "SKILL.md"), "# mine\n");
+    const root = await newProject(h, localSkillConfig("skills/mine"));
+    await h.writeSkill(join(root, "skills", "mine"), skillDoc("mine"));
     await h.mustRunIn(root, "sync");
 
     await symlink("/nowhere", join(root, ".claude", "skills", "stale"));
@@ -228,10 +234,9 @@ describe("project sync", () => {
       return;
     }
     const h = await newHarness();
-    const config =
-      '[vendors.claude-code]\nenabled = true\n\n[vendors.codex]\nenabled = false\n\n[skills.mine]\nsource = "skills/mine"\n';
+    const config = `[vendors.claude-code]\nenabled = true\n\n[vendors.codex]\nenabled = false\n\n${localSkillConfig("skills/mine")}`;
     const root = await newProject(h, config);
-    await h.writeFile(join(root, "skills", "mine", "SKILL.md"), "# mine\n");
+    await h.writeSkill(join(root, "skills", "mine"), skillDoc("mine"));
 
     await h.mustRunIn(root, "sync");
 
@@ -244,6 +249,45 @@ describe("project sync", () => {
       "../../skills/mine",
     );
     await h.assertMissing(join(root, ".codex", "skills", "mine"));
+    await h.close();
+  });
+
+  it("stops when a vendored copy is renamed by hand", async () => {
+    if (isWindows()) {
+      return;
+    }
+    const h = await newHarness();
+    const repo = await newSkillRepo(h, skillDoc("git-skill"));
+    const root = await newProject(h, gitSkillConfig(repo, repo.sha));
+    await h.mustRunIn(root, "sync");
+
+    await h.writeFile(
+      join(h.vendoredSkillPath(root, "git-skill"), "SKILL.md"),
+      skillDoc("other-name"),
+    );
+
+    const { stderr, exitCode } = await h.runIn(root, "sync");
+
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toContain("other-name");
+    expect(stderr).toContain("git-skill");
+    await h.close();
+  });
+
+  it("syncs a committed vendored copy with no lock write", async () => {
+    if (isWindows()) {
+      return;
+    }
+    const h = await newHarness();
+    const repo = await newSkillRepo(h, skillDoc("git-skill"));
+    const root = await newProject(h, gitSkillConfig(repo, repo.sha));
+    await h.mustRunIn(root, "sync");
+
+    const lockBefore = await h.readFileText(h.lockPath(root));
+    const { stdout } = await h.mustRunIn(root, "sync");
+
+    expect(stdout).not.toContain("vendored into");
+    await h.assertFileEquals(h.lockPath(root), lockBefore);
     await h.close();
   });
 
@@ -269,12 +313,15 @@ describe("project skills and status", () => {
       return;
     }
     const h = await newHarness();
-    const repo = await newSkillRepo(h, "# version one\n");
+    const repo = await newSkillRepo(
+      h,
+      skillDoc("git-skill", "# version one\n"),
+    );
     const root = await newProject(
       h,
-      `${gitSkillConfig("git-skill", repo, repo.sha)}\n[skills.mine]\nsource = "skills/mine"\n`,
+      `${gitSkillConfig(repo, repo.sha)}\n${localSkillConfig("skills/mine")}`,
     );
-    await h.writeFile(join(root, "skills", "mine", "SKILL.md"), "# mine\n");
+    await h.writeSkill(join(root, "skills", "mine"), skillDoc("mine"));
     await h.mustRunIn(root, "sync");
 
     const { stdout } = await h.mustRunIn(root, "skills");
@@ -290,8 +337,8 @@ describe("project skills and status", () => {
       return;
     }
     const h = await newHarness();
-    const root = await newProject(h, '[skills.mine]\nsource = "skills/mine"\n');
-    await h.writeFile(join(root, "skills", "mine", "SKILL.md"), "# mine\n");
+    const root = await newProject(h, localSkillConfig("skills/mine"));
+    await h.writeSkill(join(root, "skills", "mine"), skillDoc("mine"));
 
     const before = await h.mustRunIn(root, "status");
     expect(before.stdout).toContain("not synced");
@@ -311,30 +358,27 @@ describe("project update", () => {
       return;
     }
     const h = await newHarness();
-    const repo = await newSkillRepo(h, "# version one\n");
-    const root = await newProject(
+    const repo = await newSkillRepo(
       h,
-      gitSkillConfig("git-skill", repo, repo.sha),
+      skillDoc("git-skill", "# version one\n"),
     );
+    const root = await newProject(h, gitSkillConfig(repo, repo.sha));
     await h.mustRunIn(root, "sync");
 
-    const next = await repo.commit("# version two\n");
-    await h.writeFile(
-      join(root, "ponte.toml"),
-      gitSkillConfig("git-skill", repo, next),
-    );
+    const next = await repo.commit(skillDoc("git-skill", "# version two\n"));
+    await h.writeFile(join(root, "ponte.toml"), gitSkillConfig(repo, next));
 
     const { stdout } = await h.mustRunIn(root, "update", "git-skill");
 
     expect(stdout).toContain(next.slice(0, 7));
     await h.assertFileEquals(
       join(h.vendoredSkillPath(root, "git-skill"), "SKILL.md"),
-      "# version two\n",
+      skillDoc("git-skill", "# version two\n"),
     );
     expect(await h.readFileText(h.lockPath(root))).toContain(next);
     await h.assertFileEquals(
       join(h.projectSkillLink(root, "git-skill"), "SKILL.md"),
-      "# version two\n",
+      skillDoc("git-skill", "# version two\n"),
     );
     await h.close();
   });
@@ -344,24 +388,53 @@ describe("project update", () => {
       return;
     }
     const h = await newHarness();
-    const repo = await newSkillRepo(h, "# version one\n");
-    const root = await newProject(
+    const repo = await newSkillRepo(
       h,
-      gitSkillConfig("git-skill", repo, repo.sha),
+      skillDoc("git-skill", "# version one\n"),
     );
+    const root = await newProject(h, gitSkillConfig(repo, repo.sha));
     await h.mustRunIn(root, "sync");
 
     const skillFile = join(h.vendoredSkillPath(root, "git-skill"), "SKILL.md");
-    await h.writeFile(skillFile, "# edited by hand\n");
+    await h.writeFile(skillFile, skillDoc("git-skill", "# edited by hand\n"));
 
     const refused = await h.runIn(root, "update");
     expect(refused.exitCode).not.toBe(0);
     expect(refused.stderr).toContain("git-skill");
     expect(refused.stderr).toContain("--force");
-    await h.assertFileEquals(skillFile, "# edited by hand\n");
+    await h.assertFileEquals(
+      skillFile,
+      skillDoc("git-skill", "# edited by hand\n"),
+    );
 
     await h.mustRunIn(root, "update", "--force");
-    await h.assertFileEquals(skillFile, "# version one\n");
+    await h.assertFileEquals(
+      skillFile,
+      skillDoc("git-skill", "# version one\n"),
+    );
+    await h.close();
+  });
+
+  it("refuses a source that declares a new name", async () => {
+    if (isWindows()) {
+      return;
+    }
+    const h = await newHarness();
+    const repo = await newSkillRepo(h, skillDoc("git-skill"));
+    const root = await newProject(h, gitSkillConfig(repo, repo.sha));
+    await h.mustRunIn(root, "sync");
+
+    const next = await repo.commit(skillDoc("renamed-skill"));
+    await h.writeFile(join(root, "ponte.toml"), gitSkillConfig(repo, next));
+
+    const { stderr, exitCode } = await h.runIn(root, "update", "git-skill");
+
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toContain("renamed-skill");
+    await h.assertFileEquals(
+      join(h.vendoredSkillPath(root, "git-skill"), "SKILL.md"),
+      skillDoc("git-skill"),
+    );
     await h.close();
   });
 
@@ -383,7 +456,7 @@ describe("project update", () => {
       return;
     }
     const h = await newHarness();
-    const root = await newProject(h, '[skills.mine]\nsource = "skills/mine"\n');
+    const root = await newProject(h, localSkillConfig("skills/mine"));
 
     const { stderr, exitCode } = await h.runIn(root, "update", "absent");
 

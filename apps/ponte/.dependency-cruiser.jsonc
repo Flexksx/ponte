@@ -48,6 +48,13 @@
       "to": { "path": "^src/infra/" }
     },
     {
+      "name": "app-goes-through-ports",
+      "comment": "A use case must take its adapters as injected dependencies, typed by a port in @ponte/core. Only src/app/bootstrap.ts wires the real adapters.",
+      "severity": "error",
+      "from": { "path": "^src/app/", "pathNot": ["^src/app/bootstrap\\.ts$"] },
+      "to": { "path": "^src/infra/" }
+    },
+    {
       "name": "infra-is-a-leaf",
       "comment": "An adapter must not call back into a use case or the CLI.",
       "severity": "error",

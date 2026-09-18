@@ -7,17 +7,13 @@ import {
 } from "../src/infra/config-codec";
 
 describe("decodeProjectConfig", () => {
-  it("decodes skill entries", () => {
+  it("decodes skill entries as an ordered array", () => {
     const config = decodeProjectConfig({
-      skills: {
-        mine: { source: "https://x/y", ref: "abc", subdir: "sub" },
-      },
+      skills: [{ source: "https://x/y", ref: "abc", subdir: "sub" }],
     });
-    expect(config.skills.mine).toEqual({
-      source: "https://x/y",
-      ref: "abc",
-      subdir: "sub",
-    });
+    expect(config.skills).toEqual([
+      { source: "https://x/y", ref: "abc", subdir: "sub" },
+    ]);
   });
 
   it("rejects an unknown top-level key", () => {
@@ -39,14 +35,14 @@ describe("decodeProjectConfig", () => {
         "claude-code": { enabled: true },
         codex: { enabled: false },
       },
-      skills: { mine: { source: "https://x/y" } },
+      skills: [{ source: "https://x/y" }],
     });
     expect(config.vendors?.["claude-code"]?.enabled).toBe(true);
     expect(config.vendors?.codex?.enabled).toBe(false);
   });
 
   it("treats missing vendors section as all enabled", () => {
-    const config = decodeProjectConfig({ skills: {} });
+    const config = decodeProjectConfig({ skills: [] });
     expect(config.vendors).toBe(undefined);
   });
 
@@ -54,7 +50,7 @@ describe("decodeProjectConfig", () => {
     try {
       decodeProjectConfig({
         vendors: { "not-a-vendor": { enabled: true } },
-        skills: {},
+        skills: [],
       });
       expect(true).toBe(false);
     } catch (e) {
@@ -65,23 +61,41 @@ describe("decodeProjectConfig", () => {
 
   it("rejects an entry without a source", () => {
     try {
-      decodeProjectConfig({ skills: { mine: { ref: "abc" } } });
+      decodeProjectConfig({ skills: [{ ref: "abc" }] });
       expect(true).toBe(false);
     } catch (e) {
       expect(e instanceof ConfigError).toBe(true);
     }
   });
+
+  it("tells a named skill table how to migrate", () => {
+    try {
+      decodeProjectConfig({ skills: { mine: { source: "skills/mine" } } });
+      expect(true).toBe(false);
+    } catch (e) {
+      expect((e as ConfigError).message).toContain("[[skills]]");
+    }
+  });
 });
 
 describe("lock file", () => {
-  it("round-trips a commit per skill", () => {
+  it("round-trips the source, the subdir and the commit per skill", () => {
+    const lock = {
+      skills: {
+        mine: { source: "https://x/y", subdir: "sub", commit: "abc123" },
+      },
+    };
+    const encoded = encodeLock(lock);
+    expect(encoded).toContain("[skills.mine]");
+    expect(encoded).toContain('source = "https://x/y"');
+    expect(decodeLock(Bun.TOML.parse(encoded))).toEqual(lock);
+  });
+
+  it("omits an empty subdir", () => {
     const encoded = encodeLock({
-      skills: { mine: { commit: "abc123" } },
+      skills: { mine: { source: "https://x/y", commit: "abc123" } },
     });
-    expect(encoded).toContain('[skills.mine]\ncommit = "abc123"');
-    expect(decodeLock(Bun.TOML.parse(encoded))).toEqual({
-      skills: { mine: { commit: "abc123" } },
-    });
+    expect(encoded).not.toContain("subdir");
   });
 
   it("encodes an empty lock without a table", () => {
@@ -92,10 +106,20 @@ describe("lock file", () => {
 
   it("rejects an entry without a commit", () => {
     try {
-      decodeLock({ skills: { mine: {} } });
+      decodeLock({ skills: { mine: { source: "https://x/y" } } });
       expect(true).toBe(false);
     } catch (e) {
       expect(e instanceof ConfigError).toBe(true);
+    }
+  });
+
+  it("rejects a lock entry from an older ponte that has no source", () => {
+    try {
+      decodeLock({ skills: { mine: { commit: "abc123" } } });
+      expect(true).toBe(false);
+    } catch (e) {
+      expect(e instanceof ConfigError).toBe(true);
+      expect((e as ConfigError).message).toContain("source");
     }
   });
 });

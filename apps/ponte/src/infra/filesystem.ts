@@ -27,6 +27,11 @@ export const writeText = async (
   await writeFile(path, content);
 };
 
+export const readTextFile = async (path: string): Promise<string | null> => {
+  const file = Bun.file(path);
+  return (await file.exists()) ? await file.text() : null;
+};
+
 export const listFiles = async (directory: string): Promise<string[]> => {
   const names = await readdir(directory, { recursive: true });
   const files: string[] = [];

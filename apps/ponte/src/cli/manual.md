@@ -66,6 +66,20 @@ A skill source resolves to one skill directory, in the format at
 [agentskills.io](https://agentskills.io). The vendor links to the whole
 directory.
 
+The configuration declares no skill name. After a source resolves, ponte
+reads the `name` field from the frontmatter of `SKILL.md`, and it uses that
+name for the link, for the vendored directory and for the lock entry. A name
+holds 1 to 64 characters from `a-z`, `0-9` and single hyphens. It starts and
+ends with a letter or a digit.
+
+ponte stops with an error in these cases:
+
+- The skill directory holds no `SKILL.md`.
+- `SKILL.md` has no frontmatter block.
+- The frontmatter declares no `name`.
+- The name breaks the rules above.
+- Two skill entries declare the same name.
+
 ### Subagents
 
 A subagent source resolves to a directory of agent definition files, not to
@@ -74,6 +88,9 @@ flattened by basename, into each enabled vendor agents directory. With
 `source = "subagents/claude"`, the file
 `subagents/claude/code-investigator.md` lands at
 `~/.claude/agents/code-investigator.md`.
+
+The file name is the link name, so the configuration declares no subagent
+name either.
 
 In practice only `claude-code` reads an agents directory. The other vendors
 get the files at `<vendor-root>/agents/` anyway.
@@ -100,17 +117,17 @@ cursor-agent    = { enabled = false }
 opencode        = { enabled = true }
 pi-agent        = { enabled = true }
 
-# One [skills.<name>] section per skill.
-[skills.software-engineering]
+# One [[skills]] section per skill. ponte reads the name from SKILL.md.
+[[skills]]
 source = "skills/software-engineering"
 
-[skills.ast-grep]
+[[skills]]
 source = "https://github.com/example/ast-grep-skill"
 ref    = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
 subdir = ""
 
-# One [subagents.<name>] section per subagent.
-[subagents.claude]
+# One [[subagents]] section per subagent source.
+[[subagents]]
 source = "subagents/claude"
 ```
 
@@ -118,10 +135,10 @@ source = "subagents/claude"
 |-----|------|---------|---------|
 | `system_prompt_file` | string | `AGENTS.md` | Path to the system prompt file. |
 | `[vendors.<vendor>].enabled` | bool | `true` | Whether a sync targets that vendor. |
-| `[skills.<name>].source` | string | — | Path or git URL. |
-| `[skills.<name>].ref` | string | — | Git only. |
-| `[skills.<name>].subdir` | string | — | Git only. |
-| `[subagents.<name>]` | table | — | Same three fields as a skill. |
+| `[[skills]].source` | string | — | Path or git URL. |
+| `[[skills]].ref` | string | — | Git only. |
+| `[[skills]].subdir` | string | — | Git only. |
+| `[[subagents]]` | table | — | Same three fields as a skill. |
 
 ---
 
@@ -141,12 +158,12 @@ enabled = true
 [vendors.codex]
 enabled = false
 
-[skills.ast-grep]
+[[skills]]
 source = "https://github.com/example/ast-grep-skill"
 ref    = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
 subdir = ""
 
-[skills.house-style]
+[[skills]]
 source = "skills/house-style"   # relative to the project root
 ```
 
@@ -187,19 +204,29 @@ directory, so the project owns the files.
 a local edit survives every later sync. Commit the edit. To take a new
 version of the skill, run `ponte update <name>`.
 
+If the source declares a new name, `ponte update` stops and keeps the old
+copy. Run `ponte sync` to vendor the skill under the new name, then delete
+the old directory by hand.
+
 A local source is never copied. The link points straight at the directory.
 
 ### The lock file
 
-`.ponte/lock.toml` records the commit that each vendored skill came from.
+`.ponte/lock.toml` records the source and the commit of each vendored skill.
+The table name is the name from `SKILL.md`.
 
 ```toml
 [skills.ast-grep]
+source = "https://github.com/example/ast-grep-skill"
 commit = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
 ```
 
-`ponte sync` writes an entry when it vendors a skill. `ponte update` writes
-the new commit and reads the file to find local edits.
+`ponte sync` writes an entry when it vendors a skill. A later sync matches a
+configuration entry to its lock entry by source, so a clone with a committed
+`.ponte/sources/` needs no network.
+
+`ponte sync` also checks the `SKILL.md` name of each vendored copy against
+its directory name. If the two differ, `ponte sync` stops.
 
 ### What to commit
 
@@ -300,6 +327,10 @@ one state for the whole set.
 List the declared skills with each name, source type, and resolved source.
 Prints `No skills configured.` when the configuration declares none.
 
+In global mode, the `NAME` column holds the name from `SKILL.md` for a local
+source. For a git source it holds `—`, because ponte does not clone a
+repository to list it.
+
 ```text
 ponte skills
 ```
@@ -312,9 +343,10 @@ file, or `—` when the lock file has no entry for the skill.
 
 ### `ponte subagents`
 
-List the declared subagents with each name, source type, and resolved
+List the declared subagent sources with each source type and resolved
 source. Prints `No subagents configured.` when the configuration declares
-none.
+none. A subagent source carries no name, so the listing has no `NAME`
+column.
 
 ```text
 ponte subagents
@@ -355,6 +387,22 @@ Print this manual to stdout.
 ```text
 ponte manual | less
 ```
+
+---
+
+## Migration from a named skill table
+
+An older ponte declared each skill and each subagent as a named table. That
+form is now an error, because the name of a skill belongs in `SKILL.md` and
+the name of a subagent is its file name.
+
+1. Replace every `[skills.<name>]` section with `[[skills]]`.
+2. Replace every `[subagents.<name>]` section with `[[subagents]]`.
+3. Check that each skill source holds a `SKILL.md` with a `name` field.
+4. Run `ponte sync`.
+
+An old `.ponte/lock.toml` holds no `source` field, so ponte rejects it.
+Delete `.ponte/lock.toml` and `.ponte/sources/`, then run `ponte sync`.
 
 ---
 
