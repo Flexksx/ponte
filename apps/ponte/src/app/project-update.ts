@@ -21,11 +21,7 @@ import {
   vendoredSkillPath,
   type WriteProjectLock,
 } from "@ponte/core";
-import {
-  type FetchedSkill,
-  type FetchSkill,
-  vendorSkill,
-} from "./project-resolve";
+import type { FetchedSkill, FetchSkill, VendorSkill } from "./project-resolve";
 
 export type UpdatedSkill = {
   readonly name: string;
@@ -47,6 +43,7 @@ type UpdateDeps = {
   writeProjectLock: WriteProjectLock;
   resolveSource: ResolveSource;
   fetchSkill: FetchSkill;
+  vendorSkill: VendorSkill;
   directoryExists: DirectoryExists;
   removeDirectory: RemoveDirectory;
   directoriesDiffer: DirectoriesDiffer;
@@ -145,7 +142,7 @@ export const createRunProjectUpdate = (deps: UpdateDeps) => {
       await deps.removeDirectory(
         vendoredSkillPath(project.layout, target.name),
       );
-      await vendorSkill(project.layout, fetched);
+      await deps.vendorSkill(project.layout, fetched);
       if (fetched.commit !== null) {
         locked[target.name] = createLockEntry(target.entry, fetched.commit);
       }

@@ -1,5 +1,6 @@
 import {
   buildProjectPlan,
+  type CopyDirectoryWithoutGit,
   createLockEntry,
   type DirectoryExists,
   describeSourceEntry,
@@ -19,8 +20,7 @@ import {
   type VendorPlan,
   vendoredSkillPath,
 } from "@ponte/core";
-import { copyDirectoryWithoutGit } from "../infra/filesystem";
-import { checkVendoredSkillName, readSkillName } from "./skill-name";
+import type { SkillNames } from "./skill-name";
 
 export type ProjectSkill = {
   readonly name: string;
@@ -46,6 +46,11 @@ export type ProjectResolution = {
 
 export type FetchSkill = (entry: SourceEntry) => Promise<FetchedSkill>;
 
+export type VendorSkill = (
+  layout: ProjectLayout,
+  fetched: FetchedSkill,
+) => Promise<void>;
+
 export type ResolveProjectSkills = (
   project: Project,
   materialize: boolean,
@@ -53,23 +58,29 @@ export type ResolveProjectSkills = (
 
 type FetchSkillDeps = {
   resolveSourceDetails: ResolveSourceDetails;
+  skillNames: SkillNames;
+};
+
+type VendorSkillDeps = {
+  copyDirectoryWithoutGit: CopyDirectoryWithoutGit;
 };
 
 type ResolveProjectSkillsDeps = {
   readProjectLock: ReadProjectLock;
   resolveSource: ResolveSource;
   directoryExists: DirectoryExists;
+  skillNames: SkillNames;
   fetchSkill: FetchSkill;
+  vendorSkill: VendorSkill;
 };
 
-export const vendorSkill = (
-  layout: ProjectLayout,
-  fetched: FetchedSkill,
-): Promise<void> =>
-  copyDirectoryWithoutGit(
-    fetched.directory,
-    vendoredSkillPath(layout, fetched.name),
-  );
+export const createVendorSkill =
+  (deps: VendorSkillDeps): VendorSkill =>
+  (layout, fetched) =>
+    deps.copyDirectoryWithoutGit(
+      fetched.directory,
+      vendoredSkillPath(layout, fetched.name),
+    );
 
 export const createFetchSkill =
   (deps: FetchSkillDeps): FetchSkill =>
@@ -78,7 +89,10 @@ export const createFetchSkill =
       parseSource(entry.source, entry.ref, entry.subdir),
     );
     return {
-      name: await readSkillName(describeSourceEntry(entry), resolved.directory),
+      name: await deps.skillNames.read(
+        describeSourceEntry(entry),
+        resolved.directory,
+      ),
       directory: resolved.directory,
       commit: resolved.commit,
     };
@@ -95,7 +109,7 @@ export const createResolveProjectSkills = (
       parseSource(entry.source, entry.ref, entry.subdir),
     );
     return {
-      name: await readSkillName(source, directory),
+      name: await deps.skillNames.read(source, directory),
       source,
       directory,
       vendored: false,
@@ -118,7 +132,7 @@ export const createResolveProjectSkills = (
     if (!(await deps.directoryExists(directory))) {
       return null;
     }
-    await checkVendoredSkillName(source, directory);
+    await deps.skillNames.checkVendored(source, directory);
     return { name, source, directory, vendored: true, commit: locked.commit };
   };
 
@@ -130,9 +144,9 @@ export const createResolveProjectSkills = (
     const fetched = await deps.fetchSkill(entry);
     const directory = vendoredSkillPath(layout, fetched.name);
     if (await deps.directoryExists(directory)) {
-      await checkVendoredSkillName(source, directory);
+      await deps.skillNames.checkVendored(source, directory);
     } else {
-      await vendorSkill(layout, fetched);
+      await deps.vendorSkill(layout, fetched);
     }
     return {
       name: fetched.name,

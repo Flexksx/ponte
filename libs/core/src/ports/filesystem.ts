@@ -7,3 +7,10 @@ export type DirectoriesDiffer = (
   left: string,
   right: string,
 ) => Promise<boolean>;
+
+export type ReadTextFile = (path: string) => Promise<string | null>;
+
+export type CopyDirectoryWithoutGit = (
+  from: string,
+  to: string,
+) => Promise<void>;
