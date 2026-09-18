@@ -38,6 +38,20 @@ bun build ./apps/ponte/src/index.ts --compile --outfile ./out/ponte
 
 A [home-manager module](#home-manager-module) is also available.
 
+### Binary cache
+
+CI pushes every Nix build to [Cachix](https://cachix.org), so a Nix user
+downloads ponte instead of building it. The flake declares the cache. Nix
+asks you to accept it on the first build.
+
+If Nix prints a warning about an untrusted substituter, add the cache to
+`/etc/nix/nix.conf` or `~/.config/nix/nix.conf`:
+
+```conf
+extra-substituters = https://ponte.cachix.org
+extra-trusted-public-keys = ponte.cachix.org-1:REQfejqCR1XgRu8BkS1LYEq/jTyjUpY4UZX37svuStk=
+```
+
 ## Quick start
 
 ```sh
