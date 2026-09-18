@@ -1,53 +1,38 @@
 import { basename } from "node:path";
 import {
-  MissingSkillFileError,
   parseSkillName,
-  type ReadTextFile,
   skillFilePath,
   VendoredSkillRenamedError,
 } from "@ponte/core";
+import { readTextFile } from "../infra/filesystem";
 
-export type SkillNames = {
-  readonly read: (source: string, directory: string) => Promise<string>;
-  readonly readOrNull: (directory: string) => Promise<string | null>;
-  readonly checkVendored: (source: string, directory: string) => Promise<void>;
+export const readSkillName = async (
+  source: string,
+  directory: string,
+): Promise<string> =>
+  parseSkillName(
+    source,
+    directory,
+    await readTextFile(skillFilePath(directory)),
+  );
+
+export const readSkillNameOrNull = async (
+  directory: string,
+): Promise<string | null> => {
+  try {
+    return await readSkillName(directory, directory);
+  } catch {
+    return null;
+  }
 };
 
-type SkillNamesDeps = {
-  readTextFile: ReadTextFile;
-};
-
-export const createSkillNames = (deps: SkillNamesDeps): SkillNames => {
-  const read = async (source: string, directory: string): Promise<string> => {
-    const text = await deps.readTextFile(skillFilePath(directory));
-    if (text === null) {
-      throw new MissingSkillFileError(source, directory);
-    }
-    return parseSkillName(source, directory, text);
-  };
-
-  const readOrNull = async (directory: string): Promise<string | null> => {
-    const text = await deps.readTextFile(skillFilePath(directory));
-    if (text === null) {
-      return null;
-    }
-    try {
-      return parseSkillName(directory, directory, text);
-    } catch {
-      return null;
-    }
-  };
-
-  const checkVendored = async (
-    source: string,
-    directory: string,
-  ): Promise<void> => {
-    const name = basename(directory);
-    const declared = await read(source, directory);
-    if (declared !== name) {
-      throw new VendoredSkillRenamedError(directory, name, declared);
-    }
-  };
-
-  return { read, readOrNull, checkVendored };
+export const checkVendoredSkillName = async (
+  source: string,
+  directory: string,
+): Promise<void> => {
+  const name = basename(directory);
+  const declared = await readSkillName(source, directory);
+  if (declared !== name) {
+    throw new VendoredSkillRenamedError(directory, name, declared);
+  }
 };

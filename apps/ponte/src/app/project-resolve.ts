@@ -1,6 +1,5 @@
 import {
   buildProjectPlan,
-  type CopyDirectoryWithoutGit,
   createLockEntry,
   type DirectoryExists,
   describeSourceEntry,
@@ -8,7 +7,6 @@ import {
   isGitSource,
   type LockEntry,
   locksAreEqual,
-  type NamedSkill,
   type Project,
   type ProjectLayout,
   type ProjectLock,
@@ -21,10 +19,12 @@ import {
   type VendorPlan,
   vendoredSkillPath,
 } from "@ponte/core";
-import type { SkillNames } from "./skill-name";
+import { copyDirectoryWithoutGit } from "../infra/filesystem";
+import { checkVendoredSkillName, readSkillName } from "./skill-name";
 
 export type ProjectSkill = {
   readonly name: string;
+  readonly source: string;
   readonly directory: string;
   readonly vendored: boolean;
   readonly commit: string | null;
@@ -46,38 +46,30 @@ export type ProjectResolution = {
 
 export type FetchSkill = (entry: SourceEntry) => Promise<FetchedSkill>;
 
-export type VendorSkill = (
-  layout: ProjectLayout,
-  fetched: FetchedSkill,
-) => Promise<void>;
-
 export type ResolveProjectSkills = (
   project: Project,
   materialize: boolean,
 ) => Promise<ProjectResolution>;
 
-type MatchedSkill = {
-  readonly skill: ProjectSkill;
-  readonly locked: LockEntry;
-};
-
 type FetchSkillDeps = {
   resolveSourceDetails: ResolveSourceDetails;
-  skillNames: SkillNames;
-};
-
-type VendorSkillDeps = {
-  copyDirectoryWithoutGit: CopyDirectoryWithoutGit;
 };
 
 type ResolveProjectSkillsDeps = {
   readProjectLock: ReadProjectLock;
   resolveSource: ResolveSource;
   directoryExists: DirectoryExists;
-  skillNames: SkillNames;
   fetchSkill: FetchSkill;
-  vendorSkill: VendorSkill;
 };
+
+export const vendorSkill = (
+  layout: ProjectLayout,
+  fetched: FetchedSkill,
+): Promise<void> =>
+  copyDirectoryWithoutGit(
+    fetched.directory,
+    vendoredSkillPath(layout, fetched.name),
+  );
 
 export const createFetchSkill =
   (deps: FetchSkillDeps): FetchSkill =>
@@ -86,32 +78,25 @@ export const createFetchSkill =
       parseSource(entry.source, entry.ref, entry.subdir),
     );
     return {
-      name: await deps.skillNames.read(
-        describeSourceEntry(entry),
-        resolved.directory,
-      ),
+      name: await readSkillName(describeSourceEntry(entry), resolved.directory),
       directory: resolved.directory,
       commit: resolved.commit,
     };
   };
 
-export const createVendorSkill =
-  (deps: VendorSkillDeps): VendorSkill =>
-  (layout, fetched) =>
-    deps.copyDirectoryWithoutGit(
-      fetched.directory,
-      vendoredSkillPath(layout, fetched.name),
-    );
-
 export const createResolveProjectSkills = (
   deps: ResolveProjectSkillsDeps,
 ): ResolveProjectSkills => {
-  const localSkill = async (entry: SourceEntry): Promise<ProjectSkill> => {
+  const localSkill = async (
+    entry: SourceEntry,
+    source: string,
+  ): Promise<ProjectSkill> => {
     const directory = await deps.resolveSource(
       parseSource(entry.source, entry.ref, entry.subdir),
     );
     return {
-      name: await deps.skillNames.read(describeSourceEntry(entry), directory),
+      name: await readSkillName(source, directory),
+      source,
       directory,
       vendored: false,
       commit: null,
@@ -123,24 +108,18 @@ export const createResolveProjectSkills = (
     lock: ProjectLock,
     entry: SourceEntry,
     source: string,
-  ): Promise<MatchedSkill | null> => {
+  ): Promise<ProjectSkill | null> => {
     const name = findLockedSkillName(lock, entry);
-    if (name === null) {
-      return null;
-    }
-    const locked = lock.skills[name];
-    if (locked === undefined) {
+    const locked = name === null ? undefined : lock.skills[name];
+    if (name === null || locked === undefined) {
       return null;
     }
     const directory = vendoredSkillPath(layout, name);
     if (!(await deps.directoryExists(directory))) {
       return null;
     }
-    await deps.skillNames.checkVendored(source, directory);
-    return {
-      skill: { name, directory, vendored: true, commit: locked.commit },
-      locked,
-    };
+    await checkVendoredSkillName(source, directory);
+    return { name, source, directory, vendored: true, commit: locked.commit };
   };
 
   const freshVendoredSkill = async (
@@ -151,12 +130,13 @@ export const createResolveProjectSkills = (
     const fetched = await deps.fetchSkill(entry);
     const directory = vendoredSkillPath(layout, fetched.name);
     if (await deps.directoryExists(directory)) {
-      await deps.skillNames.checkVendored(source, directory);
+      await checkVendoredSkillName(source, directory);
     } else {
-      await deps.vendorSkill(layout, fetched);
+      await vendorSkill(layout, fetched);
     }
     return {
       name: fetched.name,
+      source,
       directory,
       vendored: true,
       commit: fetched.commit,
@@ -167,14 +147,11 @@ export const createResolveProjectSkills = (
     const lock = await deps.readProjectLock(project.layout);
     const locked: Record<string, LockEntry> = {};
     const skills: ProjectSkill[] = [];
-    const named: NamedSkill[] = [];
     let pending = 0;
     for (const entry of project.config.skills) {
       const source = describeSourceEntry(entry);
       if (!isGitSource(entry.source)) {
-        const skill = await localSkill(entry);
-        skills.push(skill);
-        named.push({ name: skill.name, source });
+        skills.push(await localSkill(entry, source));
         continue;
       }
       const matched = await matchedVendoredSkill(
@@ -183,24 +160,20 @@ export const createResolveProjectSkills = (
         entry,
         source,
       );
-      if (matched !== null) {
-        locked[matched.skill.name] = matched.locked;
-        skills.push(matched.skill);
-        named.push({ name: matched.skill.name, source });
-        continue;
+      if (matched === null) {
+        pending += 1;
+        if (!materialize) {
+          continue;
+        }
       }
-      pending += 1;
-      if (!materialize) {
-        continue;
-      }
-      const skill = await freshVendoredSkill(project.layout, entry, source);
+      const skill =
+        matched ?? (await freshVendoredSkill(project.layout, entry, source));
       if (skill.commit !== null) {
         locked[skill.name] = createLockEntry(entry, skill.commit);
       }
       skills.push(skill);
-      named.push({ name: skill.name, source });
     }
-    requireUniqueSkillNames(named);
+    requireUniqueSkillNames(skills);
     const next: ProjectLock = { skills: materialize ? locked : lock.skills };
     return {
       skills,

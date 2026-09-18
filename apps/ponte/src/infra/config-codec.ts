@@ -324,7 +324,7 @@ export const decodeLock = (value: unknown): ProjectLock => {
   return lock;
 };
 
-const lockEntryLines = (name: string, entry: LockEntry): string => {
+const lockEntryTable = (name: string, entry: LockEntry): string => {
   const lines = [
     `[skills.${tomlKey(name)}]`,
     `source = ${tomlString(entry.source)}`,
@@ -338,7 +338,7 @@ const lockEntryLines = (name: string, entry: LockEntry): string => {
 
 export const encodeLock = (lock: ProjectLock): string => {
   const tables = Object.entries(lock.skills).map(([name, entry]) =>
-    lockEntryLines(name, entry),
+    lockEntryTable(name, entry),
   );
   return `${LOCK_HEADER}${tables.length === 0 ? "" : `\n${tables.join("\n")}`}`;
 };

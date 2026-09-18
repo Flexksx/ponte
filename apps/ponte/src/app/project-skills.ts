@@ -6,7 +6,7 @@ import {
   type ProjectSkillRow,
   type ReadProjectLock,
 } from "@ponte/core";
-import type { SkillNames } from "./skill-name";
+import { readSkillNameOrNull } from "./skill-name";
 
 export type ListProjectSkills = (
   project: Project,
@@ -16,12 +16,20 @@ export type ListConfigSkills = (config: Config) => Promise<ProjectSkillRow[]>;
 
 type ListProjectSkillsDeps = {
   readProjectLock: ReadProjectLock;
-  skillNames: SkillNames;
 };
 
-type ListConfigSkillsDeps = {
-  skillNames: SkillNames;
-};
+export const listConfigSkills: ListConfigSkills = config =>
+  Promise.all(
+    config.skills.map(async entry => {
+      const git = isGitSource(entry.source);
+      return {
+        name: git ? null : await readSkillNameOrNull(entry.source),
+        entry,
+        vendored: git,
+        commit: null,
+      };
+    }),
+  );
 
 export const createListProjectSkills =
   (deps: ListProjectSkillsDeps): ListProjectSkills =>
@@ -31,7 +39,7 @@ export const createListProjectSkills =
     for (const entry of project.config.skills) {
       if (!isGitSource(entry.source)) {
         rows.push({
-          name: await deps.skillNames.readOrNull(entry.source),
+          name: await readSkillNameOrNull(entry.source),
           entry,
           vendored: false,
           commit: null,
@@ -44,22 +52,6 @@ export const createListProjectSkills =
         entry,
         vendored: true,
         commit: name === null ? null : (lock.skills[name]?.commit ?? null),
-      });
-    }
-    return rows;
-  };
-
-export const createListConfigSkills =
-  (deps: ListConfigSkillsDeps): ListConfigSkills =>
-  async config => {
-    const rows: ProjectSkillRow[] = [];
-    for (const entry of config.skills) {
-      const git = isGitSource(entry.source);
-      rows.push({
-        name: git ? null : await deps.skillNames.readOrNull(entry.source),
-        entry,
-        vendored: git,
-        commit: null,
       });
     }
     return rows;

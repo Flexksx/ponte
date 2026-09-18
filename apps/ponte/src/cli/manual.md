@@ -221,10 +221,9 @@ source = "https://github.com/example/ast-grep-skill"
 commit = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
 ```
 
-`ponte sync` writes an entry when it vendors a skill. Because the entry
-holds the source, a later sync matches a configuration entry to its lock
-entry and reads the name from the file. A clone with a committed
-`.ponte/sources/` therefore needs no network.
+`ponte sync` writes an entry when it vendors a skill. A later sync matches a
+configuration entry to its lock entry by source, so a clone with a committed
+`.ponte/sources/` needs no network.
 
 `ponte sync` also checks the `SKILL.md` name of each vendored copy against
 its directory name. If the two differ, `ponte sync` stops.
@@ -399,9 +398,8 @@ the name of a subagent is its file name.
 
 1. Replace every `[skills.<name>]` section with `[[skills]]`.
 2. Replace every `[subagents.<name>]` section with `[[subagents]]`.
-3. Delete the name from each section.
-4. Check that each skill source holds a `SKILL.md` with a `name` field.
-5. Run `ponte sync`.
+3. Check that each skill source holds a `SKILL.md` with a `name` field.
+4. Run `ponte sync`.
 
 An old `.ponte/lock.toml` holds no `source` field, so ponte rejects it.
 Delete `.ponte/lock.toml` and `.ponte/sources/`, then run `ponte sync`.

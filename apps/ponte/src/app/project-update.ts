@@ -4,9 +4,9 @@ import {
   type DirectoriesDiffer,
   type DirectoryExists,
   err,
-  findUpdateTarget,
   type LockEntry,
   ok,
+  PROJECT_CONFIG_FILE,
   PROJECT_SOURCES_DIRECTORY,
   type Project,
   type ProjectLayout,
@@ -21,7 +21,11 @@ import {
   vendoredSkillPath,
   type WriteProjectLock,
 } from "@ponte/core";
-import type { FetchedSkill, FetchSkill, VendorSkill } from "./project-resolve";
+import {
+  type FetchedSkill,
+  type FetchSkill,
+  vendorSkill,
+} from "./project-resolve";
 
 export type UpdatedSkill = {
   readonly name: string;
@@ -43,7 +47,6 @@ type UpdateDeps = {
   writeProjectLock: WriteProjectLock;
   resolveSource: ResolveSource;
   fetchSkill: FetchSkill;
-  vendorSkill: VendorSkill;
   directoryExists: DirectoryExists;
   removeDirectory: RemoveDirectory;
   directoriesDiffer: DirectoriesDiffer;
@@ -58,11 +61,13 @@ const updateTargets = (
   if (name === undefined) {
     return ok(targets);
   }
-  const target = findUpdateTarget(targets, name, PROJECT_SOURCES_DIRECTORY);
-  if (!target.ok) {
-    return target;
+  const target = targets.find(candidate => candidate.name === name);
+  if (target === undefined) {
+    return err(
+      `unknown vendored skill: ${name} - ponte update works on the git skills that ${PROJECT_CONFIG_FILE} declares and ${PROJECT_SOURCES_DIRECTORY} holds`,
+    );
   }
-  return ok([target.value]);
+  return ok([target]);
 };
 
 export const createRunProjectUpdate = (deps: UpdateDeps) => {
@@ -140,7 +145,7 @@ export const createRunProjectUpdate = (deps: UpdateDeps) => {
       await deps.removeDirectory(
         vendoredSkillPath(project.layout, target.name),
       );
-      await deps.vendorSkill(project.layout, fetched);
+      await vendorSkill(project.layout, fetched);
       if (fetched.commit !== null) {
         locked[target.name] = createLockEntry(target.entry, fetched.commit);
       }

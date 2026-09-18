@@ -4,7 +4,6 @@ import {
   buildUpdateTargets,
   createLockEntry,
   findLockedSkillName,
-  findUpdateTarget,
   formatShortCommit,
   getAncestorDirectories,
   getProjectEnabledVendors,
@@ -265,22 +264,6 @@ describe("buildUpdateTargets", () => {
     expect(
       buildUpdateTargets({ skills: [{ source: "skills/local" }] }, lock),
     ).toEqual([]);
-  });
-});
-
-describe("findUpdateTarget", () => {
-  const targets = [{ name: "ast-grep", entry: { source: "https://x/y" } }];
-
-  it("finds a target by name", () => {
-    const found = findUpdateTarget(targets, "ast-grep", ".ponte/sources");
-    expect(found.ok && found.value.name).toBe("ast-grep");
-  });
-
-  it("reports an unknown name with the sources directory", () => {
-    const found = findUpdateTarget(targets, "absent", ".ponte/sources");
-    expect(found.ok).toBe(false);
-    expect(!found.ok && found.error).toContain("absent");
-    expect(!found.ok && found.error).toContain(".ponte/sources");
   });
 });
 

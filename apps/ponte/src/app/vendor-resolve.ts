@@ -15,7 +15,7 @@ import {
   type VendorName,
   type VendorPlan,
 } from "@ponte/core";
-import type { SkillNames } from "./skill-name";
+import { readSkillName } from "./skill-name";
 
 export type BuildVendorPlans = (
   config: Config,
@@ -25,7 +25,6 @@ export type BuildVendorPlans = (
 type BuildVendorPlansDeps = {
   resolveSource: ResolveSource;
   listFiles: ListFiles;
-  skillNames: SkillNames;
   home: string;
   platform: Platform;
 };
@@ -41,7 +40,7 @@ export const createBuildVendorPlans =
     for (const entry of config.skills) {
       const source = describeSourceEntry(entry);
       const sourceDirectory = await resolveDirectory(entry);
-      const name = await deps.skillNames.read(source, sourceDirectory);
+      const name = await readSkillName(source, sourceDirectory);
       skills.push({ name, sourceDirectory });
       named.push({ name, source });
     }

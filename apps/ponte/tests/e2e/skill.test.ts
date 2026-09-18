@@ -258,18 +258,4 @@ describe("skill name errors", () => {
     expect(stderr).toContain(second);
     await h.close();
   });
-
-  it("tells a named skill table how to migrate", async () => {
-    const h = await newHarness();
-    await h.bootstrap();
-
-    await h.appendConfig('[skills.mine]\nsource = "skills/mine"\n');
-
-    const { stderr, exitCode } = await h.run("sync");
-
-    expect(exitCode).not.toBe(0);
-    expect(stderr).toContain("[[skills]]");
-    expect(stderr).toContain("SKILL.md");
-    await h.close();
-  });
 });

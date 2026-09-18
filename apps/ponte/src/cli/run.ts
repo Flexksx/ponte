@@ -196,6 +196,9 @@ const runStatusCommand = async (app: App, args: string[]): Promise<void> => {
 const nameColumn = (rows: readonly ProjectSkillRow[]): number =>
   Math.max(4, ...rows.map(row => (row.name ?? NO_VALUE).length));
 
+const nameCell = (name: string | null, width: number): string =>
+  name === null ? chalk.dim(NO_VALUE.padEnd(width)) : name.padEnd(width);
+
 const printConfigSkills = (rows: readonly ProjectSkillRow[]): void => {
   if (rows.length === 0) {
     write("No skills configured.\n");
@@ -206,13 +209,9 @@ const printConfigSkills = (rows: readonly ProjectSkillRow[]): void => {
     `${chalk.bold(`${"NAME".padEnd(width)}  ${"TYPE".padEnd(TYPE_COLUMN)}  SOURCE`)}\n`,
   );
   for (const row of rows) {
-    const name =
-      row.name === null
-        ? chalk.dim(NO_VALUE.padEnd(width))
-        : row.name.padEnd(width);
     const type = row.vendored ? "git" : "local";
     write(
-      `${name}  ${chalk.dim(type.padEnd(TYPE_COLUMN))}  ${describeSourceEntry(row.entry)}\n`,
+      `${nameCell(row.name, width)}  ${chalk.dim(type.padEnd(TYPE_COLUMN))}  ${describeSourceEntry(row.entry)}\n`,
     );
   }
 };
@@ -243,15 +242,11 @@ const printProjectSkills = (rows: readonly ProjectSkillRow[]): void => {
     )}\n`,
   );
   for (const row of rows) {
-    const name =
-      row.name === null
-        ? chalk.dim(NO_VALUE.padEnd(width))
-        : row.name.padEnd(width);
     const kind = row.vendored ? "vendored" : "local";
     const commit =
       row.commit === null ? NO_VALUE : formatShortCommit(row.commit);
     write(
-      `${name}  ${chalk.dim(kind.padEnd(KIND_COLUMN))}  ${chalk.dim(commit.padEnd(COMMIT_COLUMN))}  ${describeSourceEntry(row.entry)}\n`,
+      `${nameCell(row.name, width)}  ${chalk.dim(kind.padEnd(KIND_COLUMN))}  ${chalk.dim(commit.padEnd(COMMIT_COLUMN))}  ${describeSourceEntry(row.entry)}\n`,
     );
   }
 };

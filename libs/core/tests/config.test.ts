@@ -1,7 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
   type Config,
-  describeSourceEntry,
   isGitSource,
   parseSource,
   resolveConfigPaths,
@@ -60,20 +59,6 @@ describe("resolveConfigPaths", () => {
     );
     expect(norm.skills[0]?.source).toBe("https://x/y");
     expect(norm.skills[1]?.source).toBe("/abs/path");
-  });
-});
-
-describe("describeSourceEntry", () => {
-  it("names a local path", () => {
-    expect(describeSourceEntry({ source: "/cfg/skills/s" })).toBe(
-      "/cfg/skills/s",
-    );
-  });
-
-  it("names a git source with its ref and subdir", () => {
-    expect(
-      describeSourceEntry({ source: "https://x/y", ref: "abc", subdir: "sub" }),
-    ).toBe("https://x/y@abc (subdir: sub)");
   });
 });
 

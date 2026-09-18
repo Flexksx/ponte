@@ -4,7 +4,6 @@ import {
   sourceKey,
   type VendorConfig,
 } from "./config";
-import { err, ok, type Result } from "./result";
 import { VENDORS, type VendorName } from "./vendor";
 
 export type ProjectConfig = {
@@ -111,18 +110,4 @@ export const buildUpdateTargets = (
     }
   }
   return targets;
-};
-
-export const findUpdateTarget = (
-  targets: readonly UpdateTarget[],
-  name: string,
-  sourcesDirectory: string,
-): Result<UpdateTarget, string> => {
-  const target = targets.find(candidate => candidate.name === name);
-  if (target === undefined) {
-    return err(
-      `unknown vendored skill: ${name} - ponte update works on the git skills that ${PROJECT_CONFIG_FILE} declares and ${sourcesDirectory} holds`,
-    );
-  }
-  return ok(target);
 };
