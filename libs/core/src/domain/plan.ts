@@ -1,5 +1,5 @@
 import { dirname, isAbsolute, join, relative } from "node:path";
-import type { Link, ResolvedEntry } from "./link";
+import type { Link, ResolvedSkill, ResolvedSubagent } from "./link";
 import type { ProjectLayout, ProjectSkillTarget } from "./project";
 import type { VendorLayout } from "./vendor";
 
@@ -13,8 +13,8 @@ export type VendorState = "in sync" | "drifted" | "not synced" | "disabled";
 export const buildVendorPlan = (
   layout: VendorLayout,
   promptPath: string,
-  skills: readonly ResolvedEntry[],
-  subagents: readonly ResolvedEntry[],
+  skills: readonly ResolvedSkill[],
+  subagents: readonly ResolvedSubagent[],
 ): VendorPlan => ({
   links: [
     { path: layout.instruction, target: promptPath },
@@ -54,6 +54,13 @@ export const getVendorState = (
     ? "in sync"
     : "drifted";
 };
+
+export const getProjectState = (
+  plan: VendorPlan,
+  actual: ReadonlyMap<string, string>,
+  pending: number,
+): VendorState =>
+  pending > 0 && actual.size > 0 ? "drifted" : getVendorState(plan, actual);
 
 export const buildProjectPlan = (
   layout: ProjectLayout,

@@ -1,7 +1,7 @@
 import { parseArgs } from "node:util";
 import {
   type Config,
-  describeSource,
+  describeSourceEntry,
   formatShortCommit,
   isGitSource,
   PROJECT_CONFIG_FILE,
@@ -9,7 +9,6 @@ import {
   PROJECT_SOURCES_DIRECTORY,
   type Project,
   type ProjectSkillRow,
-  parseSource,
   type SourceEntry,
   type VendorState,
 } from "@ponte/core";
@@ -194,22 +193,40 @@ const runStatusCommand = async (app: App, args: string[]): Promise<void> => {
   printStatus(result.value);
 };
 
-const printEntries = (noun: "skills" | "subagents", config: Config): void => {
-  const entries: Array<[string, SourceEntry]> = Object.entries(config[noun]);
-  if (entries.length === 0) {
-    write(`No ${noun} configured.\n`);
+const nameColumn = (rows: readonly ProjectSkillRow[]): number =>
+  Math.max(4, ...rows.map(row => (row.name ?? NO_VALUE).length));
+
+const printConfigSkills = (rows: readonly ProjectSkillRow[]): void => {
+  if (rows.length === 0) {
+    write("No skills configured.\n");
     return;
   }
-  const rows = entries.map(([name, entry]) => ({
-    name,
-    type: isGitSource(entry.source) ? "git" : "local",
-    source: describeSource(parseSource(entry.source, entry.ref, entry.subdir)),
-  }));
-  const width = Math.max(4, ...rows.map(row => row.name.length));
-  write(`${chalk.bold(`${"NAME".padEnd(width)}  TYPE  SOURCE`)}\n`);
+  const width = nameColumn(rows);
+  write(
+    `${chalk.bold(`${"NAME".padEnd(width)}  ${"TYPE".padEnd(TYPE_COLUMN)}  SOURCE`)}\n`,
+  );
   for (const row of rows) {
+    const name =
+      row.name === null
+        ? chalk.dim(NO_VALUE.padEnd(width))
+        : row.name.padEnd(width);
+    const type = row.vendored ? "git" : "local";
     write(
-      `${row.name.padEnd(width)}  ${chalk.dim(row.type.padEnd(TYPE_COLUMN))}  ${row.source}\n`,
+      `${name}  ${chalk.dim(type.padEnd(TYPE_COLUMN))}  ${describeSourceEntry(row.entry)}\n`,
+    );
+  }
+};
+
+const printSubagents = (entries: readonly SourceEntry[]): void => {
+  if (entries.length === 0) {
+    write("No subagents configured.\n");
+    return;
+  }
+  write(`${chalk.bold("TYPE   SOURCE")}\n`);
+  for (const entry of entries) {
+    const type = isGitSource(entry.source) ? "git" : "local";
+    write(
+      `${chalk.dim(type.padEnd(TYPE_COLUMN))}  ${describeSourceEntry(entry)}\n`,
     );
   }
 };
@@ -219,21 +236,22 @@ const printProjectSkills = (rows: readonly ProjectSkillRow[]): void => {
     write("No skills configured.\n");
     return;
   }
-  const width = Math.max(4, ...rows.map(row => row.name.length));
+  const width = nameColumn(rows);
   write(
     `${chalk.bold(
       `${"NAME".padEnd(width)}  ${"KIND".padEnd(KIND_COLUMN)}  ${"COMMIT".padEnd(COMMIT_COLUMN)}  SOURCE`,
     )}\n`,
   );
   for (const row of rows) {
+    const name =
+      row.name === null
+        ? chalk.dim(NO_VALUE.padEnd(width))
+        : row.name.padEnd(width);
     const kind = row.vendored ? "vendored" : "local";
     const commit =
       row.commit === null ? NO_VALUE : formatShortCommit(row.commit);
-    const source = describeSource(
-      parseSource(row.entry.source, row.entry.ref, row.entry.subdir),
-    );
     write(
-      `${row.name.padEnd(width)}  ${chalk.dim(kind.padEnd(KIND_COLUMN))}  ${chalk.dim(commit.padEnd(COMMIT_COLUMN))}  ${source}\n`,
+      `${name}  ${chalk.dim(kind.padEnd(KIND_COLUMN))}  ${chalk.dim(commit.padEnd(COMMIT_COLUMN))}  ${describeSourceEntry(row.entry)}\n`,
     );
   }
 };
@@ -251,7 +269,7 @@ const runSkillsCommand = async (app: App, args: string[]): Promise<void> => {
   if (config === null) {
     return;
   }
-  printEntries("skills", config);
+  printConfigSkills(await app.listConfigSkills(config));
 };
 
 const runUpdateCommand = async (app: App, args: string[]): Promise<void> => {
@@ -297,7 +315,7 @@ const runSubagentsCommand = async (app: App, args: string[]): Promise<void> => {
   if (config === null) {
     return;
   }
-  printEntries("subagents", config);
+  printSubagents(config.subagents);
 };
 
 const runSyspromptCommand = async (app: App, args: string[]): Promise<void> => {

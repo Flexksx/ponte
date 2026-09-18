@@ -1,5 +1,5 @@
 import { isAbsolute, join } from "node:path";
-import { isGitSource } from "./source";
+import { describeSource, isGitSource, parseSource } from "./source";
 import { parseVendorNames, VENDORS, type VendorName } from "./vendor";
 
 export type VendorConfig = { readonly enabled: boolean };
@@ -13,8 +13,8 @@ export type SourceEntry = {
 export type Config = {
   readonly systemPromptFile: string;
   readonly vendors: Readonly<Partial<Record<VendorName, VendorConfig>>>;
-  readonly skills: Readonly<Record<string, SourceEntry>>;
-  readonly subagents: Readonly<Record<string, SourceEntry>>;
+  readonly skills: readonly SourceEntry[];
+  readonly subagents: readonly SourceEntry[];
 };
 
 export const DEFAULT_SYSTEM_PROMPT_FILE = "AGENTS.md";
@@ -24,21 +24,26 @@ export const createDefaultConfig = (): Config => ({
   vendors: Object.fromEntries(
     VENDORS.map(vendor => [vendor, { enabled: true }]),
   ),
-  skills: {},
-  subagents: {},
+  skills: [],
+  subagents: [],
 });
 
+export const describeSourceEntry = (entry: SourceEntry): string =>
+  describeSource(parseSource(entry.source, entry.ref, entry.subdir));
+
+export const sourceKey = (entry: {
+  readonly source: string;
+  readonly subdir?: string;
+}): string => `${entry.source}\n${entry.subdir ?? ""}`;
+
 export const resolveSourcePaths = (
-  entries: Readonly<Record<string, SourceEntry>>,
+  entries: readonly SourceEntry[],
   configDirectory: string,
-): Record<string, SourceEntry> =>
-  Object.fromEntries(
-    Object.entries(entries).map(([name, entry]) => [
-      name,
-      isGitSource(entry.source) || isAbsolute(entry.source)
-        ? entry
-        : { ...entry, source: join(configDirectory, entry.source) },
-    ]),
+): SourceEntry[] =>
+  entries.map(entry =>
+    isGitSource(entry.source) || isAbsolute(entry.source)
+      ? entry
+      : { ...entry, source: join(configDirectory, entry.source) },
   );
 
 export const resolveConfigPaths = (

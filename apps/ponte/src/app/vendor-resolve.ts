@@ -2,15 +2,20 @@ import {
   buildVendorLayouts,
   buildVendorPlan,
   type Config,
+  describeSourceEntry,
   type ListFiles,
+  type NamedSkill,
   type Platform,
   parseSource,
-  type ResolvedEntry,
+  type ResolvedSkill,
+  type ResolvedSubagent,
   type ResolveSource,
+  requireUniqueSkillNames,
   type SourceEntry,
   type VendorName,
   type VendorPlan,
 } from "@ponte/core";
+import type { SkillNames } from "./skill-name";
 
 export type BuildVendorPlans = (
   config: Config,
@@ -20,6 +25,7 @@ export type BuildVendorPlans = (
 type BuildVendorPlansDeps = {
   resolveSource: ResolveSource;
   listFiles: ListFiles;
+  skillNames: SkillNames;
   home: string;
   platform: Platform;
 };
@@ -30,26 +36,25 @@ export const createBuildVendorPlans =
     const resolveDirectory = (entry: SourceEntry): Promise<string> =>
       deps.resolveSource(parseSource(entry.source, entry.ref, entry.subdir));
 
-    const skills = await Promise.all(
-      Object.entries(config.skills).map(
-        async ([name, entry]): Promise<ResolvedEntry> => ({
-          name,
-          sourceDirectory: await resolveDirectory(entry),
-          files: [],
-        }),
-      ),
-    );
+    const skills: ResolvedSkill[] = [];
+    const named: NamedSkill[] = [];
+    for (const entry of config.skills) {
+      const source = describeSourceEntry(entry);
+      const sourceDirectory = await resolveDirectory(entry);
+      const name = await deps.skillNames.read(source, sourceDirectory);
+      skills.push({ name, sourceDirectory });
+      named.push({ name, source });
+    }
+    requireUniqueSkillNames(named);
 
-    const subagents = await Promise.all(
-      Object.entries(config.subagents).map(async ([name, entry]) => {
-        const sourceDirectory = await resolveDirectory(entry);
-        return {
-          name,
-          sourceDirectory,
-          files: await deps.listFiles(sourceDirectory),
-        };
-      }),
-    );
+    const subagents: ResolvedSubagent[] = [];
+    for (const entry of config.subagents) {
+      const sourceDirectory = await resolveDirectory(entry);
+      subagents.push({
+        sourceDirectory,
+        files: await deps.listFiles(sourceDirectory),
+      });
+    }
 
     const layouts = buildVendorLayouts(deps.home, deps.platform);
     const plans = {} as Record<VendorName, VendorPlan>;

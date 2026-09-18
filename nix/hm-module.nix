@@ -65,11 +65,11 @@
         system_prompt_file = cfg.systemPromptFile;
         vendors = lib.mapAttrs (_: vendor: {enabled = vendor.enable;}) cfg.vendors;
       }
-      // lib.optionalAttrs (cfg.skills != {}) {
-        skills = lib.mapAttrs (_: mkSourceEntry) cfg.skills;
+      // lib.optionalAttrs (cfg.skills != []) {
+        skills = map mkSourceEntry cfg.skills;
       }
-      // lib.optionalAttrs (cfg.subagents != {}) {
-        subagents = lib.mapAttrs (_: mkSourceEntry) cfg.subagents;
+      // lib.optionalAttrs (cfg.subagents != []) {
+        subagents = map mkSourceEntry cfg.subagents;
       };
 
     settings = lib.recursiveUpdate generated cfg.settings;
@@ -107,34 +107,40 @@
       };
 
       skills = lib.mkOption {
-        type = lib.types.attrsOf sourceModule;
-        default = {};
+        type = lib.types.listOf sourceModule;
+        default = [];
         example = lib.literalExpression ''
-          {
-            "my-skill" = {
+          [
+            {
               source = "https://github.com/me/skills";
               ref = "abc123";
               subdir = "my-skill";
-            };
-            "local-skill" = {
+            }
+            {
               source = "/path/to/local-skill";
-            };
-          }
+            }
+          ]
         '';
-        description = "Skills to sync to enabled vendors. The attribute name is the skill name.";
+        description = ''
+          Skill sources to sync to enabled vendors. A source carries no name,
+          because ponte reads the name from the frontmatter of SKILL.md.
+        '';
       };
 
       subagents = lib.mkOption {
-        type = lib.types.attrsOf sourceModule;
-        default = {};
+        type = lib.types.listOf sourceModule;
+        default = [];
         example = lib.literalExpression ''
-          {
-            "claude" = {
+          [
+            {
               source = "/home/me/config/ai_agents/subagents/claude";
-            };
-          }
+            }
+          ]
         '';
-        description = "Subagents to sync to enabled vendors. The attribute name is the subagent name.";
+        description = ''
+          Subagent sources to sync to enabled vendors. A source carries no
+          name, because each agent file keeps its own file name.
+        '';
       };
 
       settings = lib.mkOption {

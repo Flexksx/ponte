@@ -18,6 +18,7 @@ import {
   directoryExists,
   fileExists,
   listFiles,
+  readTextFile,
   removeDirectory,
   writeText,
 } from "../infra/filesystem";
@@ -42,11 +43,14 @@ import {
 } from "../infra/project-file";
 import { createFindProject, type FindProject } from "./find-project";
 import {
-  createCopyVendorSkill,
+  createFetchSkill,
   createResolveProjectSkills,
+  createVendorSkill,
 } from "./project-resolve";
 import {
+  createListConfigSkills,
   createListProjectSkills,
+  type ListConfigSkills,
   type ListProjectSkills,
 } from "./project-skills";
 import {
@@ -57,6 +61,7 @@ import type { ProjectSyncReport } from "./project-sync";
 import { createSyncProject } from "./project-sync";
 import type { ProjectUpdateReport } from "./project-update";
 import { createRunProjectUpdate } from "./project-update";
+import { createSkillNames } from "./skill-name";
 import { createReadSystemPrompt, createSetSystemPrompt } from "./sysprompt";
 import { createBuildVendorPlans } from "./vendor-resolve";
 import type { StatusReport } from "./vendor-status";
@@ -69,6 +74,7 @@ export type App = {
   readConfig: ReadConfig;
   readSystemPrompt: (config: Config) => Promise<string | null>;
   setSystemPrompt: (config: Config, fileOrLiteral: string) => Promise<void>;
+  listConfigSkills: ListConfigSkills;
   listProjectSkills: ListProjectSkills;
   getProjectStatusReport: GetProjectStatusReport;
   syncProject: (project: Project, apply: boolean) => Promise<ProjectSyncReport>;
@@ -100,21 +106,23 @@ export const bootstrap = (): App => {
   const promptPath = (filename: string) =>
     resolvePromptPath(configDir, filename);
 
+  const skillNames = createSkillNames({ readTextFile });
   const buildVendorPlans = createBuildVendorPlans({
     resolveSource,
     listFiles,
+    skillNames,
     home,
     platform,
   });
-  const copyVendorSkill = createCopyVendorSkill({
-    resolveSourceDetails,
-    copyDirectoryWithoutGit,
-  });
+  const fetchSkill = createFetchSkill({ resolveSourceDetails, skillNames });
+  const vendorSkill = createVendorSkill({ copyDirectoryWithoutGit });
   const resolveProjectSkills = createResolveProjectSkills({
     readProjectLock,
     resolveSource,
     directoryExists,
-    copyVendorSkill,
+    skillNames,
+    fetchSkill,
+    vendorSkill,
   });
 
   return {
@@ -127,7 +135,8 @@ export const bootstrap = (): App => {
     readConfig,
     readSystemPrompt: createReadSystemPrompt({ readPrompt }),
     setSystemPrompt: createSetSystemPrompt({ writePrompt, resolveContent }),
-    listProjectSkills: createListProjectSkills({ readProjectLock }),
+    listConfigSkills: createListConfigSkills({ skillNames }),
+    listProjectSkills: createListProjectSkills({ readProjectLock, skillNames }),
     getProjectStatusReport: createGetProjectStatusReport({
       resolveProjectSkills,
       readSymlinks,
@@ -161,7 +170,8 @@ export const bootstrap = (): App => {
       readProjectLock,
       writeProjectLock,
       resolveSource,
-      copyVendorSkill,
+      fetchSkill,
+      vendorSkill,
       directoryExists,
       removeDirectory,
       directoriesDiffer,

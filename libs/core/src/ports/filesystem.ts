@@ -11,3 +11,4 @@ export type DirectoriesDiffer = (
   left: string,
   right: string,
 ) => Promise<boolean>;
+export type ReadTextFile = (path: string) => Promise<string | null>;

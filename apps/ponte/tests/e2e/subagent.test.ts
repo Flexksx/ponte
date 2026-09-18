@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import type { Home } from "./harness";
-import { newHarness } from "./harness";
+import { newHarness, sourceEntry } from "./harness";
 
 const isWindows = () => process.platform === "win32";
 
@@ -14,7 +14,7 @@ describe("subagent sync", () => {
     await h.bootstrap();
 
     const subagentsDir = h.fixtureDir("subagents");
-    await appendConfigWithSubagent(h, "claude", subagentsDir);
+    await appendConfigWithSubagent(h, subagentsDir);
 
     await h.mustRun("sync");
 
@@ -36,7 +36,7 @@ describe("subagent sync", () => {
     await h.bootstrap();
 
     const subagentsDir = h.fixtureDir("subagents");
-    await appendConfigWithSubagent(h, "claude", subagentsDir);
+    await appendConfigWithSubagent(h, subagentsDir);
 
     await h.mustRun("sync");
 
@@ -56,13 +56,27 @@ describe("subagent sync", () => {
     await h.mustRun("sync");
 
     const subagentsDir = h.fixtureDir("subagents");
-    await appendConfigWithSubagent(h, "claude", subagentsDir);
+    await appendConfigWithSubagent(h, subagentsDir);
     await h.mustRun("sync");
     expect(
       await h.readFileText(
         h.vendorAgentPath("claude-code", "fullstack-agent.md"),
       ),
     ).toContain("fullstack");
+    await h.close();
+  });
+
+  it("tells a named subagent table how to migrate", async () => {
+    const h = await newHarness();
+    await h.bootstrap();
+
+    await h.appendConfig('[subagents.claude]\nsource = "subagents/claude"\n');
+
+    const { stderr, exitCode } = await h.run("sync");
+
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toContain("[[subagents]]");
+    expect(stderr).toContain("after its file");
     await h.close();
   });
 
@@ -90,12 +104,7 @@ describe("subagent sync", () => {
   });
 });
 
-const appendConfigWithSubagent = async (
+const appendConfigWithSubagent = (
   h: Home,
-  name: string,
   sourceDirPath: string,
-): Promise<void> => {
-  const cfg = await h.readFileText(h.configPath("config.toml"));
-  const entry = `\n[subagents.${name}]\nsource = ${JSON.stringify(sourceDirPath)}\n`;
-  await h.writeFile(h.configPath("config.toml"), cfg + entry);
-};
+): Promise<void> => h.appendConfig(sourceEntry("subagents", sourceDirPath));

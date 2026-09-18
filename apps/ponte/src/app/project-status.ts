@@ -1,5 +1,5 @@
 import {
-  getVendorState,
+  getProjectState,
   type Project,
   type ReadSymlinks,
   type VendorState,
@@ -25,12 +25,12 @@ type GetProjectStatusReportDeps = {
 export const createGetProjectStatusReport =
   (deps: GetProjectStatusReportDeps): GetProjectStatusReport =>
   async project => {
-    const { plan } = await deps.resolveProjectSkills(project, false);
+    const { plan, pending } = await deps.resolveProjectSkills(project, false);
     const actual = await deps.readSymlinks(plan);
     return {
       root: project.layout.root,
       skillsDirectory: project.layout.skills,
       linkCount: actual.size,
-      state: getVendorState(plan, actual),
+      state: getProjectState(plan, actual, pending),
     };
   };

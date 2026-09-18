@@ -1,31 +1,48 @@
 import {
   resolveSourcePaths,
   type SourceEntry,
+  sourceKey,
   type VendorConfig,
 } from "./config";
 import { err, ok, type Result } from "./result";
-import { isGitSource } from "./source";
 import { VENDORS, type VendorName } from "./vendor";
 
 export type ProjectConfig = {
   readonly vendors?: Readonly<Partial<Record<VendorName, VendorConfig>>>;
-  readonly skills: Readonly<Record<string, SourceEntry>>;
+  readonly skills: readonly SourceEntry[];
 };
 
-export type LockEntry = { readonly commit: string };
+export type LockEntry = {
+  readonly source: string;
+  readonly subdir?: string;
+  readonly commit: string;
+};
 
 export type ProjectLock = {
   readonly skills: Readonly<Record<string, LockEntry>>;
 };
 
 export type ProjectSkillRow = {
-  readonly name: string;
+  readonly name: string | null;
   readonly entry: SourceEntry;
   readonly vendored: boolean;
   readonly commit: string | null;
 };
 
+export type UpdateTarget = {
+  readonly name: string;
+  readonly entry: SourceEntry;
+};
+
 export const PROJECT_CONFIG_FILE = "ponte.toml";
+
+const lockEntriesMatch = (
+  left: LockEntry,
+  right: LockEntry | undefined,
+): boolean =>
+  right !== undefined &&
+  left.commit === right.commit &&
+  sourceKey(left) === sourceKey(right);
 
 export const getProjectEnabledVendors = (
   config: ProjectConfig,
@@ -44,34 +61,68 @@ export const resolveProjectConfigPaths = (
   skills: resolveSourcePaths(config.skills, root),
 });
 
-export const getUpdatableSkills = (
-  config: ProjectConfig,
-): readonly [string, SourceEntry][] =>
-  Object.entries(config.skills).filter(([, entry]) =>
-    isGitSource(entry.source),
-  );
+export const createLockEntry = (
+  entry: SourceEntry,
+  commit: string,
+): LockEntry => ({
+  source: entry.source,
+  ...(entry.subdir ? { subdir: entry.subdir } : {}),
+  commit,
+});
 
-export const getUpdatableSkill = (
-  config: ProjectConfig,
-  name: string,
-): Result<readonly [string, SourceEntry], string> => {
-  const entry = config.skills[name];
-  if (entry === undefined) {
-    return err(`unknown project skill: ${name}`);
+export const findLockedSkillName = (
+  lock: ProjectLock,
+  entry: SourceEntry,
+): string | null => {
+  const key = sourceKey(entry);
+  for (const [name, locked] of Object.entries(lock.skills)) {
+    if (sourceKey(locked) === key) {
+      return name;
+    }
   }
-  if (!isGitSource(entry.source)) {
-    return err(`${name} is a local skill, so there is nothing to update`);
-  }
-  return ok([name, entry] as const);
+  return null;
 };
 
-export const buildSkillRows = (
-  skills: Readonly<Record<string, SourceEntry>>,
+export const locksAreEqual = (
+  left: ProjectLock,
+  right: ProjectLock,
+): boolean => {
+  const names = Object.keys(left.skills);
+  if (names.length !== Object.keys(right.skills).length) {
+    return false;
+  }
+  return names.every(name => {
+    const entry = left.skills[name];
+    return entry !== undefined && lockEntriesMatch(entry, right.skills[name]);
+  });
+};
+
+export const buildUpdateTargets = (
+  config: ProjectConfig,
   lock: ProjectLock,
-): ProjectSkillRow[] =>
-  Object.entries(skills).map(([name, entry]) => ({
-    name,
-    entry,
-    vendored: isGitSource(entry.source),
-    commit: lock.skills[name]?.commit ?? null,
-  }));
+): UpdateTarget[] => {
+  const targets: UpdateTarget[] = [];
+  for (const [name, locked] of Object.entries(lock.skills)) {
+    const entry = config.skills.find(
+      candidate => sourceKey(candidate) === sourceKey(locked),
+    );
+    if (entry !== undefined) {
+      targets.push({ name, entry });
+    }
+  }
+  return targets;
+};
+
+export const findUpdateTarget = (
+  targets: readonly UpdateTarget[],
+  name: string,
+  sourcesDirectory: string,
+): Result<UpdateTarget, string> => {
+  const target = targets.find(candidate => candidate.name === name);
+  if (target === undefined) {
+    return err(
+      `unknown vendored skill: ${name} - ponte update works on the git skills that ${PROJECT_CONFIG_FILE} declares and ${sourcesDirectory} holds`,
+    );
+  }
+  return ok(target);
+};

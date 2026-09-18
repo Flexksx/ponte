@@ -1,8 +1,6 @@
 import { join } from "node:path";
-import type { SourceEntry } from "./config";
 import type { Platform } from "./platform";
 import type { ProjectConfig } from "./project-config";
-import { isGitSource } from "./source";
 import { buildVendorLayouts, type VendorName } from "./vendor";
 
 export type ProjectLayout = {
@@ -23,18 +21,13 @@ export type Project = {
   readonly config: ProjectConfig;
 };
 
-export type ClassifiedSkill =
-  | {
-      readonly kind: "local";
-      readonly name: string;
-      readonly entry: SourceEntry;
-    }
-  | {
-      readonly kind: "vendored";
-      readonly name: string;
-      readonly entry: SourceEntry;
-      readonly directory: string;
-    };
+export class SkillRenamedError extends Error {
+  constructor(name: string, declared: string) {
+    super(
+      `${name}: the source now declares the name "${declared}" - run ponte sync to vendor the skill under the new name, then delete ${join(PROJECT_SOURCES_DIRECTORY, name)} by hand`,
+    );
+  }
+}
 
 export const PROJECT_SOURCES_DIRECTORY = join(".ponte", "sources");
 
@@ -65,18 +58,3 @@ export const vendoredSkillPath = (
   layout: ProjectLayout,
   name: string,
 ): string => join(layout.sources, name);
-
-export const classifySkillEntries = (
-  config: ProjectConfig,
-  layout: ProjectLayout,
-): ClassifiedSkill[] =>
-  Object.entries(config.skills).map(([name, entry]) =>
-    isGitSource(entry.source)
-      ? {
-          kind: "vendored",
-          name,
-          entry,
-          directory: vendoredSkillPath(layout, name),
-        }
-      : { kind: "local", name, entry },
-  );

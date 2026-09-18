@@ -47,15 +47,18 @@ ponte sync                                # activate it everywhere
 ponte status                              # see where every vendor stands
 ```
 
-To add a skill, declare it in `~/.config/ponte/config.toml` and sync:
+To add a skill, declare its source in `~/.config/ponte/config.toml` and
+sync:
 
 ```toml
-[skills.my-skill]
+[[skills]]
 source = "skills/my-skill"   # relative to ~/.config/ponte/
 ```
 
-It lands at `~/.claude/skills/my-skill`, `~/.codex/skills/my-skill`, and
-every other enabled vendor at once.
+The declaration carries no name. ponte reads the `name` field from the
+frontmatter of `SKILL.md`, the same name the agent uses. A skill that
+declares `name: my-skill` lands at `~/.claude/skills/my-skill`,
+`~/.codex/skills/my-skill`, and every other enabled vendor at once.
 
 ## Project mode
 
@@ -63,12 +66,12 @@ A repository can carry its own skills. Put a `ponte.toml` file in the
 repository root:
 
 ```toml
-[skills.house-style]
+[[skills]]
 source = "https://github.com/owner/skills-repo"
 ref    = "abc123def456"
 subdir = "house-style"       # optional
 
-[skills.internal]
+[[skills]]
 source = "skills/internal"   # relative to the project root
 ```
 
@@ -113,13 +116,17 @@ never runs `ponte sync`, so run that yourself after a rebuild.
     # An unset vendor defaults to enabled.
     vendors."antigravity-cli".enable = false;
 
-    skills."my-skill" = {
-      source = "https://github.com/me/skills";
-      ref = "abc123def456";
-      subdir = "my-skill";
-    };
+    skills = [
+      {
+        source = "https://github.com/me/skills";
+        ref = "abc123def456";
+        subdir = "my-skill";
+      }
+    ];
 
-    subagents."claude".source = "/home/me/config/ai_agents/subagents/claude";
+    subagents = [
+      { source = "/home/me/config/ai_agents/subagents/claude"; }
+    ];
   };
 }
 ```
@@ -130,8 +137,8 @@ never runs `ponte sync`, so run that yourself after a rebuild.
 | `package` | package | flake default | The ponte package to install. |
 | `systemPromptFile` | string | `"AGENTS.md"` | Maps to `system_prompt_file`. |
 | `vendors.<vendor>.enable` | bool | `true` | Per-vendor toggle. |
-| `skills.<name>` | `{ source; ref; subdir; }` | `{}` | Skill declarations, keyed by name. |
-| `subagents.<name>` | `{ source; ref; subdir; }` | `{}` | Subagent declarations, keyed by name. |
+| `skills` | list of `{ source; ref; subdir; }` | `[]` | Skill sources. ponte reads each name from `SKILL.md`. |
+| `subagents` | list of `{ source; ref; subdir; }` | `[]` | Subagent sources. Each file keeps its own name. |
 | `settings` | TOML attrset | `{}` | Escape hatch for keys the module does not model. Merged into `config.toml`, and it wins over a generated value. |
 
 `ref` and `subdir` default to `""` and are left out of `config.toml` when

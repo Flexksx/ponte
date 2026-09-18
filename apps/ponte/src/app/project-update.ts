@@ -1,11 +1,13 @@
 import {
+  buildUpdateTargets,
+  createLockEntry,
   type DirectoriesDiffer,
   type DirectoryExists,
   err,
-  getUpdatableSkill,
-  getUpdatableSkills,
+  findUpdateTarget,
   type LockEntry,
   ok,
+  PROJECT_SOURCES_DIRECTORY,
   type Project,
   type ProjectLayout,
   type ProjectLock,
@@ -14,11 +16,12 @@ import {
   type RemoveDirectory,
   type ResolveSource,
   type Result,
-  type SourceEntry,
+  SkillRenamedError,
+  type UpdateTarget,
   vendoredSkillPath,
   type WriteProjectLock,
 } from "@ponte/core";
-import type { CopyVendorSkill } from "./project-resolve";
+import type { FetchedSkill, FetchSkill, VendorSkill } from "./project-resolve";
 
 export type UpdatedSkill = {
   readonly name: string;
@@ -30,48 +33,54 @@ export type ProjectUpdateReport = {
   readonly updated: readonly UpdatedSkill[];
 };
 
+type PlannedUpdate = {
+  readonly target: UpdateTarget;
+  readonly fetched: FetchedSkill;
+};
+
 type UpdateDeps = {
   readProjectLock: ReadProjectLock;
   writeProjectLock: WriteProjectLock;
   resolveSource: ResolveSource;
-  copyVendorSkill: CopyVendorSkill;
+  fetchSkill: FetchSkill;
+  vendorSkill: VendorSkill;
   directoryExists: DirectoryExists;
   removeDirectory: RemoveDirectory;
   directoriesDiffer: DirectoriesDiffer;
 };
 
-type Target = readonly [string, SourceEntry];
-
 const updateTargets = (
   project: Project,
+  lock: ProjectLock,
   name: string | undefined,
-): Result<readonly Target[], string> => {
+): Result<readonly UpdateTarget[], string> => {
+  const targets = buildUpdateTargets(project.config, lock);
   if (name === undefined) {
-    return ok(getUpdatableSkills(project.config));
+    return ok(targets);
   }
-  const result = getUpdatableSkill(project.config, name);
-  if (!result.ok) {
-    return result;
+  const target = findUpdateTarget(targets, name, PROJECT_SOURCES_DIRECTORY);
+  if (!target.ok) {
+    return target;
   }
-  return ok([result.value]);
+  return ok([target.value]);
 };
 
 export const createRunProjectUpdate = (deps: UpdateDeps) => {
   const isDirty = async (
     layout: ProjectLayout,
     lock: ProjectLock,
-    [name, entry]: Target,
+    target: UpdateTarget,
   ): Promise<boolean> => {
-    const directory = vendoredSkillPath(layout, name);
+    const directory = vendoredSkillPath(layout, target.name);
     if (!(await deps.directoryExists(directory))) {
       return false;
     }
-    const commit = lock.skills[name]?.commit;
+    const commit = lock.skills[target.name]?.commit;
     if (commit === undefined) {
       return true;
     }
     const pristine = await deps.resolveSource(
-      parseSource(entry.source, commit, entry.subdir),
+      parseSource(target.entry.source, commit, target.entry.subdir),
     );
     return deps.directoriesDiffer(pristine, directory);
   };
@@ -79,15 +88,29 @@ export const createRunProjectUpdate = (deps: UpdateDeps) => {
   const dirtyTargets = async (
     layout: ProjectLayout,
     lock: ProjectLock,
-    targets: readonly Target[],
+    targets: readonly UpdateTarget[],
   ): Promise<string[]> => {
     const dirty: string[] = [];
     for (const target of targets) {
       if (await isDirty(layout, lock, target)) {
-        dirty.push(target[0]);
+        dirty.push(target.name);
       }
     }
     return dirty;
+  };
+
+  const planUpdates = async (
+    targets: readonly UpdateTarget[],
+  ): Promise<PlannedUpdate[]> => {
+    const planned: PlannedUpdate[] = [];
+    for (const target of targets) {
+      const fetched = await deps.fetchSkill(target.entry);
+      if (fetched.name !== target.name) {
+        throw new SkillRenamedError(target.name, fetched.name);
+      }
+      planned.push({ target, fetched });
+    }
+    return planned;
   };
 
   return async (
@@ -95,13 +118,13 @@ export const createRunProjectUpdate = (deps: UpdateDeps) => {
     name: string | undefined,
     force: boolean,
   ): Promise<Result<ProjectUpdateReport, string>> => {
-    const targetsResult = updateTargets(project, name);
+    const lock = await deps.readProjectLock(project.layout);
+    const targetsResult = updateTargets(project, lock, name);
     if (!targetsResult.ok) {
       return targetsResult;
     }
     const targets = targetsResult.value;
 
-    const lock = await deps.readProjectLock(project.layout);
     if (!force) {
       const dirty = await dirtyTargets(project.layout, lock, targets);
       if (dirty.length > 0) {
@@ -110,15 +133,18 @@ export const createRunProjectUpdate = (deps: UpdateDeps) => {
         );
       }
     }
+    const planned = await planUpdates(targets);
     const locked: Record<string, LockEntry> = { ...lock.skills };
     const updated: UpdatedSkill[] = [];
-    for (const [skill, entry] of targets) {
-      await deps.removeDirectory(vendoredSkillPath(project.layout, skill));
-      const commit = await deps.copyVendorSkill(project.layout, skill, entry);
-      if (commit !== null) {
-        locked[skill] = { commit };
+    for (const { target, fetched } of planned) {
+      await deps.removeDirectory(
+        vendoredSkillPath(project.layout, target.name),
+      );
+      await deps.vendorSkill(project.layout, fetched);
+      if (fetched.commit !== null) {
+        locked[target.name] = createLockEntry(target.entry, fetched.commit);
       }
-      updated.push({ name: skill, commit });
+      updated.push({ name: target.name, commit: fetched.commit });
     }
     await deps.writeProjectLock(project.layout, { skills: locked });
     return ok({ root: project.layout.root, updated });
