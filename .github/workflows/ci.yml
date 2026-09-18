@@ -39,13 +39,22 @@ jobs:
       - name: Run test suite
         run: bun test ./libs/core/tests ./apps/ponte/tests
 
-  build:
-    name: Build (${{ matrix.os }})
+  build-bun:
+    name: Build with bun (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            binary: ./out/ponte
+          - os: macos-latest
+            binary: ./out/ponte
+          - os: windows-latest
+            binary: ./out/ponte.exe
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - name: Install Bun
@@ -55,11 +64,15 @@ jobs:
       - name: Build the standalone binary
         run: bash scripts/build.sh
       - name: Run the standalone binary
-        run: ./out/ponte --help
+        run: ${{ matrix.binary }} --help
 
-  package:
-    name: Package (macos-latest)
-    runs-on: macos-latest
+  build-nix:
+    name: Build with nix (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
       - name: Install Nix
