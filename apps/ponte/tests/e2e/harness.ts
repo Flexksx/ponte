@@ -7,7 +7,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import { tmpdir as osTmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import type { VendorName } from "@ponte/core";
 import { $ } from "bun";
 
@@ -20,6 +20,11 @@ const resolveBinary = (): Promise<string> => {
   }
   if (binaryResolve) {
     return binaryResolve;
+  }
+  const prebuilt = Bun.env.PONTE_E2E_BINARY ?? "";
+  if (prebuilt) {
+    binaryUnderTest = resolve(prebuilt);
+    return Promise.resolve(binaryUnderTest);
   }
   binaryResolve = (async () => {
     const here = new URL(import.meta.url).pathname;
