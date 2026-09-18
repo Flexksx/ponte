@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { join } from "node:path";
 import {
   buildProjectPlan,
   buildUpdateTargets,
@@ -14,7 +15,10 @@ import {
   vendoredSkillPath,
 } from "@ponte/core";
 
-const layout = projectLayout("/repo");
+const REPO = "/repo";
+const SOURCES = join(REPO, ".ponte", "sources");
+
+const layout = projectLayout(REPO);
 const TOTAL_SKILL_DIRECTORIES = 1 + VENDORS.length;
 
 const findLink = (
@@ -24,16 +28,20 @@ const findLink = (
 
 describe("projectLayout", () => {
   it("places the links, the sources and the lock file", () => {
-    expect(layout.root).toBe("/repo");
-    expect(layout.skills).toBe("/repo/.agents/skills");
-    expect(layout.sources).toBe("/repo/.ponte/sources");
-    expect(layout.lockFile).toBe("/repo/.ponte/lock.toml");
-    expect(vendoredSkillPath(layout, "java")).toBe("/repo/.ponte/sources/java");
+    expect(layout.root).toBe(REPO);
+    expect(layout.skills).toBe(join(REPO, ".agents", "skills"));
+    expect(layout.sources).toBe(SOURCES);
+    expect(layout.lockFile).toBe(join(REPO, ".ponte", "lock.toml"));
+    expect(vendoredSkillPath(layout, "java")).toBe(join(SOURCES, "java"));
   });
 
   it("includes vendor skill directories for each known vendor", () => {
-    expect(layout.vendorSkillDirectories).toContain("/repo/.claude/skills");
-    expect(layout.vendorSkillDirectories).toContain("/repo/.codex/skills");
+    expect(layout.vendorSkillDirectories).toContain(
+      join(REPO, ".claude", "skills"),
+    );
+    expect(layout.vendorSkillDirectories).toContain(
+      join(REPO, ".codex", "skills"),
+    );
     expect(layout.vendorSkillDirectories.length).toBe(VENDORS.length);
   });
 });
@@ -69,8 +77,10 @@ describe("getProjectEnabledVendors", () => {
 
 describe("projectLayout with vendor filter", () => {
   it("includes only filtered vendor directories", () => {
-    const filtered = projectLayout("/repo", "posix", ["claude-code"]);
-    expect(filtered.vendorSkillDirectories).toEqual(["/repo/.claude/skills"]);
+    const filtered = projectLayout(REPO, "posix", ["claude-code"]);
+    expect(filtered.vendorSkillDirectories).toEqual([
+      join(REPO, ".claude", "skills"),
+    ]);
   });
 });
 
@@ -92,44 +102,47 @@ describe("getAncestorDirectories", () => {
 describe("buildProjectPlan", () => {
   it("links a vendored skill into agents and all vendor directories", () => {
     const plan = buildProjectPlan(layout, [
-      { name: "java", directory: "/repo/.ponte/sources/java" },
+      { name: "java", directory: join(SOURCES, "java") },
     ]);
-    expect(findLink(plan.links, "/repo/.agents/skills/java")?.target).toBe(
-      "../../.ponte/sources/java",
-    );
-    expect(findLink(plan.links, "/repo/.claude/skills/java")?.target).toBe(
-      "../../.ponte/sources/java",
-    );
+    const up2 = join("..", "..", ".ponte", "sources", "java");
+    expect(
+      findLink(plan.links, join(REPO, ".agents", "skills", "java"))?.target,
+    ).toBe(up2);
+    expect(
+      findLink(plan.links, join(REPO, ".claude", "skills", "java"))?.target,
+    ).toBe(up2);
     expect(plan.links.length).toBe(TOTAL_SKILL_DIRECTORIES);
   });
 
   it("uses a deeper relative path for vendors with subdirectories", () => {
     const plan = buildProjectPlan(layout, [
-      { name: "java", directory: "/repo/.ponte/sources/java" },
+      { name: "java", directory: join(SOURCES, "java") },
     ]);
     const geminiLink = findLink(
       plan.links,
-      "/repo/.gemini/antigravity-cli/skills/java",
+      join(REPO, ".gemini", "antigravity-cli", "skills", "java"),
     );
-    expect(geminiLink?.target).toBe("../../../.ponte/sources/java");
+    expect(geminiLink?.target).toBe(
+      join("..", "..", "..", ".ponte", "sources", "java"),
+    );
   });
 
   it("keeps a source outside the project absolute", () => {
     const plan = buildProjectPlan(layout, [
       { name: "java", directory: "/elsewhere/java" },
     ]);
-    expect(findLink(plan.links, "/repo/.agents/skills/java")?.target).toBe(
-      "/elsewhere/java",
-    );
-    expect(findLink(plan.links, "/repo/.claude/skills/java")?.target).toBe(
-      "/elsewhere/java",
-    );
+    expect(
+      findLink(plan.links, join(REPO, ".agents", "skills", "java"))?.target,
+    ).toBe("/elsewhere/java");
+    expect(
+      findLink(plan.links, join(REPO, ".claude", "skills", "java"))?.target,
+    ).toBe("/elsewhere/java");
   });
 
   it("owns agents and all vendor skill directories", () => {
     const dirs = buildProjectPlan(layout, []).ownedDirectories;
-    expect(dirs).toContain("/repo/.agents/skills");
-    expect(dirs).toContain("/repo/.claude/skills");
+    expect(dirs).toContain(join(REPO, ".agents", "skills"));
+    expect(dirs).toContain(join(REPO, ".claude", "skills"));
     expect(dirs.length).toBe(TOTAL_SKILL_DIRECTORIES);
   });
 });
@@ -138,9 +151,9 @@ describe("resolveProjectConfigPaths", () => {
   it("expands a relative local source against the project root", () => {
     const config = resolveProjectConfigPaths(
       { skills: [{ source: "skills/mine" }] },
-      "/repo",
+      REPO,
     );
-    expect(config.skills[0]?.source).toBe("/repo/skills/mine");
+    expect(config.skills[0]?.source).toBe(join(REPO, "skills", "mine"));
   });
 
   it("preserves vendors through normalization", () => {

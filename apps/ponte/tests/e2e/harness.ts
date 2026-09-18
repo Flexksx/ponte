@@ -8,8 +8,26 @@ import {
 } from "node:fs/promises";
 import { tmpdir as osTmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import type { VendorName } from "@ponte/core";
+import {
+  buildVendorLayouts,
+  type Platform,
+  type VendorLayout,
+  type VendorName,
+} from "@ponte/core";
 import { $ } from "bun";
+
+const PLATFORM: Platform = process.platform === "win32" ? "win32" : "posix";
+
+const mapLayouts = (
+  layouts: Record<VendorName, VendorLayout>,
+  pick: (layout: VendorLayout) => string,
+): Record<VendorName, string> => {
+  const paths = {} as Record<VendorName, string>;
+  for (const [name, layout] of Object.entries(layouts)) {
+    paths[name as VendorName] = pick(layout);
+  }
+  return paths;
+};
 
 let binaryUnderTest = "";
 let binaryResolve: Promise<string> | null = null;
@@ -201,31 +219,16 @@ export class Home {
     }
   }
 
+  private layouts(): Record<VendorName, VendorLayout> {
+    return buildVendorLayouts(this.home, PLATFORM);
+  }
+
   vendorPaths(): Record<VendorName, string> {
-    return {
-      "claude-code": join(this.home, ".claude", "CLAUDE.md"),
-      codex: join(this.home, ".codex", "instructions.md"),
-      "antigravity-cli": join(this.home, ".gemini", "GEMINI.md"),
-      "cursor-agent": join(this.home, ".cursor", "rules", "global.mdc"),
-      opencode: join(this.home, ".config", "opencode", "AGENTS.md"),
-      "pi-agent": join(this.home, ".pi", "agent", "AGENTS.md"),
-    };
+    return mapLayouts(this.layouts(), layout => layout.instruction);
   }
 
   vendorSkillsDirs(): Record<VendorName, string> {
-    return {
-      "claude-code": join(this.home, ".claude", "skills"),
-      codex: join(this.home, ".codex", "skills"),
-      "antigravity-cli": join(
-        this.home,
-        ".gemini",
-        "antigravity-cli",
-        "skills",
-      ),
-      "cursor-agent": join(this.home, ".cursor", "skills"),
-      opencode: join(this.home, ".config", "opencode", "skills"),
-      "pi-agent": join(this.home, ".pi", "agent", "skills"),
-    };
+    return mapLayouts(this.layouts(), layout => layout.skills);
   }
 
   vendorSkillPath(vendor: VendorName, skillName: string): string {
@@ -233,19 +236,7 @@ export class Home {
   }
 
   vendorAgentsDirs(): Record<VendorName, string> {
-    return {
-      "claude-code": join(this.home, ".claude", "agents"),
-      codex: join(this.home, ".codex", "agents"),
-      "antigravity-cli": join(
-        this.home,
-        ".gemini",
-        "antigravity-cli",
-        "agents",
-      ),
-      "cursor-agent": join(this.home, ".cursor", "agents"),
-      opencode: join(this.home, ".config", "opencode", "agents"),
-      "pi-agent": join(this.home, ".pi", "agent", "agents"),
-    };
+    return mapLayouts(this.layouts(), layout => layout.agents);
   }
 
   vendorAgentPath(vendor: VendorName, agentFile: string): string {

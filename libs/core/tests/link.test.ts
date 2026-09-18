@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { join } from "node:path";
 import {
   buildVendorPlan,
   getProjectState,
@@ -6,17 +7,21 @@ import {
   getVendorState,
 } from "@ponte/core";
 
+const VENDOR_ROOT = join("/home/u", ".claude");
+const CONFIG_ROOT = "/cfg";
+const SUBAGENTS = join(CONFIG_ROOT, "subagents", "team");
+
 const layout = {
-  instruction: "/home/u/.claude/CLAUDE.md",
-  skills: "/home/u/.claude/skills",
-  agents: "/home/u/.claude/agents",
+  instruction: join(VENDOR_ROOT, "CLAUDE.md"),
+  skills: join(VENDOR_ROOT, "skills"),
+  agents: join(VENDOR_ROOT, "agents"),
 };
 
 const plan = buildVendorPlan(
   layout,
-  "/cfg/AGENTS.md",
-  [{ name: "java", sourceDirectory: "/cfg/skills/java" }],
-  [{ sourceDirectory: "/cfg/subagents/team", files: ["a.md", "b.md"] }],
+  join(CONFIG_ROOT, "AGENTS.md"),
+  [{ name: "java", sourceDirectory: join(CONFIG_ROOT, "skills", "java") }],
+  [{ sourceDirectory: SUBAGENTS, files: ["a.md", "b.md"] }],
 );
 
 const actualFor = (plan: {
@@ -26,15 +31,21 @@ const actualFor = (plan: {
 describe("buildVendorPlan", () => {
   it("links the prompt, each skill directory and each subagent file", () => {
     expect(plan.links).toEqual([
-      { path: "/home/u/.claude/CLAUDE.md", target: "/cfg/AGENTS.md" },
-      { path: "/home/u/.claude/skills/java", target: "/cfg/skills/java" },
       {
-        path: "/home/u/.claude/agents/a.md",
-        target: "/cfg/subagents/team/a.md",
+        path: join(VENDOR_ROOT, "CLAUDE.md"),
+        target: join(CONFIG_ROOT, "AGENTS.md"),
       },
       {
-        path: "/home/u/.claude/agents/b.md",
-        target: "/cfg/subagents/team/b.md",
+        path: join(VENDOR_ROOT, "skills", "java"),
+        target: join(CONFIG_ROOT, "skills", "java"),
+      },
+      {
+        path: join(VENDOR_ROOT, "agents", "a.md"),
+        target: join(SUBAGENTS, "a.md"),
+      },
+      {
+        path: join(VENDOR_ROOT, "agents", "b.md"),
+        target: join(SUBAGENTS, "b.md"),
       },
     ]);
   });
@@ -43,9 +54,12 @@ describe("buildVendorPlan", () => {
 describe("getStaleLinkPaths", () => {
   it("reports links the config no longer asks for", () => {
     const actual = actualFor(plan);
-    actual.set("/home/u/.claude/skills/dropped", "/cfg/skills/dropped");
+    actual.set(
+      join(VENDOR_ROOT, "skills", "dropped"),
+      join(CONFIG_ROOT, "skills", "dropped"),
+    );
     expect(getStaleLinkPaths(plan, actual)).toEqual([
-      "/home/u/.claude/skills/dropped",
+      join(VENDOR_ROOT, "skills", "dropped"),
     ]);
   });
 
@@ -65,19 +79,22 @@ describe("getVendorState", () => {
 
   it("has drifted when a link points elsewhere", () => {
     const actual = actualFor(plan);
-    actual.set("/home/u/.claude/skills/java", "/somewhere/else");
+    actual.set(join(VENDOR_ROOT, "skills", "java"), "/somewhere/else");
     expect(getVendorState(plan, actual)).toBe("drifted");
   });
 
   it("has drifted when a stale link remains", () => {
     const actual = actualFor(plan);
-    actual.set("/home/u/.claude/agents/gone.md", "/cfg/subagents/team/gone.md");
+    actual.set(
+      join(VENDOR_ROOT, "agents", "gone.md"),
+      join(SUBAGENTS, "gone.md"),
+    );
     expect(getVendorState(plan, actual)).toBe("drifted");
   });
 
   it("has drifted when a wanted link is missing", () => {
     const actual = actualFor(plan);
-    actual.delete("/home/u/.claude/skills/java");
+    actual.delete(join(VENDOR_ROOT, "skills", "java"));
     expect(getVendorState(plan, actual)).toBe("drifted");
   });
 });
