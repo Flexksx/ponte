@@ -137,7 +137,7 @@ describe("project sync", () => {
       return;
     }
     const h = await newHarness();
-    const outside = h.fixtureDir("simple_skill");
+    const outside = h.fixture("simple_skill");
     const root = await newProject(h, localSkillConfig(outside));
 
     await h.mustRunIn(root, "sync");

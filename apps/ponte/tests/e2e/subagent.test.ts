@@ -13,7 +13,7 @@ describe("subagent sync", () => {
     const h = await newHarness();
     await h.bootstrap();
 
-    const subagentsDir = h.fixtureDir("subagents");
+    const subagentsDir = h.fixture("subagents");
     await appendConfigWithSubagent(h, subagentsDir);
 
     await h.mustRun("sync");
@@ -35,7 +35,7 @@ describe("subagent sync", () => {
     const h = await newHarness();
     await h.bootstrap();
 
-    const subagentsDir = h.fixtureDir("subagents");
+    const subagentsDir = h.fixture("subagents");
     await appendConfigWithSubagent(h, subagentsDir);
 
     await h.mustRun("sync");
@@ -55,7 +55,7 @@ describe("subagent sync", () => {
     await h.bootstrap();
     await h.mustRun("sync");
 
-    const subagentsDir = h.fixtureDir("subagents");
+    const subagentsDir = h.fixture("subagents");
     await appendConfigWithSubagent(h, subagentsDir);
     await h.mustRun("sync");
     expect(

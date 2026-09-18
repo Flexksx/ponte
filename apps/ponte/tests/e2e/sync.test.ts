@@ -79,7 +79,7 @@ describe("sync", () => {
     await h.bootstrap();
     await h.mustRun("sysprompt", "set", "stored content");
 
-    const fixture = h.fixturePath("unicode_prompt.md");
+    const fixture = h.fixture("unicode_prompt.md");
     const want = await h.readFileText(fixture);
 
     await h.mustRun("sync", "-g", fixture);

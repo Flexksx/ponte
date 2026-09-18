@@ -5,7 +5,7 @@ describe("skills", () => {
   it("lists a local skill with the name from SKILL.md", async () => {
     const h = await newHarness();
     await h.bootstrap();
-    const fixture = h.fixturePath("simple_skill");
+    const fixture = h.fixture("simple_skill");
     await h.appendConfig(sourceEntry("skills", fixture));
     const { stdout } = await h.mustRun("skills");
     for (const want of ["NAME", "simple-skill", "local", fixture]) {
@@ -46,7 +46,7 @@ describe("subagents", () => {
   it("lists a declared local subagent source with no name column", async () => {
     const h = await newHarness();
     await h.bootstrap();
-    const fixtureDir = h.fixtureDir("subagents");
+    const fixtureDir = h.fixture("subagents");
     await h.appendConfig(sourceEntry("subagents", fixtureDir));
     const { stdout } = await h.mustRun("subagents");
     expect(stdout).toContain("local");

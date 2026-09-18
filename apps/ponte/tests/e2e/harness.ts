@@ -8,6 +8,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir as osTmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   buildVendorLayouts,
   type Platform,
@@ -15,6 +16,8 @@ import {
   type VendorName,
 } from "@ponte/core";
 import { $ } from "bun";
+
+const HERE = dirname(fileURLToPath(import.meta.url));
 
 const PLATFORM: Platform = process.platform === "win32" ? "win32" : "posix";
 
@@ -34,9 +37,7 @@ const resolveBinary = (): Promise<string> => {
     return Promise.resolve(binaryUnderTest);
   }
   binaryResolve = (async () => {
-    const here = new URL(import.meta.url).pathname;
-    const slash = here.lastIndexOf("/");
-    const root = `${here.slice(0, slash)}/../..`;
+    const root = join(HERE, "..", "..");
     const bin = join(await osTmpdir(), `ponte-e2e-bin-${randId()}`);
     await mkdir(bin, { recursive: true });
     const out = join(bin, process.platform === "win32" ? "ponte.exe" : "ponte");
@@ -259,18 +260,8 @@ export class Home {
     throw new Error(`expected no link at ${path}`);
   }
 
-  fixturePath(name: string): string {
-    const here = new URL(import.meta.url).pathname;
-    const slash = here.lastIndexOf("/");
-    const dir = here.slice(0, slash);
-    return join(dir, "fixtures", name);
-  }
-
-  fixtureDir(name: string): string {
-    const here = new URL(import.meta.url).pathname;
-    const slash = here.lastIndexOf("/");
-    const dir = here.slice(0, slash);
-    return join(dir, "fixtures", name);
+  fixture(name: string): string {
+    return join(HERE, "fixtures", name);
   }
 
   cleanup(fn: () => Promise<void>): void {
