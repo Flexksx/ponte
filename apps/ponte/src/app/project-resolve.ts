@@ -107,6 +107,8 @@ export const createFetchSkill =
 export const createResolveProjectSkills = (
   deps: ResolveProjectSkillsDeps,
 ): ResolveProjectSkills => {
+  const copies = new Map<string, Promise<void>>();
+
   const localSkill = async (
     entry: SourceEntry,
     source: string,
@@ -152,7 +154,10 @@ export const createResolveProjectSkills = (
     if (await deps.directoryExists(directory)) {
       await deps.skillNames.checkVendored(source, directory);
     } else {
-      await deps.vendorSkill(layout, fetched);
+      const copy =
+        copies.get(fetched.name) ?? deps.vendorSkill(layout, fetched);
+      copies.set(fetched.name, copy);
+      await copy;
     }
     return {
       name: fetched.name,
@@ -192,6 +197,7 @@ export const createResolveProjectSkills = (
   };
 
   return async (project, materialize) => {
+    copies.clear();
     const lock = await deps.readProjectLock(project.layout);
     const resolutions = await Promise.all(
       project.config.skills.map(entry =>
