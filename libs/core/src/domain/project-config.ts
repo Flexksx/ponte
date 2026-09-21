@@ -1,9 +1,13 @@
 import {
+  buildVendorTable,
+  type RawVendorTable,
   resolveSourcePaths,
   type SourceEntry,
   sourceKey,
   type VendorConfig,
 } from "./config";
+import { ok, type Result } from "./result";
+import { SKILL_FILE } from "./skill";
 import { VENDORS, type VendorName } from "./vendor";
 
 export type ProjectConfig = {
@@ -28,12 +32,24 @@ export type ProjectSkillRow = {
   readonly commit: string | null;
 };
 
+export type RawProjectConfig = {
+  readonly vendors?: RawVendorTable;
+  readonly skills?: readonly SourceEntry[];
+};
+
 export type UpdateTarget = {
   readonly name: string;
   readonly entry: SourceEntry;
 };
 
 export const PROJECT_CONFIG_FILE = "ponte.toml";
+
+export const PROJECT_CONFIG_KEYS = ["vendors", "skills"];
+
+export const SKILL_TABLE_MIGRATION = `ponte reads the name from ${SKILL_FILE}`;
+
+export const SUBAGENT_TABLE_MIGRATION =
+  "ponte names each subagent after its file";
 
 const lockEntriesMatch = (
   left: LockEntry,
@@ -110,4 +126,16 @@ export const buildUpdateTargets = (
     }
   }
   return targets;
+};
+
+export const buildProjectConfig = (
+  raw: RawProjectConfig,
+): Result<ProjectConfig, string[]> => {
+  if (raw.vendors === undefined) {
+    return ok({ skills: raw.skills ?? [] });
+  }
+  const vendors = buildVendorTable(raw.vendors, "vendors");
+  return vendors.ok
+    ? ok({ vendors: vendors.value, skills: raw.skills ?? [] })
+    : vendors;
 };
