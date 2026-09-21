@@ -34,6 +34,8 @@ const TRANSIENT_GIT_ERRORS: readonly RegExp[] = [
   /unable to access .*: (failed|error|empty reply)/i,
 ];
 
+const REPO_COMMITS = new Map<string, Promise<string>>();
+
 const cloneDirectoryName = (url: string, ref: string): string =>
   createHash("sha256")
     .update(`${url}\n${ref}`)
@@ -82,6 +84,26 @@ const ensureCloned = async (repoPath: string, url: string): Promise<void> => {
   await runGit(["clone", "--", url, repoPath]);
 };
 
+const checkoutRepo = async (
+  repo: string,
+  url: string,
+  ref: string,
+): Promise<string> => {
+  await ensureCloned(repo, url);
+  await runGit(["checkout", ref], repo);
+  return runGit(["rev-parse", "HEAD"], repo);
+};
+
+const repoCommit = (
+  repo: string,
+  url: string,
+  ref: string,
+): Promise<string> => {
+  const commit = REPO_COMMITS.get(repo) ?? checkoutRepo(repo, url, ref);
+  REPO_COMMITS.set(repo, commit);
+  return commit;
+};
+
 export const resolveSourceDetails = async (
   source: SkillSource,
   cacheDir: string,
@@ -97,11 +119,10 @@ export const resolveSourceDetails = async (
     throw new MissingGitRefError(source.url);
   }
   const repo = join(cacheDir, cloneDirectoryName(source.url, source.ref));
-  await ensureCloned(repo, source.url);
-  await runGit(["checkout", source.ref], repo);
+  const commit = await repoCommit(repo, source.url, source.ref);
   return {
     directory: source.subdir ? join(repo, source.subdir) : repo,
-    commit: await runGit(["rev-parse", "HEAD"], repo),
+    commit,
   };
 };
 

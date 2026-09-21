@@ -36,25 +36,30 @@ export const createBuildVendorPlans =
     const resolveDirectory = (entry: SourceEntry): Promise<string> =>
       deps.resolveSource(parseSource(entry.source, entry.ref, entry.subdir));
 
-    const skills: ResolvedSkill[] = [];
-    const named: NamedSkill[] = [];
-    for (const entry of config.skills) {
+    const resolveSkill = async (
+      entry: SourceEntry,
+    ): Promise<ResolvedSkill & NamedSkill> => {
       const source = describeSourceEntry(entry);
       const sourceDirectory = await resolveDirectory(entry);
-      const name = await deps.skillNames.read(source, sourceDirectory);
-      skills.push({ name, sourceDirectory });
-      named.push({ name, source });
-    }
-    requireUniqueSkillNames(named);
-
-    const subagents: ResolvedSubagent[] = [];
-    for (const entry of config.subagents) {
-      const sourceDirectory = await resolveDirectory(entry);
-      subagents.push({
+      return {
+        name: await deps.skillNames.read(source, sourceDirectory),
+        source,
         sourceDirectory,
-        files: await deps.listFiles(sourceDirectory),
-      });
-    }
+      };
+    };
+
+    const resolveSubagent = async (
+      entry: SourceEntry,
+    ): Promise<ResolvedSubagent> => {
+      const sourceDirectory = await resolveDirectory(entry);
+      return { sourceDirectory, files: await deps.listFiles(sourceDirectory) };
+    };
+
+    const [skills, subagents] = await Promise.all([
+      Promise.all(config.skills.map(resolveSkill)),
+      Promise.all(config.subagents.map(resolveSubagent)),
+    ]);
+    requireUniqueSkillNames(skills);
 
     const layouts = buildVendorLayouts(deps.home, deps.platform);
     const plans = {} as Record<VendorName, VendorPlan>;
