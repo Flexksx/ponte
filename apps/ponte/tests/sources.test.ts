@@ -93,3 +93,33 @@ describe("resolveSourceDetails.git", () => {
     expect((await readdir(cache)).length).toBe(1);
   });
 });
+
+describe("runGit errors", () => {
+  it("reports the command and the git stderr, and does not retry", async () => {
+    const parent = await mkdtemp(join(tmpdir(), "ponte-giterr-"));
+    const origin = join(parent, "origin");
+    await mkdir(origin);
+    await writeFile(join(origin, "SKILL.md"), "---\nname: demo\n---\n");
+    await $`git init -q -b main`.cwd(origin).quiet();
+    await $`git -c user.email=t@t -c user.name=t add -A`.cwd(origin).quiet();
+    await $`git -c user.email=t@t -c user.name=t commit -qm init`
+      .cwd(origin)
+      .quiet();
+
+    const started = Date.now();
+    let message = "";
+    try {
+      await resolveSourceDetails(
+        { type: "git", url: origin, ref: "no-such-ref" },
+        join(parent, "cache"),
+      );
+    } catch (error) {
+      message = (error as Error).message;
+    }
+
+    expect(message).toContain("git checkout no-such-ref failed");
+    expect(message).toContain("no-such-ref");
+    expect(message).toContain("pathspec");
+    expect(Date.now() - started < 2000).toBe(true);
+  });
+});

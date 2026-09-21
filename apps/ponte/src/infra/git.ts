@@ -51,7 +51,7 @@ const retryDelay = (attempt: number): number =>
 const runGit = async (args: string[], cwd?: string): Promise<string> => {
   const command = `git ${args.join(" ")}`;
   for (let attempt = 1; ; attempt += 1) {
-    const shell = $`git ${args}`;
+    const shell = $`git ${args}`.nothrow();
     const result = await (cwd ? shell.cwd(cwd) : shell).quiet();
     if (result.exitCode === 0) {
       return result.stdout.toString().trim();
