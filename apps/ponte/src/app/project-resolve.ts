@@ -65,6 +65,12 @@ type VendorSkillDeps = {
   copyDirectoryWithoutGit: CopyDirectoryWithoutGit;
 };
 
+type EntryResolution = {
+  readonly entry: SourceEntry;
+  readonly skill: ProjectSkill | null;
+  readonly fresh: boolean;
+};
+
 type ResolveProjectSkillsDeps = {
   readProjectLock: ReadProjectLock;
   resolveSource: ResolveSource;
@@ -101,6 +107,8 @@ export const createFetchSkill =
 export const createResolveProjectSkills = (
   deps: ResolveProjectSkillsDeps,
 ): ResolveProjectSkills => {
+  const copies = new Map<string, Promise<void>>();
+
   const localSkill = async (
     entry: SourceEntry,
     source: string,
@@ -146,7 +154,10 @@ export const createResolveProjectSkills = (
     if (await deps.directoryExists(directory)) {
       await deps.skillNames.checkVendored(source, directory);
     } else {
-      await deps.vendorSkill(layout, fetched);
+      const copy =
+        copies.get(fetched.name) ?? deps.vendorSkill(layout, fetched);
+      copies.set(fetched.name, copy);
+      await copy;
     }
     return {
       name: fetched.name,
@@ -157,31 +168,50 @@ export const createResolveProjectSkills = (
     };
   };
 
+  const resolveEntry = async (
+    project: Project,
+    lock: ProjectLock,
+    entry: SourceEntry,
+    materialize: boolean,
+  ): Promise<EntryResolution> => {
+    const source = describeSourceEntry(entry);
+    if (!isGitSource(entry.source)) {
+      return { entry, skill: await localSkill(entry, source), fresh: false };
+    }
+    const matched = await matchedVendoredSkill(
+      project.layout,
+      lock,
+      entry,
+      source,
+    );
+    if (matched !== null) {
+      return { entry, skill: matched, fresh: false };
+    }
+    return {
+      entry,
+      skill: materialize
+        ? await freshVendoredSkill(project.layout, entry, source)
+        : null,
+      fresh: true,
+    };
+  };
+
   return async (project, materialize) => {
+    copies.clear();
     const lock = await deps.readProjectLock(project.layout);
+    const resolutions = await Promise.all(
+      project.config.skills.map(entry =>
+        resolveEntry(project, lock, entry, materialize),
+      ),
+    );
     const locked: Record<string, LockEntry> = {};
     const skills: ProjectSkill[] = [];
     let pending = 0;
-    for (const entry of project.config.skills) {
-      const source = describeSourceEntry(entry);
-      if (!isGitSource(entry.source)) {
-        skills.push(await localSkill(entry, source));
+    for (const { entry, skill, fresh } of resolutions) {
+      pending += fresh ? 1 : 0;
+      if (skill === null) {
         continue;
       }
-      const matched = await matchedVendoredSkill(
-        project.layout,
-        lock,
-        entry,
-        source,
-      );
-      if (matched === null) {
-        pending += 1;
-        if (!materialize) {
-          continue;
-        }
-      }
-      const skill =
-        matched ?? (await freshVendoredSkill(project.layout, entry, source));
       if (skill.commit !== null) {
         locked[skill.name] = createLockEntry(entry, skill.commit);
       }

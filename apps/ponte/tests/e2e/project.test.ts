@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { mkdir, symlink, writeFile } from "node:fs/promises";
+import { mkdir, readdir, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { $ } from "bun";
 import type { Home } from "./harness";
@@ -463,5 +463,38 @@ describe("project update", () => {
     expect(exitCode).not.toBe(0);
     expect(stderr).toContain("absent");
     await h.close();
+  });
+});
+
+describe("project sync name clash", () => {
+  it("leaves one unmixed copy when two sources declare the same name", async () => {
+    if (isWindows()) {
+      return;
+    }
+    const h = await newHarness();
+    const marked = async (marker: string) => {
+      const repo = await newSkillRepo(h, skillDoc("clash"));
+      const path = repo.url.slice("file://".length);
+      await writeFile(join(path, `only-${marker}.txt`), marker);
+      return { repo, sha: await repo.commit(skillDoc("clash", marker)) };
+    };
+    const first = await marked("first");
+    const second = await marked("second");
+    const root = await newProject(
+      h,
+      `${gitSkillConfig(first.repo, first.sha)}${gitSkillConfig(second.repo, second.sha)}`,
+    );
+
+    const { stderr, exitCode } = await h.runIn(root, "sync");
+
+    expect(exitCode).not.toBe(0);
+    expect(stderr).toContain("clash");
+    const vendored = join(root, ".ponte", "sources", "clash");
+    const files = (await readdir(vendored)).sort();
+    expect(files).toEqual(
+      files.includes("only-first.txt")
+        ? ["SKILL.md", "only-first.txt"]
+        : ["SKILL.md", "only-second.txt"],
+    );
   });
 });

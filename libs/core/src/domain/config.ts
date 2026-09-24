@@ -1,6 +1,7 @@
 import { isAbsolute, join } from "node:path";
+import { err, ok, type Result } from "./result";
 import { describeSource, isGitSource, parseSource } from "./source";
-import { parseVendorNames, VENDORS, type VendorName } from "./vendor";
+import { isVendor, parseVendorNames, VENDORS, type VendorName } from "./vendor";
 
 export type VendorConfig = { readonly enabled: boolean };
 
@@ -8,6 +9,17 @@ export type SourceEntry = {
   readonly source: string;
   readonly ref?: string;
   readonly subdir?: string;
+};
+
+export type RawVendorTable = Readonly<
+  Record<string, { readonly enabled?: boolean }>
+>;
+
+export type RawConfig = {
+  readonly system_prompt_file?: string;
+  readonly vendors?: RawVendorTable;
+  readonly skills?: readonly SourceEntry[];
+  readonly subagents?: readonly SourceEntry[];
 };
 
 export type Config = {
@@ -68,3 +80,33 @@ export const resolveVendors = (
   requestedVendors.length > 0
     ? parseVendorNames(requestedVendors)
     : VENDORS.filter(vendor => config.vendors[vendor]?.enabled === true);
+
+export const buildVendorTable = (
+  raw: Readonly<Record<string, { readonly enabled?: boolean }>>,
+  path: string,
+): Result<Readonly<Partial<Record<VendorName, VendorConfig>>>, string[]> => {
+  const vendors: Partial<Record<VendorName, VendorConfig>> = {};
+  const problems: string[] = [];
+  for (const [name, entry] of Object.entries(raw)) {
+    if (isVendor(name)) {
+      vendors[name] = { enabled: entry.enabled ?? false };
+      continue;
+    }
+    problems.push(
+      `${path}.${name}: unknown agent, expected one of ${VENDORS.join(", ")}`,
+    );
+  }
+  return problems.length > 0 ? err(problems) : ok(vendors);
+};
+
+export const buildConfig = (raw: RawConfig): Result<Config, string[]> => {
+  const vendors = buildVendorTable(raw.vendors ?? {}, "vendors");
+  return vendors.ok
+    ? ok({
+        systemPromptFile: raw.system_prompt_file ?? DEFAULT_SYSTEM_PROMPT_FILE,
+        vendors: vendors.value,
+        skills: raw.skills ?? [],
+        subagents: raw.subagents ?? [],
+      })
+    : vendors;
+};
