@@ -1,24 +1,24 @@
 import { parseArgs } from "node:util";
 import {
-  type Config,
+  type App,
   describeSourceEntry,
-  formatShortCommit,
   isGitSource,
-  PROJECT_CONFIG_FILE,
+  type LinkState,
   PROJECT_SKILLS_DIRECTORY,
   PROJECT_SOURCES_DIRECTORY,
-  type Project,
-  type ProjectSkillRow,
+  type Problem,
+  type ProjectStatusReport,
+  type ProjectSyncReport,
+  type Result,
+  type SkillRow,
   type SourceEntry,
-  type VendorState,
+  type StatusReport,
+  type SyncReport,
 } from "@ponte/core";
 import chalk from "chalk";
-import { type App, bootstrap } from "../app/bootstrap";
-import type { ProjectStatusReport } from "../app/project-status";
-import type { ProjectSyncReport } from "../app/project-sync";
-import type { StatusReport } from "../app/vendor-status";
-import type { SyncReport } from "../app/vendor-sync";
+import { formatShortCommit } from "./format";
 import manualText from "./manual.md" with { type: "text" };
+import { describeProblem } from "./problems";
 
 type Command = {
   readonly name: string;
@@ -35,7 +35,7 @@ const NO_VALUE = "—";
 
 const HELP_FLAGS = new Set(["help", "--help", "-h"]);
 
-const STATE_STYLES: Record<VendorState, (text: string) => string> = {
+const STATE_STYLES: Record<LinkState, (text: string) => string> = {
   "in sync": chalk.green,
   drifted: chalk.yellow,
   "not synced": chalk.red,
@@ -44,22 +44,15 @@ const STATE_STYLES: Record<VendorState, (text: string) => string> = {
 
 const write = (line: string): void => process.stdout.write(line);
 
-const getConfig = async (app: App): Promise<Config> => {
-  const config = await app.readConfig();
-  if (config === null) {
-    throw new Error("config not initialized - run `ponte sync` first");
-  }
-  return config;
+export const warn = (message: string): void => {
+  process.stderr.write(`${message}\n`);
 };
 
-const getProject = async (app: App): Promise<Project> => {
-  const project = await app.findProject();
-  if (project === null) {
-    throw new Error(
-      `no ${PROJECT_CONFIG_FILE} in this directory or any parent directory`,
-    );
+const unwrap = <T>(result: Result<T, Problem>): T => {
+  if (!result.ok) {
+    throw new Error(describeProblem(result.error));
   }
-  return project;
+  return result.value;
 };
 
 const printBootstrap = (report: SyncReport): void => {
@@ -113,29 +106,19 @@ const runSyncCommand = async (app: App, args: string[]): Promise<void> => {
   const agents = values.agents;
   const dryRun = values["dry-run"] === true;
 
-  const project = await app.findProject();
-  if (project !== null) {
-    if (typeof override === "string" || Array.isArray(agents)) {
-      throw new Error(
-        "-g and -a apply to a global sync only, and this directory is a project",
-      );
-    }
-    printProjectSync(await app.syncProject(project, !dryRun), dryRun);
-    return;
-  }
-
   const request = {
     promptOverride: typeof override === "string" ? override : undefined,
     requestedVendors: Array.isArray(agents) ? agents : [],
   };
-  const result = await app.syncVendors(request, !dryRun);
-  if (!result.ok) {
-    throw new Error(result.error);
+  const outcome = unwrap(await app.sync(request, !dryRun));
+  if (outcome.mode === "project") {
+    printProjectSync(outcome.report, dryRun);
+    return;
   }
-  printBootstrap(result.value);
+  printBootstrap(outcome.report);
   const verb = dryRun ? "Dry run - would link" : "Linked";
-  write(`${verb} to: ${result.value.vendors.join(", ")}\n`);
-  printStale(result.value.stale, dryRun);
+  write(`${verb} to: ${outcome.report.vendors.join(", ")}\n`);
+  printStale(outcome.report.stale, dryRun);
 };
 
 const printStatus = (report: StatusReport): void => {
@@ -177,29 +160,21 @@ const runStatusCommand = async (app: App, args: string[]): Promise<void> => {
   if (args.length > 0) {
     throw new Error(`unexpected argument for status: ${args[0]}`);
   }
-  const project = await app.findProject();
-  if (project !== null) {
-    printProjectStatus(await app.getProjectStatusReport(project));
+  const outcome = unwrap(await app.status());
+  if (outcome.mode === "project") {
+    printProjectStatus(outcome.report);
     return;
   }
-  const config = await getConfig(app);
-  if (config === null) {
-    return;
-  }
-  const result = await app.getStatusReport(config);
-  if (!result.ok) {
-    throw new Error(result.error);
-  }
-  printStatus(result.value);
+  printStatus(outcome.report);
 };
 
-const nameColumn = (rows: readonly ProjectSkillRow[]): number =>
+const nameColumn = (rows: readonly SkillRow[]): number =>
   Math.max(4, ...rows.map(row => (row.name ?? NO_VALUE).length));
 
 const nameCell = (name: string | null, width: number): string =>
   name === null ? chalk.dim(NO_VALUE.padEnd(width)) : name.padEnd(width);
 
-const printConfigSkills = (rows: readonly ProjectSkillRow[]): void => {
+const printConfigSkills = (rows: readonly SkillRow[]): void => {
   if (rows.length === 0) {
     write("No skills configured.\n");
     return;
@@ -230,7 +205,7 @@ const printSubagents = (entries: readonly SourceEntry[]): void => {
   }
 };
 
-const printProjectSkills = (rows: readonly ProjectSkillRow[]): void => {
+const printProjectSkills = (rows: readonly SkillRow[]): void => {
   if (rows.length === 0) {
     write("No skills configured.\n");
     return;
@@ -255,16 +230,12 @@ const runSkillsCommand = async (app: App, args: string[]): Promise<void> => {
   if (args.length > 0) {
     throw new Error(`unexpected argument for skills: ${args[0]}`);
   }
-  const project = await app.findProject();
-  if (project !== null) {
-    printProjectSkills(await app.listProjectSkills(project));
+  const listing = unwrap(await app.listSkills());
+  if (listing.mode === "project") {
+    printProjectSkills(listing.rows);
     return;
   }
-  const config = await getConfig(app);
-  if (config === null) {
-    return;
-  }
-  printConfigSkills(await app.listConfigSkills(config));
+  printConfigSkills(listing.rows);
 };
 
 const runUpdateCommand = async (app: App, args: string[]): Promise<void> => {
@@ -276,26 +247,17 @@ const runUpdateCommand = async (app: App, args: string[]): Promise<void> => {
   if (positionals.length > 1) {
     throw new Error(`unexpected argument for update: ${positionals[1]}`);
   }
-  const project = await getProject(app);
-  if (project === null) {
-    return;
-  }
-  const result = await app.runProjectUpdate(
-    project,
-    positionals[0],
-    values.force === true,
+  const report = unwrap(
+    await app.updateSkills(positionals[0], values.force === true),
   );
-  if (!result.ok) {
-    throw new Error(result.error);
-  }
-  if (result.value.updated.length === 0) {
+  if (report.updated.length === 0) {
     write("No vendored skills to update.\n");
     return;
   }
   write(
-    `Updated ${result.value.updated.length} skill(s) in ${chalk.cyan(result.value.root)}\n`,
+    `Updated ${report.updated.length} skill(s) in ${chalk.cyan(report.root)}\n`,
   );
-  for (const skill of result.value.updated) {
+  for (const skill of report.updated) {
     const commit =
       skill.commit === null ? NO_VALUE : formatShortCommit(skill.commit);
     write(`  ${skill.name} -> ${chalk.dim(commit)}\n`);
@@ -306,37 +268,23 @@ const runSubagentsCommand = async (app: App, args: string[]): Promise<void> => {
   if (args.length > 0) {
     throw new Error(`unexpected argument for subagents: ${args[0]}`);
   }
-  const config = await getConfig(app);
-  if (config === null) {
-    return;
-  }
-  printSubagents(config.subagents);
+  printSubagents(unwrap(await app.listSubagents()));
 };
 
 const runSyspromptCommand = async (app: App, args: string[]): Promise<void> => {
   const [subcommand, argument] = args;
-  const config = await getConfig(app);
-  if (config === null) {
-    return;
-  }
   if (subcommand === "set") {
     if (argument === undefined) {
       throw new Error("missing argument for sysprompt set <file-or-string>");
     }
-    await app.setSystemPrompt(config, argument);
+    unwrap(await app.setSystemPrompt(argument));
     write("System prompt updated.\n");
     return;
   }
   if (subcommand !== undefined) {
     throw new Error(`unknown subcommand for sysprompt: ${subcommand}`);
   }
-  const prompt = await app.readSystemPrompt(config);
-  if (prompt === null) {
-    throw new Error(
-      "No system prompt set. Use `ponte sysprompt set <file-or-string>`.",
-    );
-  }
-  write(prompt);
+  write(unwrap(await app.readSystemPrompt()));
 };
 
 const runManualCommand = async (): Promise<void> => {
@@ -402,11 +350,10 @@ const disableColorIfRequested = (): void => {
 const formatError = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
 
-export const run = async (argv: string[]): Promise<number> => {
+export const run = async (app: App, argv: string[]): Promise<number> => {
   disableColorIfRequested();
   const [commandName, ...args] = argv;
 
-  const app = bootstrap();
   const commands = commandTable(app);
 
   if (commandName === undefined || HELP_FLAGS.has(commandName)) {

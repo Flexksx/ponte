@@ -1,46 +1,48 @@
 import { basename } from "node:path";
 import {
+  checkVendoredSkillName,
   parseSkillName,
-  type ReadTextFile,
-  skillFilePath,
-  VendoredSkillRenamedError,
+  type ReadSkillFile,
+  type Result,
+  type SkillProblem,
 } from "@ponte/core";
 
 export type SkillNames = {
-  readonly read: (source: string, directory: string) => Promise<string>;
+  readonly read: (
+    source: string,
+    directory: string,
+  ) => Promise<Result<string, SkillProblem>>;
   readonly readOrNull: (directory: string) => Promise<string | null>;
-  readonly checkVendored: (source: string, directory: string) => Promise<void>;
+  readonly checkVendored: (
+    source: string,
+    directory: string,
+  ) => Promise<Result<null, SkillProblem>>;
 };
 
 type SkillNamesDeps = {
-  readTextFile: ReadTextFile;
+  readSkillFile: ReadSkillFile;
 };
 
 export const createSkillNames = (deps: SkillNamesDeps): SkillNames => {
-  const read = async (source: string, directory: string): Promise<string> =>
-    parseSkillName(
-      source,
-      directory,
-      await deps.readTextFile(skillFilePath(directory)),
-    );
+  const read = async (
+    source: string,
+    directory: string,
+  ): Promise<Result<string, SkillProblem>> =>
+    parseSkillName(source, directory, await deps.readSkillFile(directory));
 
   const readOrNull = async (directory: string): Promise<string | null> => {
-    try {
-      return await read(directory, directory);
-    } catch {
-      return null;
-    }
+    const name = await read(directory, directory);
+    return name.ok ? name.value : null;
   };
 
   const checkVendored = async (
     source: string,
     directory: string,
-  ): Promise<void> => {
-    const name = basename(directory);
+  ): Promise<Result<null, SkillProblem>> => {
     const declared = await read(source, directory);
-    if (declared !== name) {
-      throw new VendoredSkillRenamedError(directory, name, declared);
-    }
+    return declared.ok
+      ? checkVendoredSkillName(directory, basename(directory), declared.value)
+      : declared;
   };
 
   return { read, readOrNull, checkVendored };

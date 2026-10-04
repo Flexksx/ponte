@@ -204,9 +204,26 @@ describe("project sync", () => {
       "../../skills/mine",
     );
     await h.assertSymlinkTo(
-      join(root, ".codex", "skills", "mine"),
-      "../../skills/mine",
+      join(root, ".gemini", "antigravity-cli", "skills", "mine"),
+      "../../../skills/mine",
     );
+    await h.assertMissing(join(root, ".codex", "skills", "mine"));
+    await h.close();
+  });
+
+  it("removes old links from vendors that read .agents/skills", async () => {
+    if (isWindows()) {
+      return;
+    }
+    const h = await newHarness();
+    const root = await newProject(h, localSkillConfig("skills/mine"));
+    await h.writeSkill(join(root, "skills", "mine"), skillDoc("mine"));
+    await mkdir(join(root, ".codex", "skills"), { recursive: true });
+    await symlink("../../skills/mine", join(root, ".codex", "skills", "mine"));
+
+    await h.mustRunIn(root, "sync");
+
+    await h.assertMissing(join(root, ".codex", "skills", "mine"));
     await h.close();
   });
 

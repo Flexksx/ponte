@@ -3,23 +3,34 @@ import { join } from "node:path";
 import {
   buildProjectPlan,
   buildUpdateTargets,
+  CLAUDE_CODE_SHARED_SKILLS_VERSION,
   createLockEntry,
   findLockedSkillName,
-  formatShortCommit,
-  getAncestorDirectories,
   getProjectEnabledVendors,
   locksAreEqual,
   projectLayout,
   resolveProjectConfigPaths,
-  VENDORS,
+  type VendorVersions,
   vendoredSkillPath,
 } from "@ponte/core";
 
 const REPO = "/repo";
 const SOURCES = join(REPO, ".ponte", "sources");
 
-const layout = projectLayout(REPO);
-const TOTAL_SKILL_DIRECTORIES = 1 + VENDORS.length;
+const posix = (versions: VendorVersions = {}) => ({
+  root: REPO,
+  platform: "posix" as const,
+  versions,
+});
+
+const layout = projectLayout(posix());
+
+// .agents/skills, plus Claude Code and Antigravity, which keep their own.
+const LINKED_DIRECTORIES = 3;
+
+// Codex, Cursor, OpenCode and Pi read .agents/skills, so ponte only cleans
+// their old directories.
+const LEGACY_DIRECTORIES = 4;
 
 const findLink = (
   links: readonly { path: string; target: string }[],
@@ -35,14 +46,30 @@ describe("projectLayout", () => {
     expect(vendoredSkillPath(layout, "java")).toBe(join(SOURCES, "java"));
   });
 
-  it("includes vendor skill directories for each known vendor", () => {
-    expect(layout.vendorSkillDirectories).toContain(
+  it("links only the vendors that do not read .agents/skills", () => {
+    expect(layout.vendorSkillDirectories).toEqual([
       join(REPO, ".claude", "skills"),
-    );
-    expect(layout.vendorSkillDirectories).toContain(
+      join(REPO, ".gemini", "antigravity-cli", "skills"),
+    ]);
+  });
+
+  it("cleans the old directories of vendors that read .agents/skills", () => {
+    expect(layout.legacySkillDirectories).toContain(
       join(REPO, ".codex", "skills"),
     );
-    expect(layout.vendorSkillDirectories.length).toBe(VENDORS.length);
+    expect(layout.legacySkillDirectories.length).toBe(LEGACY_DIRECTORIES);
+  });
+
+  it("moves Claude Code to .agents/skills from the cutoff version", () => {
+    const shared = projectLayout(
+      posix({ "claude-code": CLAUDE_CODE_SHARED_SKILLS_VERSION }),
+    );
+    expect(shared.vendorSkillDirectories).toEqual([
+      join(REPO, ".gemini", "antigravity-cli", "skills"),
+    ]);
+    expect(shared.legacySkillDirectories).toContain(
+      join(REPO, ".claude", "skills"),
+    );
   });
 });
 
@@ -77,25 +104,19 @@ describe("getProjectEnabledVendors", () => {
 
 describe("projectLayout with vendor filter", () => {
   it("includes only filtered vendor directories", () => {
-    const filtered = projectLayout(REPO, "posix", ["claude-code"]);
+    const filtered = projectLayout(posix(), ["claude-code"]);
     expect(filtered.vendorSkillDirectories).toEqual([
       join(REPO, ".claude", "skills"),
     ]);
+    expect(filtered.legacySkillDirectories).toEqual([]);
   });
-});
 
-describe("getAncestorDirectories", () => {
-  it("walks up to the filesystem root", () => {
-    expect(getAncestorDirectories("/repo/src/app")).toEqual([
-      "/repo/src/app",
-      "/repo/src",
-      "/repo",
-      "/",
+  it("cleans only the old directories of filtered vendors", () => {
+    const filtered = projectLayout(posix(), ["codex"]);
+    expect(filtered.vendorSkillDirectories).toEqual([]);
+    expect(filtered.legacySkillDirectories).toEqual([
+      join(REPO, ".codex", "skills"),
     ]);
-  });
-
-  it("returns the root itself for the root", () => {
-    expect(getAncestorDirectories("/")).toEqual(["/"]);
   });
 });
 
@@ -111,7 +132,7 @@ describe("buildProjectPlan", () => {
     expect(
       findLink(plan.links, join(REPO, ".claude", "skills", "java"))?.target,
     ).toBe(up2);
-    expect(plan.links.length).toBe(TOTAL_SKILL_DIRECTORIES);
+    expect(plan.links.length).toBe(LINKED_DIRECTORIES);
   });
 
   it("uses a deeper relative path for vendors with subdirectories", () => {
@@ -139,11 +160,12 @@ describe("buildProjectPlan", () => {
     ).toBe("/elsewhere/java");
   });
 
-  it("owns agents and all vendor skill directories", () => {
+  it("owns the linked and the legacy skill directories", () => {
     const dirs = buildProjectPlan(layout, []).ownedDirectories;
     expect(dirs).toContain(join(REPO, ".agents", "skills"));
     expect(dirs).toContain(join(REPO, ".claude", "skills"));
-    expect(dirs.length).toBe(TOTAL_SKILL_DIRECTORIES);
+    expect(dirs).toContain(join(REPO, ".codex", "skills"));
+    expect(dirs.length).toBe(LINKED_DIRECTORIES + LEGACY_DIRECTORIES);
   });
 });
 
@@ -202,6 +224,19 @@ describe("findLockedSkillName", () => {
         source: "https://x/z",
         ref: "main",
       }),
+    ).toBe("plain");
+  });
+
+  it("keeps the subdir apart from the source", () => {
+    const nested = {
+      skills: { a: { source: "https://x/y", subdir: "a", commit: "c" } },
+    };
+    expect(findLockedSkillName(nested, { source: "https://x/ya" })).toBeNull();
+  });
+
+  it("treats an absent subdir as empty", () => {
+    expect(
+      findLockedSkillName(lock, { source: "https://x/z", subdir: "" }),
     ).toBe("plain");
   });
 
@@ -277,11 +312,5 @@ describe("buildUpdateTargets", () => {
     expect(
       buildUpdateTargets({ skills: [{ source: "skills/local" }] }, lock),
     ).toEqual([]);
-  });
-});
-
-describe("formatShortCommit", () => {
-  it("keeps the first seven characters", () => {
-    expect(formatShortCommit("a1b2c3d4e5f6")).toBe("a1b2c3d");
   });
 });

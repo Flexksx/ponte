@@ -1,6 +1,6 @@
 import { lstat, mkdir, readdir, readlink, rm, symlink } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import type { Link, VendorPlan } from "@ponte/core";
+import type { Link, LinkPlan, LinkStore } from "@ponte/core";
 
 const symlinkTarget = async (path: string): Promise<string | null> => {
   try {
@@ -39,7 +39,7 @@ const symlinksIn = async (directory: string): Promise<Map<string, string>> => {
 };
 
 export const readSymlinks = async (
-  plan: VendorPlan,
+  plan: LinkPlan,
 ): Promise<Map<string, string>> => {
   const links = new Map<string, string>();
   for (const link of plan.links) {
@@ -57,7 +57,7 @@ export const readSymlinks = async (
 };
 
 export const applyPlan = async (
-  plan: VendorPlan,
+  plan: LinkPlan,
   stale: readonly string[],
 ): Promise<void> => {
   for (const path of stale) {
@@ -66,4 +66,9 @@ export const applyPlan = async (
   for (const link of plan.links) {
     await writeSymlink(link);
   }
+};
+
+export const linkStore: LinkStore = {
+  read: readSymlinks,
+  apply: applyPlan,
 };

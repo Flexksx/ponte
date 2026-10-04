@@ -1,44 +1,45 @@
 import {
-  type ApplyPlan,
   getStaleLinkPaths,
+  type LinkStore,
+  ok,
+  type Problem,
   type Project,
-  type ReadSymlinks,
-  type WriteProjectLock,
+  type ProjectFiles,
+  type ProjectSyncReport,
+  type Result,
 } from "@ponte/core";
 import type { ResolveProjectSkills } from "./project-resolve";
 
-export type ProjectSyncReport = {
-  readonly root: string;
-  readonly vendored: number;
-  readonly linked: number;
-  readonly stale: number;
-};
+export type SyncProject = (
+  project: Project,
+  apply: boolean,
+) => Promise<Result<ProjectSyncReport, Problem>>;
 
 type SyncProjectDeps = {
   resolveProjectSkills: ResolveProjectSkills;
-  readSymlinks: ReadSymlinks;
-  applyPlan: ApplyPlan;
-  writeProjectLock: WriteProjectLock;
+  links: LinkStore;
+  projectFiles: ProjectFiles;
 };
 
 export const createSyncProject =
-  (deps: SyncProjectDeps) =>
-  async (project: Project, apply: boolean): Promise<ProjectSyncReport> => {
+  (deps: SyncProjectDeps): SyncProject =>
+  async (project, apply) => {
     const resolution = await deps.resolveProjectSkills(project, apply);
-    const stale = getStaleLinkPaths(
-      resolution.plan,
-      await deps.readSymlinks(resolution.plan),
-    );
+    if (!resolution.ok) {
+      return resolution;
+    }
+    const { plan, lock, lockChanged, pending } = resolution.value;
+    const stale = getStaleLinkPaths(plan, await deps.links.read(plan));
     if (apply) {
-      await deps.applyPlan(resolution.plan, stale);
-      if (resolution.lockChanged) {
-        await deps.writeProjectLock(project.layout, resolution.lock);
+      await deps.links.apply(plan, stale);
+      if (lockChanged) {
+        await deps.projectFiles.writeLock(project.layout, lock);
       }
     }
-    return {
+    return ok({
       root: project.layout.root,
-      vendored: resolution.pending,
-      linked: resolution.plan.links.length,
+      vendored: pending,
+      linked: plan.links.length,
       stale: stale.length,
-    };
+    });
   };

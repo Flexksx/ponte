@@ -2,13 +2,18 @@ import { createHash } from "node:crypto";
 import { mkdir, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
-import { MissingGitRefError, type SkillSource } from "@ponte/core";
+import {
+  err,
+  ok,
+  type PontePaths,
+  type ResolvedSource,
+  type Result,
+  type SkillSource,
+  type SourceProblem,
+  type Sources,
+  type Warn,
+} from "@ponte/core";
 import { $ } from "bun";
-
-export type ResolvedSource = {
-  readonly directory: string;
-  readonly commit: string | null;
-};
 
 const CLONE_DIRECTORY_LENGTH = 16;
 const GIT_ATTEMPTS = 4;
@@ -48,7 +53,11 @@ export const isTransientGitError = (stderr: string): boolean =>
 const retryDelay = (attempt: number): number =>
   GIT_RETRY_BASE_MS * 2 ** (attempt - 1) * (1 + Math.random());
 
-const runGit = async (args: string[], cwd?: string): Promise<string> => {
+const runGit = async (
+  args: string[],
+  warn: Warn,
+  cwd?: string,
+): Promise<string> => {
   const command = `git ${args.join(" ")}`;
   for (let attempt = 1; ; attempt += 1) {
     const shell = $`git ${args}`.nothrow();
@@ -60,8 +69,8 @@ const runGit = async (args: string[], cwd?: string): Promise<string> => {
     if (attempt >= GIT_ATTEMPTS || !isTransientGitError(stderr)) {
       throw new Error(`${command} failed: ${stderr}`);
     }
-    process.stderr.write(
-      `${command} failed (attempt ${attempt}/${GIT_ATTEMPTS}), retrying: ${stderr.split("\n").pop()}\n`,
+    warn(
+      `${command} failed (attempt ${attempt}/${GIT_ATTEMPTS}), retrying: ${stderr.split("\n").pop()}`,
     );
     await sleep(retryDelay(attempt));
   }
@@ -75,31 +84,37 @@ const isCloned = async (repoPath: string): Promise<boolean> => {
   }
 };
 
-const ensureCloned = async (repoPath: string, url: string): Promise<void> => {
+const ensureCloned = async (
+  repoPath: string,
+  url: string,
+  warn: Warn,
+): Promise<void> => {
   if (await isCloned(repoPath)) {
-    await runGit(["fetch", "origin"], repoPath);
+    await runGit(["fetch", "origin"], warn, repoPath);
     return;
   }
   await mkdir(dirname(repoPath), { recursive: true });
-  await runGit(["clone", "--", url, repoPath]);
+  await runGit(["clone", "--", url, repoPath], warn);
 };
 
 const checkoutRepo = async (
   repo: string,
   url: string,
   ref: string,
+  warn: Warn,
 ): Promise<string> => {
-  await ensureCloned(repo, url);
-  await runGit(["checkout", ref], repo);
-  return runGit(["rev-parse", "HEAD"], repo);
+  await ensureCloned(repo, url, warn);
+  await runGit(["checkout", ref], warn, repo);
+  return runGit(["rev-parse", "HEAD"], warn, repo);
 };
 
 const repoCommit = (
   repo: string,
   url: string,
   ref: string,
+  warn: Warn,
 ): Promise<string> => {
-  const commit = REPO_COMMITS.get(repo) ?? checkoutRepo(repo, url, ref);
+  const commit = REPO_COMMITS.get(repo) ?? checkoutRepo(repo, url, ref, warn);
   REPO_COMMITS.set(repo, commit);
   return commit;
 };
@@ -107,26 +122,25 @@ const repoCommit = (
 export const resolveSourceDetails = async (
   source: SkillSource,
   cacheDir: string,
-): Promise<ResolvedSource> => {
+  warn: Warn,
+): Promise<Result<ResolvedSource, SourceProblem>> => {
   if (source.type === "local") {
     const info = await stat(source.path);
-    if (!info.isDirectory()) {
-      throw new Error(`skill source is not a directory: ${source.path}`);
-    }
-    return { directory: source.path, commit: null };
+    return info.isDirectory()
+      ? ok({ directory: source.path, commit: null })
+      : err({ kind: "source-not-directory", path: source.path });
   }
   if (!source.ref) {
-    throw new MissingGitRefError(source.url);
+    return err({ kind: "missing-git-ref", url: source.url });
   }
   const repo = join(cacheDir, cloneDirectoryName(source.url, source.ref));
-  const commit = await repoCommit(repo, source.url, source.ref);
-  return {
+  const commit = await repoCommit(repo, source.url, source.ref, warn);
+  return ok({
     directory: source.subdir ? join(repo, source.subdir) : repo,
     commit,
-  };
+  });
 };
 
-export const resolveSource = async (
-  source: SkillSource,
-  cacheDir: string,
-): Promise<string> => (await resolveSourceDetails(source, cacheDir)).directory;
+export const createSources = (paths: PontePaths, warn: Warn): Sources => ({
+  resolve: source => resolveSourceDetails(source, paths.sourceCache, warn),
+});

@@ -13,6 +13,7 @@ declare namespace Bun {
   const file: (path: string) => BunFile;
   function write(path: string, data: string | Uint8Array): Promise<void>;
   function symlink(target: string, link: string): void;
+  function which(command: string): string | null;
   const TOML: {
     parse(text: string): Record<string, unknown>;
     stringify(value: unknown): string;

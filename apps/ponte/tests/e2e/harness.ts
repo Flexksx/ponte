@@ -1,4 +1,5 @@
 import {
+  chmod,
   mkdir,
   readFile,
   readlink,
@@ -13,6 +14,7 @@ import {
   buildVendorLayouts,
   type Platform,
   VENDORS,
+  type VendorLayout,
   type VendorName,
 } from "@ponte/core";
 import { $ } from "bun";
@@ -65,7 +67,9 @@ export const binaryPath = (): string => {
 export const newHarness = async (): Promise<Home> => {
   const home = join(await osTmpdir(), `ponte-e2e-${randId()}`);
   await mkdir(home, { recursive: true });
-  return new Home(home);
+  const h = new Home(home);
+  await h.setClaudeVersion(null);
+  return h;
 };
 
 const randId = () => Math.random().toString(36).slice(2, 10);
@@ -91,10 +95,31 @@ export const sourceEntry = (
 
 export class Home {
   readonly home: string;
+  private readonly bin: string;
+  private claudeVersion: string | null = null;
+  private extraEnv: Record<string, string> = {};
   private cleanups: Array<() => Promise<void>> = [];
 
   constructor(home: string) {
     this.home = home;
+    this.bin = `${home}-bin`;
+  }
+
+  // A fake `claude` first on PATH stops the real one from deciding where
+  // skills land. Null makes `claude --version` fail, so ponte keeps Claude
+  // Code on its own skills directory. Windows runs get no fake.
+  async setClaudeVersion(version: string | null): Promise<void> {
+    this.claudeVersion = version;
+    if (PLATFORM === "win32") {
+      return;
+    }
+    const script =
+      version === null
+        ? "#!/bin/sh\nexit 1\n"
+        : `#!/bin/sh\necho "${version} (Claude Code)"\n`;
+    const path = join(this.bin, "claude");
+    await this.writeFile(path, script);
+    await chmod(path, 0o755);
   }
 
   configPath(name: string): string {
@@ -127,8 +152,20 @@ export class Home {
       HOME: this.home,
       USERPROFILE: this.home,
       XDG_CONFIG_HOME: "",
-      PATH: Bun.env.PATH ?? process.env.PATH ?? "",
+      XDG_DATA_HOME: "",
+      XDG_CACHE_HOME: "",
+      ...this.extraEnv,
+      PATH: this.searchPath(),
     };
+  }
+
+  setEnv(name: string, value: string): void {
+    this.extraEnv[name] = value;
+  }
+
+  private searchPath(): string {
+    const inherited = Bun.env.PATH ?? process.env.PATH ?? "";
+    return PLATFORM === "win32" ? inherited : `${this.bin}:${inherited}`;
   }
 
   private async execute(
@@ -209,8 +246,19 @@ export class Home {
     }
   }
 
+  layouts(): Record<VendorName, VendorLayout> {
+    return buildVendorLayouts({
+      root: this.home,
+      platform: PLATFORM,
+      versions:
+        this.claudeVersion === null
+          ? {}
+          : { "claude-code": this.claudeVersion },
+    });
+  }
+
   vendorPaths(): Record<VendorName, string> {
-    const layouts = buildVendorLayouts(this.home, PLATFORM);
+    const layouts = this.layouts();
     const paths = {} as Record<VendorName, string>;
     for (const name of VENDORS) {
       paths[name] = layouts[name].instruction;
@@ -219,7 +267,7 @@ export class Home {
   }
 
   vendorSkillsDirs(): Record<VendorName, string> {
-    const layouts = buildVendorLayouts(this.home, PLATFORM);
+    const layouts = this.layouts();
     const dirs = {} as Record<VendorName, string>;
     for (const name of VENDORS) {
       dirs[name] = layouts[name].skills;
@@ -232,7 +280,7 @@ export class Home {
   }
 
   vendorAgentsDirs(): Record<VendorName, string> {
-    const layouts = buildVendorLayouts(this.home, PLATFORM);
+    const layouts = this.layouts();
     const dirs = {} as Record<VendorName, string>;
     for (const name of VENDORS) {
       dirs[name] = layouts[name].agents;
@@ -273,5 +321,6 @@ export class Home {
       await fn();
     }
     await rm(this.home, { recursive: true, force: true });
+    await rm(this.bin, { recursive: true, force: true });
   }
 }

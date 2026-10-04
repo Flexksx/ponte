@@ -2,43 +2,68 @@ import { describe, expect, it } from "bun:test";
 import { mkdir, mkdtemp, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { buildPontePaths } from "@ponte/core";
 import { $ } from "bun";
-import { resolveContent } from "../src/infra/config-file";
-import {
-  isTransientGitError,
-  resolveSource,
-  resolveSourceDetails,
-} from "../src/infra/git";
+import { createPromptStore } from "../src/infra/config-file";
+import { isTransientGitError, resolveSourceDetails } from "../src/infra/git";
 
-describe("resolveSource.local", () => {
+const warnings: string[] = [];
+
+const warn = (message: string): void => {
+  warnings.push(message);
+};
+
+describe("resolveSourceDetails.local", () => {
   it("resolves an existing directory and rejects non-directories", async () => {
     const parent = await mkdtemp(join(tmpdir(), "ponte-src-"));
     const dir = join(parent, "skill");
     await mkdir(dir);
 
-    const got = await resolveSource({ type: "local", path: dir }, parent);
-    expect(got).toBe(dir);
+    const got = await resolveSourceDetails(
+      { type: "local", path: dir },
+      parent,
+      warn,
+    );
+    expect(got).toEqual({ ok: true, value: { directory: dir, commit: null } });
     const filePath = join(parent, "file.txt");
     await writeFile(filePath, "x");
-    let threw = false;
-    try {
-      await resolveSource({ type: "local", path: filePath }, parent);
-    } catch {
-      threw = true;
-    }
-    expect(threw).toBe(true);
+    const rejected = await resolveSourceDetails(
+      { type: "local", path: filePath },
+      parent,
+      warn,
+    );
+    expect(rejected).toEqual({
+      ok: false,
+      error: { kind: "source-not-directory", path: filePath },
+    });
   });
 });
 
-describe("resolveContent", () => {
+describe("resolveSourceDetails.missing ref", () => {
+  it("reports a git source without a ref as a problem", async () => {
+    const rejected = await resolveSourceDetails(
+      { type: "git", url: "https://x/y", ref: "" },
+      "/unused",
+      warn,
+    );
+    expect(rejected).toEqual({
+      ok: false,
+      error: { kind: "missing-git-ref", url: "https://x/y" },
+    });
+  });
+});
+
+describe("PromptStore.readFile", () => {
   it("reads a file when the argument names an existing file", async () => {
     const dir = await mkdtemp(join(tmpdir(), "ponte-content-"));
     const file = join(dir, "a.md");
     await writeFile(file, "file body");
-    expect(await resolveContent(file)).toBe("file body");
+    const prompts = createPromptStore(buildPontePaths({ home: dir }));
+    expect(await prompts.readFile(file)).toBe("file body");
   });
-  it("treats a missing argument as a literal string", async () => {
-    expect(await resolveContent("not a real path")).toBe("not a real path");
+  it("returns null when no file exists there", async () => {
+    const prompts = createPromptStore(buildPontePaths({ home: "/unused" }));
+    expect(await prompts.readFile("not a real path")).toBeNull();
   });
 });
 
@@ -83,13 +108,14 @@ describe("resolveSourceDetails.git", () => {
 
     const source = { type: "git", url: origin, ref: "main" } as const;
     const results = await Promise.all([
-      resolveSourceDetails(source, cache),
-      resolveSourceDetails(source, cache),
-      resolveSourceDetails(source, cache),
+      resolveSourceDetails(source, cache, warn),
+      resolveSourceDetails(source, cache, warn),
+      resolveSourceDetails(source, cache, warn),
     ]);
+    const resolved = results.map(result => (result.ok ? result.value : null));
 
-    expect(new Set(results.map(result => result.directory)).size).toBe(1);
-    expect(new Set(results.map(result => result.commit)).size).toBe(1);
+    expect(new Set(resolved.map(value => value?.directory)).size).toBe(1);
+    expect(new Set(resolved.map(value => value?.commit)).size).toBe(1);
     expect((await readdir(cache)).length).toBe(1);
   });
 });
@@ -112,6 +138,7 @@ describe("runGit errors", () => {
       await resolveSourceDetails(
         { type: "git", url: origin, ref: "no-such-ref" },
         join(parent, "cache"),
+        warn,
       );
     } catch (error) {
       message = (error as Error).message;

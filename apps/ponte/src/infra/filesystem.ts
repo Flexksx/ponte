@@ -1,5 +1,10 @@
 import { cp, mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import {
+  type ReadSkillFile,
+  skillFilePath,
+  type VendoredSkills,
+} from "@ponte/core";
 
 const GIT_DIRECTORY = ".git";
 
@@ -95,4 +100,14 @@ export const directoriesDiffer = async (
     }
   }
   return false;
+};
+
+export const readSkillFile: ReadSkillFile = directory =>
+  readTextFile(skillFilePath(directory));
+
+export const vendoredSkills: VendoredSkills = {
+  exists: directoryExists,
+  differs: directoriesDiffer,
+  copy: copyDirectoryWithoutGit,
+  remove: removeDirectory,
 };

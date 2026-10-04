@@ -13,8 +13,8 @@ own dotfiles. The same prompt and the same skills end up copied and drifting
 across six trees.
 
 ponte is the bridge. You declare the system prompt, the skills, and the
-subagents once in `~/.config/ponte/`. `ponte sync` resolves every source and
-links it into each vendor directory.
+subagents once in `~/.config/ponte/` (or `$XDG_CONFIG_HOME/ponte/`).
+`ponte sync` resolves every source and links it into each vendor directory.
 
 Because the links point straight at your sources:
 
@@ -71,8 +71,10 @@ source = "skills/my-skill"   # relative to ~/.config/ponte/
 
 The declaration carries no name. ponte reads the `name` field from the
 frontmatter of `SKILL.md`, the same name the agent uses. A skill that
-declares `name: my-skill` lands at `~/.claude/skills/my-skill`,
-`~/.codex/skills/my-skill`, and every other enabled vendor at once.
+declares `name: my-skill` lands at `~/.agents/skills/my-skill`. Codex,
+Cursor, OpenCode, Pi, and Claude Code 2.1.280 or later read that directory.
+Older Claude Code versions and Antigravity CLI get a link in their own
+directory, for example `~/.claude/skills/my-skill`.
 
 ## Project mode
 

@@ -3,15 +3,65 @@
 
   "forbidden": [
     {
-      "name": "domain-does-not-import-ports",
-      "comment": "Domain modules define pure types and logic. They must not depend on port definitions.",
+      "name": "logic-does-not-import-ports",
+      "comment": "Pure logic and domain barrels must not depend on port definitions. Only other port files and the top-level barrel import ports, so a port never leaks through a domain barrel.",
       "severity": "error",
-      "from": { "path": "^src/domain/" },
-      "to": { "path": "^src/ports/" }
+      "from": { "path": "(^|/)src/domain/", "pathNot": "ports\\.ts$" },
+      "to": { "path": "ports\\.ts$" }
+    },
+    {
+      "name": "cross-domain-through-index",
+      "comment": "A domain reaches another domain only through that domain's index.ts, which is its public API.",
+      "severity": "error",
+      "from": { "path": "(^|/)src/domain/([^/]+)/" },
+      "to": {
+        "path": "(^|/)src/domain/",
+        "pathNot": [
+          "(^|/)src/domain/$2/",
+          "(^|/)src/domain/[^/]+/index\\.ts$"
+        ]
+      }
+    },
+    {
+      "name": "barrel-uses-domain-api",
+      "comment": "The top-level barrel exports from domain barrels and port files only, never from a domain internal.",
+      "severity": "error",
+      "from": { "path": "(^|/)src/index\\.ts$" },
+      "to": {
+        "path": "(^|/)src/domain/",
+        "pathNot": "(^|/)src/domain/[^/]+/(index|[^/]*ports)\\.ts$"
+      }
+    },
+    {
+      "name": "tests-use-public-api",
+      "comment": "A core test imports @ponte/core or a domain index.ts, never a domain internal. Test an internal through the public function that uses it.",
+      "severity": "error",
+      "from": { "path": "(^|/)libs/core/tests/" },
+      "to": {
+        "path": "(^|/)libs/core/src/",
+        "pathNot": "(^|/)libs/core/src/(index|domain/[^/]+/index)\\.ts$"
+      }
+    },
+    {
+      "name": "domain-has-no-io",
+      "comment": "The domain is pure. It imports no Node or Bun runtime module except path. Ports name the I/O, and adapters outside core do it.",
+      "severity": "error",
+      "from": { "path": "(^|/)src/domain/" },
+      "to": {
+        "dependencyTypes": ["core"],
+        "pathNot": "^path$"
+      }
+    },
+    {
+      "name": "domain-has-no-bun",
+      "comment": "The domain is pure, so it never imports the Bun runtime.",
+      "severity": "error",
+      "from": { "path": "(^|/)src/domain/" },
+      "to": { "path": "(^|/)@types/bun/" }
     },
     {
       "name": "no-circular",
-      "comment": "A cycle makes the layer order meaningless.",
+      "comment": "Domains can import one another, but not in a cycle.",
       "severity": "error",
       "from": {},
       "to": { "circular": true }

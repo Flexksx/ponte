@@ -1,47 +1,45 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
-import { type Config, resolveConfigPaths } from "@ponte/core";
-import { decodeConfig, encodeConfig } from "./config-codec";
-import { configDirectoryPath, configFilePath, promptFilePath } from "./paths";
+import {
+  type ConfigStore,
+  err,
+  ok,
+  type PontePaths,
+  type PromptStore,
+  resolvePromptPath,
+} from "@ponte/core";
+import { decodeConfig, encodeConfig, parseToml } from "./config-codec";
+import { fileExists, readTextFile, writeText } from "./filesystem";
 
-export const readConfig = async (): Promise<Config | null> => {
-  const file = Bun.file(configFilePath());
-  if (!(await file.exists())) {
-    return null;
-  }
-  const parsed = Bun.TOML.parse(await file.text());
-  return resolveConfigPaths(decodeConfig(parsed), configDirectoryPath());
-};
+export const createConfigStore = (paths: PontePaths): ConfigStore => ({
+  read: async () => {
+    const text = await readTextFile(paths.configFile);
+    if (text === null) {
+      return ok(null);
+    }
+    const parsed = parseToml(text);
+    const config = parsed.ok ? decodeConfig(parsed.value) : parsed;
+    return config.ok
+      ? config
+      : err({ kind: "invalid-config", issues: config.error });
+  },
+  write: config => writeText(paths.configFile, encodeConfig(config)),
+});
 
-export const writeConfig = async (config: Config): Promise<void> => {
-  const path = configFilePath();
-  await mkdir(dirname(path), { recursive: true });
-  await Bun.write(path, encodeConfig(config));
-};
+export const createPromptStore = (paths: PontePaths): PromptStore => {
+  const promptPath = (filename: string): string =>
+    resolvePromptPath(paths.config, filename);
 
-export const readPrompt = async (filename: string): Promise<string | null> => {
-  const file = Bun.file(promptFilePath(filename));
-  if (!(await file.exists())) {
-    return null;
-  }
-  return file.text();
-};
-
-export const writePrompt = async (
-  filename: string,
-  content: string,
-): Promise<void> => {
-  const path = promptFilePath(filename);
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, content);
-};
-
-export const resolveContent = async (
-  fileOrLiteral: string,
-): Promise<string> => {
-  const file = Bun.file(fileOrLiteral);
-  if (await file.exists()) {
-    return file.text();
-  }
-  return fileOrLiteral;
+  return {
+    read: filename => readTextFile(promptPath(filename)),
+    write: (filename, content) => writeText(promptPath(filename), content),
+    locate: async filename => {
+      const path = promptPath(filename);
+      return (await fileExists(path)) ? path : null;
+    },
+    readFile: readTextFile,
+    isFile: fileExists,
+    writeOverride: async content => {
+      await writeText(paths.overridePrompt, content);
+      return paths.overridePrompt;
+    },
+  };
 };

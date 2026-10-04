@@ -1,36 +1,36 @@
 import {
   getProjectState,
+  type LinkStore,
+  ok,
+  type Problem,
   type Project,
-  type ReadSymlinks,
-  type VendorState,
+  type ProjectStatusReport,
+  type Result,
 } from "@ponte/core";
 import type { ResolveProjectSkills } from "./project-resolve";
 
-export type ProjectStatusReport = {
-  readonly root: string;
-  readonly skillsDirectory: string;
-  readonly linkCount: number;
-  readonly state: VendorState;
-};
-
 export type GetProjectStatusReport = (
   project: Project,
-) => Promise<ProjectStatusReport>;
+) => Promise<Result<ProjectStatusReport, Problem>>;
 
 type GetProjectStatusReportDeps = {
   resolveProjectSkills: ResolveProjectSkills;
-  readSymlinks: ReadSymlinks;
+  links: LinkStore;
 };
 
 export const createGetProjectStatusReport =
   (deps: GetProjectStatusReportDeps): GetProjectStatusReport =>
   async project => {
-    const { plan, pending } = await deps.resolveProjectSkills(project, false);
-    const actual = await deps.readSymlinks(plan);
-    return {
+    const resolution = await deps.resolveProjectSkills(project, false);
+    if (!resolution.ok) {
+      return resolution;
+    }
+    const { plan, pending } = resolution.value;
+    const actual = await deps.links.read(plan);
+    return ok({
       root: project.layout.root,
       skillsDirectory: project.layout.skills,
       linkCount: actual.size,
       state: getProjectState(plan, actual, pending),
-    };
+    });
   };

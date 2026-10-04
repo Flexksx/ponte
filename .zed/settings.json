@@ -1,6 +1,34 @@
 {
   "load_direnv": "shell_hook",
   "language_servers": ["biome", "vtsls"],
+  "lsp": {
+    "vtsls": {
+      "settings": {
+        "typescript": {
+          "implementationsCodeLens": {
+            "enabled": true,
+            "showOnAllClassMethods": true,
+            "showOnInterfaceMethods": true,
+          },
+          "referencesCodeLens": {
+            "enabled": true,
+            "showOnAllFunctions": true,
+          },
+        },
+        "javascript": {
+          "implementationsCodeLens": {
+            "enabled": true,
+            "showOnAllClassMethods": true,
+            "showOnInterfaceMethods": true,
+          },
+          "referencesCodeLens": {
+            "enabled": true,
+            "showOnAllFunctions": true,
+          },
+        },
+      },
+    },
+  },
   "languages": {
     "TypeScript": {
       "format_on_save": "on",

@@ -2,19 +2,20 @@ import { describe, expect, it } from "bun:test";
 import {
   parseSkillName,
   requireUniqueSkillNames,
-  SkillNameError,
+  type SkillProblem,
 } from "@ponte/core";
 
-const nameIn = (text: string | null): string =>
-  parseSkillName("src", "/dir", text);
+const nameIn = (text: string | null): string | null => {
+  const name = parseSkillName("src", "/dir", text);
+  return name.ok ? name.value : null;
+};
 
-const rejectionOf = (text: string | null): string => {
-  try {
-    nameIn(text);
-  } catch (error) {
-    return (error as Error).message;
+const rejectionOf = (text: string | null): SkillProblem => {
+  const name = parseSkillName("src", "/dir", text);
+  if (name.ok) {
+    throw new Error("parseSkillName accepted the text");
   }
-  throw new Error("parseSkillName accepted the text");
+  return name.error;
 };
 
 const skillDoc = (name: string): string => `---\nname: ${name}\n---\n`;
@@ -48,28 +49,33 @@ describe("parseSkillName", () => {
   });
 
   it("rejects a directory with no SKILL.md", () => {
-    expect(() => nameIn(null)).toThrow(SkillNameError);
-    expect(rejectionOf(null)).toContain("no SKILL.md in /dir");
+    expect(rejectionOf(null)).toEqual({
+      kind: "missing-skill-file",
+      source: "src",
+      directory: "/dir",
+    });
   });
 
   it("rejects a file that does not open with a delimiter", () => {
-    expect(rejectionOf("# Title\n\n---\nname: a\n---\n")).toContain(
-      "no frontmatter",
+    expect(rejectionOf("# Title\n\n---\nname: a\n---\n").kind).toBe(
+      "missing-frontmatter",
     );
   });
 
   it("rejects frontmatter that never closes", () => {
-    expect(rejectionOf("---\nname: a\n# Title\n")).toContain("no frontmatter");
+    expect(rejectionOf("---\nname: a\n# Title\n").kind).toBe(
+      "missing-frontmatter",
+    );
   });
 
   it("rejects frontmatter with no name of its own", () => {
-    expect(rejectionOf("---\ndescription: b\n---\n")).toContain(
-      "declares no name",
-    );
-    expect(rejectionOf("---\n\n---\n")).toContain("declares no name");
-    expect(rejectionOf("---\nmetadata:\n  name: nested\n---\n")).toContain(
-      "declares no name",
-    );
+    for (const text of [
+      "---\ndescription: b\n---\n",
+      "---\n\n---\n",
+      "---\nmetadata:\n  name: nested\n---\n",
+    ]) {
+      expect(rejectionOf(text).kind).toBe("missing-skill-name");
+    }
   });
 
   it("rejects a name outside a-z, 0-9 and single hyphens", () => {
@@ -87,32 +93,39 @@ describe("parseSkillName", () => {
       "-",
       "ast--grep",
     ]) {
-      expect(rejectionOf(skillDoc(name))).toContain("invalid name");
+      expect(rejectionOf(skillDoc(name))).toEqual({
+        kind: "invalid-skill-name",
+        source: "src",
+        name,
+      });
     }
   });
 });
 
 describe("requireUniqueSkillNames", () => {
   it("accepts distinct names", () => {
-    expect(() =>
+    expect(
       requireUniqueSkillNames([
         { name: "a", source: "s1" },
         { name: "b", source: "s2" },
-      ]),
-    ).not.toThrow();
+      ]).ok,
+    ).toBe(true);
   });
 
   it("rejects two entries with the same name and names both sources", () => {
-    try {
+    expect(
       requireUniqueSkillNames([
         { name: "a", source: "s1" },
         { name: "a", source: "s2" },
-      ]);
-      expect(true).toBe(false);
-    } catch (error) {
-      expect(error instanceof SkillNameError).toBe(true);
-      expect((error as Error).message).toContain("s1");
-      expect((error as Error).message).toContain("s2");
-    }
+      ]),
+    ).toEqual({
+      ok: false,
+      error: {
+        kind: "duplicate-skill-name",
+        name: "a",
+        first: "s1",
+        second: "s2",
+      },
+    });
   });
 });

@@ -11,9 +11,9 @@
     },
     {
       "name": "no-orphans",
-      "comment": "Nothing imports this file. Delete it, or import it. Ambient declaration files are exempt.",
+      "comment": "Nothing imports this file. Delete it, or import it. Ambient declaration files and tests are exempt.",
       "severity": "error",
-      "from": { "orphan": true, "pathNot": ["\\.d\\.ts$"] },
+      "from": { "orphan": true, "pathNot": ["\\.d\\.ts$", "^tests/"] },
       "to": {}
     },
     {
@@ -22,6 +22,23 @@
       "severity": "error",
       "from": {},
       "to": { "couldNotResolve": true }
+    },
+    {
+      "name": "core-through-package",
+      "comment": "App code and app tests import core as @ponte/core, never by a relative path into libs/core.",
+      "severity": "error",
+      "from": { "path": "^(src|tests)/" },
+      "to": { "path": "(^|/)libs/core/", "dependencyTypes": ["local"] }
+    },
+    {
+      "name": "core-through-barrel",
+      "comment": "App code and app tests reach core only through its top-level barrel, which is the public API of the package.",
+      "severity": "error",
+      "from": { "path": "^(src|tests)/" },
+      "to": {
+        "path": "(^|/)libs/core/",
+        "pathNot": "(^|/)libs/core/src/index\\.ts$"
+      }
     },
     {
       "name": "no-dev-deps-in-src",
@@ -41,25 +58,32 @@
       "to": { "path": "^tests/" }
     },
     {
-      "name": "cli-goes-through-app",
-      "comment": "The CLI layer must reach infrastructure through a use case in src/app, never directly.",
+      "name": "only-bootstrap-wires-infra",
+      "comment": "Only the composition root, src/bootstrap.ts, imports an adapter. A use case gets its adapters injected, typed by a port in @ponte/core.",
+      "severity": "error",
+      "from": { "path": "^src/", "pathNot": "^src/(infra/|bootstrap\\.ts$)" },
+      "to": { "path": "^src/infra/" }
+    },
+    {
+      "name": "bootstrap-only-from-entry",
+      "comment": "Only the entry point calls the composition root.",
+      "severity": "error",
+      "from": { "pathNot": "^src/index\\.ts$" },
+      "to": { "path": "^src/bootstrap\\.ts$" }
+    },
+    {
+      "name": "entry-point-starts-the-cli",
+      "comment": "src/index.ts builds the app with the composition root and hands it to the CLI. It holds no other logic.",
+      "severity": "error",
+      "from": { "path": "^src/index\\.ts$" },
+      "to": { "pathNot": "^src/(cli/|bootstrap\\.ts$)" }
+    },
+    {
+      "name": "cli-uses-core-ports",
+      "comment": "The CLI drives the app through the App port from @ponte/core. It never imports a use case.",
       "severity": "error",
       "from": { "path": "^src/cli/" },
-      "to": { "path": "^src/infra/" }
-    },
-    {
-      "name": "app-goes-through-ports",
-      "comment": "A use case must take its adapters as injected dependencies, typed by a port in @ponte/core. Only src/app/bootstrap.ts wires the real adapters.",
-      "severity": "error",
-      "from": { "path": "^src/app/", "pathNot": ["^src/app/bootstrap\\.ts$"] },
-      "to": { "path": "^src/infra/" }
-    },
-    {
-      "name": "infra-is-a-leaf",
-      "comment": "An adapter must not call back into a use case or the CLI.",
-      "severity": "error",
-      "from": { "path": "^src/infra/" },
-      "to": { "path": "^src/(app|cli)/" }
+      "to": { "path": "^src/app/" }
     },
     {
       "name": "app-does-not-print",
@@ -69,11 +93,28 @@
       "to": { "path": "^src/cli/" }
     },
     {
-      "name": "entry-point-only-starts-the-cli",
-      "comment": "src/index.ts wires nothing but the CLI entry point.",
+      "name": "app-has-no-io",
+      "comment": "A use case does I/O only through its injected ports. It imports no Node or Bun runtime module except path.",
       "severity": "error",
-      "from": { "path": "^src/index\\.ts$" },
-      "to": { "pathNot": ["^src/cli/"] }
+      "from": { "path": "^src/app/" },
+      "to": {
+        "dependencyTypes": ["core"],
+        "pathNot": "^path$"
+      }
+    },
+    {
+      "name": "app-has-no-bun",
+      "comment": "A use case does I/O only through its injected ports, so it never imports the Bun runtime.",
+      "severity": "error",
+      "from": { "path": "^src/app/" },
+      "to": { "path": "(^|/)@types/bun/" }
+    },
+    {
+      "name": "infra-is-a-leaf",
+      "comment": "An adapter must not call back into a use case, the CLI or the composition root.",
+      "severity": "error",
+      "from": { "path": "^src/infra/" },
+      "to": { "path": "^src/(app/|cli/|bootstrap\\.ts$)" }
     }
   ],
 

@@ -1,23 +1,25 @@
 import {
   buildProjectPlan,
-  type CopyDirectoryWithoutGit,
+  collect,
   createLockEntry,
-  type DirectoryExists,
   describeSourceEntry,
   findLockedSkillName,
   isGitSource,
+  type LinkPlan,
   type LockEntry,
   locksAreEqual,
+  ok,
+  type Problem,
   type Project,
+  type ProjectFiles,
   type ProjectLayout,
   type ProjectLock,
-  parseSource,
-  type ReadProjectLock,
-  type ResolveSource,
-  type ResolveSourceDetails,
+  parseSourceEntry,
+  type Result,
   requireUniqueSkillNames,
   type SourceEntry,
-  type VendorPlan,
+  type Sources,
+  type VendoredSkills,
   vendoredSkillPath,
 } from "@ponte/core";
 import type { SkillNames } from "./skill-name";
@@ -38,13 +40,15 @@ export type FetchedSkill = {
 
 export type ProjectResolution = {
   readonly skills: readonly ProjectSkill[];
-  readonly plan: VendorPlan;
+  readonly plan: LinkPlan;
   readonly lock: ProjectLock;
   readonly lockChanged: boolean;
   readonly pending: number;
 };
 
-export type FetchSkill = (entry: SourceEntry) => Promise<FetchedSkill>;
+export type FetchSkill = (
+  entry: SourceEntry,
+) => Promise<Result<FetchedSkill, Problem>>;
 
 export type VendorSkill = (
   layout: ProjectLayout,
@@ -54,15 +58,15 @@ export type VendorSkill = (
 export type ResolveProjectSkills = (
   project: Project,
   materialize: boolean,
-) => Promise<ProjectResolution>;
+) => Promise<Result<ProjectResolution, Problem>>;
 
 type FetchSkillDeps = {
-  resolveSourceDetails: ResolveSourceDetails;
+  sources: Sources;
   skillNames: SkillNames;
 };
 
 type VendorSkillDeps = {
-  copyDirectoryWithoutGit: CopyDirectoryWithoutGit;
+  vendoredSkills: VendoredSkills;
 };
 
 type EntryResolution = {
@@ -72,9 +76,9 @@ type EntryResolution = {
 };
 
 type ResolveProjectSkillsDeps = {
-  readProjectLock: ReadProjectLock;
-  resolveSource: ResolveSource;
-  directoryExists: DirectoryExists;
+  projectFiles: ProjectFiles;
+  sources: Sources;
+  vendoredSkills: VendoredSkills;
   skillNames: SkillNames;
   fetchSkill: FetchSkill;
   vendorSkill: VendorSkill;
@@ -83,7 +87,7 @@ type ResolveProjectSkillsDeps = {
 export const createVendorSkill =
   (deps: VendorSkillDeps): VendorSkill =>
   (layout, fetched) =>
-    deps.copyDirectoryWithoutGit(
+    deps.vendoredSkills.copy(
       fetched.directory,
       vendoredSkillPath(layout, fetched.name),
     );
@@ -91,17 +95,21 @@ export const createVendorSkill =
 export const createFetchSkill =
   (deps: FetchSkillDeps): FetchSkill =>
   async entry => {
-    const resolved = await deps.resolveSourceDetails(
-      parseSource(entry.source, entry.ref, entry.subdir),
+    const resolved = await deps.sources.resolve(parseSourceEntry(entry));
+    if (!resolved.ok) {
+      return resolved;
+    }
+    const name = await deps.skillNames.read(
+      describeSourceEntry(entry),
+      resolved.value.directory,
     );
-    return {
-      name: await deps.skillNames.read(
-        describeSourceEntry(entry),
-        resolved.directory,
-      ),
-      directory: resolved.directory,
-      commit: resolved.commit,
-    };
+    return name.ok
+      ? ok({
+          name: name.value,
+          directory: resolved.value.directory,
+          commit: resolved.value.commit,
+        })
+      : name;
   };
 
 export const createResolveProjectSkills = (
@@ -112,17 +120,22 @@ export const createResolveProjectSkills = (
   const localSkill = async (
     entry: SourceEntry,
     source: string,
-  ): Promise<ProjectSkill> => {
-    const directory = await deps.resolveSource(
-      parseSource(entry.source, entry.ref, entry.subdir),
-    );
-    return {
-      name: await deps.skillNames.read(source, directory),
-      source,
-      directory,
-      vendored: false,
-      commit: null,
-    };
+  ): Promise<Result<ProjectSkill, Problem>> => {
+    const resolved = await deps.sources.resolve(parseSourceEntry(entry));
+    if (!resolved.ok) {
+      return resolved;
+    }
+    const directory = resolved.value.directory;
+    const name = await deps.skillNames.read(source, directory);
+    return name.ok
+      ? ok({
+          name: name.value,
+          source,
+          directory,
+          vendored: false,
+          commit: null,
+        })
+      : name;
   };
 
   const matchedVendoredSkill = async (
@@ -130,42 +143,48 @@ export const createResolveProjectSkills = (
     lock: ProjectLock,
     entry: SourceEntry,
     source: string,
-  ): Promise<ProjectSkill | null> => {
+  ): Promise<Result<ProjectSkill | null, Problem>> => {
     const name = findLockedSkillName(lock, entry);
     const locked = name === null ? undefined : lock.skills[name];
     if (name === null || locked === undefined) {
-      return null;
+      return ok(null);
     }
     const directory = vendoredSkillPath(layout, name);
-    if (!(await deps.directoryExists(directory))) {
-      return null;
+    if (!(await deps.vendoredSkills.exists(directory))) {
+      return ok(null);
     }
-    await deps.skillNames.checkVendored(source, directory);
-    return { name, source, directory, vendored: true, commit: locked.commit };
+    const checked = await deps.skillNames.checkVendored(source, directory);
+    return checked.ok
+      ? ok({ name, source, directory, vendored: true, commit: locked.commit })
+      : checked;
   };
 
   const freshVendoredSkill = async (
     layout: ProjectLayout,
     entry: SourceEntry,
     source: string,
-  ): Promise<ProjectSkill> => {
+  ): Promise<Result<ProjectSkill, Problem>> => {
     const fetched = await deps.fetchSkill(entry);
-    const directory = vendoredSkillPath(layout, fetched.name);
-    if (await deps.directoryExists(directory)) {
-      await deps.skillNames.checkVendored(source, directory);
+    if (!fetched.ok) {
+      return fetched;
+    }
+    const { name, commit } = fetched.value;
+    const directory = vendoredSkillPath(layout, name);
+    const existed = await deps.vendoredSkills.exists(directory);
+    const inFlight = copies.get(name);
+    if (inFlight !== undefined) {
+      await inFlight;
+    } else if (existed) {
+      const checked = await deps.skillNames.checkVendored(source, directory);
+      if (!checked.ok) {
+        return checked;
+      }
     } else {
-      const copy =
-        copies.get(fetched.name) ?? deps.vendorSkill(layout, fetched);
-      copies.set(fetched.name, copy);
+      const copy = deps.vendorSkill(layout, fetched.value);
+      copies.set(name, copy);
       await copy;
     }
-    return {
-      name: fetched.name,
-      source,
-      directory,
-      vendored: true,
-      commit: fetched.commit,
-    };
+    return ok({ name, source, directory, vendored: true, commit });
   };
 
   const resolveEntry = async (
@@ -173,10 +192,11 @@ export const createResolveProjectSkills = (
     lock: ProjectLock,
     entry: SourceEntry,
     materialize: boolean,
-  ): Promise<EntryResolution> => {
+  ): Promise<Result<EntryResolution, Problem>> => {
     const source = describeSourceEntry(entry);
     if (!isGitSource(entry.source)) {
-      return { entry, skill: await localSkill(entry, source), fresh: false };
+      const skill = await localSkill(entry, source);
+      return skill.ok ? ok({ entry, skill: skill.value, fresh: false }) : skill;
     }
     const matched = await matchedVendoredSkill(
       project.layout,
@@ -184,30 +204,39 @@ export const createResolveProjectSkills = (
       entry,
       source,
     );
-    if (matched !== null) {
-      return { entry, skill: matched, fresh: false };
+    if (!matched.ok) {
+      return matched;
     }
-    return {
-      entry,
-      skill: materialize
-        ? await freshVendoredSkill(project.layout, entry, source)
-        : null,
-      fresh: true,
-    };
+    if (matched.value !== null) {
+      return ok({ entry, skill: matched.value, fresh: false });
+    }
+    if (!materialize) {
+      return ok({ entry, skill: null, fresh: true });
+    }
+    const fresh = await freshVendoredSkill(project.layout, entry, source);
+    return fresh.ok ? ok({ entry, skill: fresh.value, fresh: true }) : fresh;
   };
 
   return async (project, materialize) => {
     copies.clear();
-    const lock = await deps.readProjectLock(project.layout);
-    const resolutions = await Promise.all(
-      project.config.skills.map(entry =>
-        resolveEntry(project, lock, entry, materialize),
+    const lock = await deps.projectFiles.readLock(project.layout);
+    if (!lock.ok) {
+      return lock;
+    }
+    const resolutions = collect(
+      await Promise.all(
+        project.config.skills.map(entry =>
+          resolveEntry(project, lock.value, entry, materialize),
+        ),
       ),
     );
+    if (!resolutions.ok) {
+      return resolutions;
+    }
     const locked: Record<string, LockEntry> = {};
     const skills: ProjectSkill[] = [];
     let pending = 0;
-    for (const { entry, skill, fresh } of resolutions) {
+    for (const { entry, skill, fresh } of resolutions.value) {
       pending += fresh ? 1 : 0;
       if (skill === null) {
         continue;
@@ -217,14 +246,19 @@ export const createResolveProjectSkills = (
       }
       skills.push(skill);
     }
-    requireUniqueSkillNames(skills);
-    const next: ProjectLock = { skills: materialize ? locked : lock.skills };
-    return {
+    const unique = requireUniqueSkillNames(skills);
+    if (!unique.ok) {
+      return unique;
+    }
+    const next: ProjectLock = {
+      skills: materialize ? locked : lock.value.skills,
+    };
+    return ok({
       skills,
       plan: buildProjectPlan(project.layout, skills),
       lock: next,
-      lockChanged: materialize && !locksAreEqual(lock, next),
+      lockChanged: materialize && !locksAreEqual(lock.value, next),
       pending,
-    };
+    });
   };
 };

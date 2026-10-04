@@ -16,6 +16,12 @@ If a command finds the file, that directory is the project root and the
 command runs in project mode. If no directory holds the file, the command
 runs in global mode. No flag selects the mode.
 
+ponte follows the XDG base directories. If `XDG_CONFIG_HOME`,
+`XDG_DATA_HOME`, or `XDG_CACHE_HOME` holds an absolute path, ponte uses
+`ponte/` in that directory. If not, ponte uses `~/.config/ponte/`,
+`~/.local/share/ponte/`, and `~/.cache/ponte/`. This manual shows the
+default paths.
+
 ## How sync works
 
 1. `ponte sync` resolves every source. A local source resolves to its
@@ -38,9 +44,21 @@ source at a new ref.
   subagents/claude/code-investigator.md
 
 ~/.claude/CLAUDE.md                    → ~/.config/ponte/AGENTS.md
-~/.claude/skills/my-skill              → ~/.config/ponte/skills/my-skill
+~/.agents/skills/my-skill              → ~/.config/ponte/skills/my-skill
 ~/.claude/agents/code-investigator.md  → ~/.config/ponte/subagents/claude/code-investigator.md
 ```
+
+### Skill directories
+
+Codex, Cursor, OpenCode, and Pi read skills from `~/.agents/skills/`, so
+ponte links each skill there one time. Claude Code reads `~/.agents/skills/`
+from version 2.1.280. ponte runs `claude --version` to find the version. If
+the version is older, or if `claude` is not on `PATH`, ponte links the skill
+into `~/.claude/skills/`. Antigravity CLI keeps its own skills directory.
+
+A vendor that reads `~/.agents/skills/` keeps its old skills directory, for
+example `~/.codex/skills/`. `ponte sync` removes the ponte links in that
+directory. It keeps real files and real directories.
 
 ## Sources
 
@@ -182,17 +200,16 @@ Any other top-level key is an error.
   .agents/skills/
     ast-grep     → ../../.ponte/sources/ast-grep
     house-style  → ../../skills/house-style
-  .claude/skills/
-    ast-grep     → ../../.ponte/sources/ast-grep
-    house-style  → ../../skills/house-style
-  .codex/skills/
+  .claude/skills/            Claude Code before 2.1.280 only
     ast-grep     → ../../.ponte/sources/ast-grep
     house-style  → ../../skills/house-style
 ```
 
-`ponte sync` links every skill into `.agents/skills/` and into each enabled
-vendor project-level skill directory. Claude Code reads `.claude/skills/`,
-Codex reads `.codex/skills/`, and so on.
+`ponte sync` links every skill into `.agents/skills/`. It also links each
+skill into the project skills directory of every enabled vendor that does
+not read `.agents/skills/`. Claude Code before 2.1.280 reads
+`.claude/skills/`. Antigravity CLI reads `.gemini/antigravity-cli/skills/`.
+The [skill directories](#skill-directories) rules apply here too.
 
 ### Vendoring
 
@@ -231,7 +248,7 @@ its directory name. If the two differ, `ponte sync` stops.
 ### What to commit
 
 Commit `ponte.toml`, `.ponte/`, and the skill links (`.agents/skills/`,
-`.claude/skills/`, `.codex/skills/`, and so on). A link to a path inside the
+`.claude/skills/`, and so on). A link to a path inside the
 project is relative, so it keeps working in every clone. A link to a local
 source outside the project stays absolute.
 

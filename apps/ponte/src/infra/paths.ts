@@ -1,9 +1,4 @@
-import { isAbsolute, join } from "node:path";
-import type { Platform } from "@ponte/core";
-
-const CONFIG_FILE = "config.toml";
-
-const OVERRIDE_PROMPT_FILE = "instruction";
+import { buildPontePaths, type Platform, type PontePaths } from "@ponte/core";
 
 export const currentPlatform = (): Platform =>
   process.platform === "win32" ? "win32" : "posix";
@@ -18,20 +13,15 @@ export const homeDirectory = (): string => {
   return home;
 };
 
-export const configDirectoryPath = (): string =>
-  join(homeDirectory(), ".config", "ponte");
+const environment = (name: string): string | undefined => {
+  const value = Bun.env[name];
+  return value === undefined || value === "" ? undefined : value;
+};
 
-export const dataDirectoryPath = (): string =>
-  join(homeDirectory(), ".local", "share", "ponte");
-
-export const overridePromptPath = (): string =>
-  join(dataDirectoryPath(), OVERRIDE_PROMPT_FILE);
-
-export const gitCacheDirectoryPath = (): string =>
-  join(homeDirectory(), ".cache", "ponte", "sources");
-
-export const configFilePath = (): string =>
-  join(configDirectoryPath(), CONFIG_FILE);
-
-export const promptFilePath = (filename: string): string =>
-  isAbsolute(filename) ? filename : join(configDirectoryPath(), filename);
+export const pontePaths = (): PontePaths =>
+  buildPontePaths({
+    home: homeDirectory(),
+    configHome: environment("XDG_CONFIG_HOME"),
+    dataHome: environment("XDG_DATA_HOME"),
+    cacheHome: environment("XDG_CACHE_HOME"),
+  });

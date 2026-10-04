@@ -1,33 +1,30 @@
 import { join } from "node:path";
-import type { Platform } from "./platform";
-import { WINDOWS_CONFIG_ROOT } from "./platform";
+import { err, ok, type Result } from "../shared";
+import type {
+  LayoutInput,
+  VendorLayout,
+  VendorName,
+  VendorProblem,
+  VendorVersions,
+} from "./types";
+import { isVersionAtLeast } from "./version";
 
-export type VendorName =
-  | "claude-code"
-  | "codex"
-  | "antigravity-cli"
-  | "cursor-agent"
-  | "opencode"
-  | "pi-agent";
+type SkillsHome = "own" | "shared" | { readonly sharedSince: string };
 
 type VendorSpec = {
   readonly posixRoot: string;
   readonly windowsRoot: string;
   readonly instruction: string;
+  readonly skillsHome: SkillsHome;
+  readonly versionCommand?: string;
   readonly resourceSubdirectory?: string;
 };
 
-export type VendorLayout = {
-  readonly instruction: string;
-  readonly skills: string;
-  readonly agents: string;
-};
+export const CLAUDE_CODE_SHARED_SKILLS_VERSION = "2.1.280";
 
-export class UnknownVendorError extends Error {
-  constructor(name: string) {
-    super(`unknown agent: ${name}`);
-  }
-}
+export const SHARED_SKILLS_DIRECTORY = join(".agents", "skills");
+
+const WINDOWS_CONFIG_ROOT = join("AppData", "Roaming");
 
 const SKILLS_DIRECTORY = "skills";
 
@@ -40,72 +37,103 @@ const VENDOR_SPECS = {
     posixRoot: ".claude",
     windowsRoot: join(WINDOWS_CONFIG_ROOT, "Claude"),
     instruction: "CLAUDE.md",
+    skillsHome: { sharedSince: CLAUDE_CODE_SHARED_SKILLS_VERSION },
+    versionCommand: "claude",
   },
   codex: {
     posixRoot: ".codex",
     windowsRoot: join(WINDOWS_CONFIG_ROOT, "Codex"),
     instruction: "instructions.md",
+    skillsHome: "shared",
   },
   "antigravity-cli": {
     posixRoot: ".gemini",
     windowsRoot: join(WINDOWS_CONFIG_ROOT, "Gemini"),
     instruction: "GEMINI.md",
+    skillsHome: "own",
     resourceSubdirectory: "antigravity-cli",
   },
   "cursor-agent": {
     posixRoot: ".cursor",
     windowsRoot: join(WINDOWS_CONFIG_ROOT, "Cursor"),
     instruction: join("rules", "global.mdc"),
+    skillsHome: "shared",
   },
   opencode: {
     posixRoot: join(".config", "opencode"),
     windowsRoot: join(WINDOWS_CONFIG_ROOT, "opencode"),
     instruction: "AGENTS.md",
+    skillsHome: "shared",
   },
   "pi-agent": {
     posixRoot: join(".pi", "agent"),
     windowsRoot: join(".pi", "agent"),
     instruction: "AGENTS.md",
+    skillsHome: "shared",
   },
 } as const satisfies Record<VendorName, VendorSpec>;
 
 export const VENDORS = Object.keys(VENDOR_SPECS) as readonly VendorName[];
 
+export const VERSION_COMMANDS: Readonly<Partial<Record<VendorName, string>>> =
+  Object.fromEntries(
+    VENDORS.flatMap(name => {
+      const command = (VENDOR_SPECS[name] as VendorSpec).versionCommand;
+      return command === undefined ? [] : [[name, command]];
+    }),
+  );
+
 export const isVendor = (value: string): value is VendorName =>
   (VENDORS as readonly string[]).includes(value);
 
-export const parseVendorNames = (chunks: readonly string[]): VendorName[] => {
+export const parseVendorNames = (
+  chunks: readonly string[],
+): Result<VendorName[], VendorProblem> => {
   const names: VendorName[] = [];
   for (const chunk of chunks) {
     for (const raw of chunk.split(VENDOR_SEPARATOR)) {
       const name = raw.trim();
       if (!isVendor(name)) {
-        throw new UnknownVendorError(name);
+        return err({ kind: "unknown-vendor", name });
       }
       names.push(name);
     }
   }
-  return names;
+  return ok(names);
+};
+
+const usesSharedSkills = (
+  home: SkillsHome,
+  name: VendorName,
+  versions: VendorVersions,
+): boolean => {
+  if (typeof home === "string") {
+    return home === "shared";
+  }
+  const version = versions[name];
+  return version !== undefined && isVersionAtLeast(version, home.sharedSince);
 };
 
 export const buildVendorLayouts = (
-  home: string,
-  platform: Platform,
+  input: LayoutInput,
 ): Record<VendorName, VendorLayout> => {
   const layouts = {} as Record<VendorName, VendorLayout>;
   for (const name of VENDORS) {
     const spec: VendorSpec = VENDOR_SPECS[name];
     const root = join(
-      home,
-      platform === "win32" ? spec.windowsRoot : spec.posixRoot,
+      input.root,
+      input.platform === "win32" ? spec.windowsRoot : spec.posixRoot,
     );
     const resources =
       spec.resourceSubdirectory === undefined
         ? root
         : join(root, spec.resourceSubdirectory);
+    const ownSkills = join(resources, SKILLS_DIRECTORY);
+    const shared = usesSharedSkills(spec.skillsHome, name, input.versions);
     layouts[name] = {
       instruction: join(root, spec.instruction),
-      skills: join(resources, SKILLS_DIRECTORY),
+      skills: shared ? join(input.root, SHARED_SKILLS_DIRECTORY) : ownSkills,
+      legacySkills: shared ? [ownSkills] : [],
       agents: join(resources, AGENTS_DIRECTORY),
     };
   }

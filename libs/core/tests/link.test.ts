@@ -2,9 +2,9 @@ import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import {
   buildVendorPlan,
+  getLinkState,
   getProjectState,
   getStaleLinkPaths,
-  getVendorState,
 } from "@ponte/core";
 
 const VENDOR_ROOT = join("/home/u", ".claude");
@@ -14,6 +14,7 @@ const SUBAGENTS = join(CONFIG_ROOT, "subagents", "team");
 const layout = {
   instruction: join(VENDOR_ROOT, "CLAUDE.md"),
   skills: join(VENDOR_ROOT, "skills"),
+  legacySkills: [],
   agents: join(VENDOR_ROOT, "agents"),
 };
 
@@ -51,6 +52,24 @@ describe("buildVendorPlan", () => {
   });
 });
 
+describe("buildVendorPlan with a legacy skills directory", () => {
+  it("owns the legacy directory but links nothing into it", () => {
+    const legacy = join("/home/u", ".codex", "skills");
+    const shared = buildVendorPlan(
+      {
+        ...layout,
+        skills: join("/home/u", ".agents", "skills"),
+        legacySkills: [legacy],
+      },
+      join(CONFIG_ROOT, "AGENTS.md"),
+      [{ name: "java", sourceDirectory: join(CONFIG_ROOT, "skills", "java") }],
+      [],
+    );
+    expect(shared.ownedDirectories).toContain(legacy);
+    expect(shared.links.some(link => link.path.startsWith(legacy))).toBe(false);
+  });
+});
+
 describe("getStaleLinkPaths", () => {
   it("reports links the config no longer asks for", () => {
     const actual = actualFor(plan);
@@ -68,19 +87,19 @@ describe("getStaleLinkPaths", () => {
   });
 });
 
-describe("getVendorState", () => {
+describe("getLinkState", () => {
   it("is not synced when nothing is linked", () => {
-    expect(getVendorState(plan, new Map())).toBe("not synced");
+    expect(getLinkState(plan, new Map())).toBe("not synced");
   });
 
   it("is in sync when every link matches", () => {
-    expect(getVendorState(plan, actualFor(plan))).toBe("in sync");
+    expect(getLinkState(plan, actualFor(plan))).toBe("in sync");
   });
 
   it("has drifted when a link points elsewhere", () => {
     const actual = actualFor(plan);
     actual.set(join(VENDOR_ROOT, "skills", "java"), "/somewhere/else");
-    expect(getVendorState(plan, actual)).toBe("drifted");
+    expect(getLinkState(plan, actual)).toBe("drifted");
   });
 
   it("has drifted when a stale link remains", () => {
@@ -89,13 +108,13 @@ describe("getVendorState", () => {
       join(VENDOR_ROOT, "agents", "gone.md"),
       join(SUBAGENTS, "gone.md"),
     );
-    expect(getVendorState(plan, actual)).toBe("drifted");
+    expect(getLinkState(plan, actual)).toBe("drifted");
   });
 
   it("has drifted when a wanted link is missing", () => {
     const actual = actualFor(plan);
     actual.delete(join(VENDOR_ROOT, "skills", "java"));
-    expect(getVendorState(plan, actual)).toBe("drifted");
+    expect(getLinkState(plan, actual)).toBe("drifted");
   });
 });
 

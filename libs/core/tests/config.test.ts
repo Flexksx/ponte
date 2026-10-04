@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import {
+  buildPontePaths,
   type Config,
   isGitSource,
   parseSource,
   resolveConfigPaths,
   type SourceEntry,
-  sourceKey,
 } from "@ponte/core";
 
 const cfgWith = (skills: readonly SourceEntry[] = []) =>
@@ -63,16 +63,39 @@ describe("resolveConfigPaths", () => {
   });
 });
 
-describe("sourceKey", () => {
-  it("separates the source from the subdir", () => {
-    expect(sourceKey({ source: "https://x/y", subdir: "a" })).not.toBe(
-      sourceKey({ source: "https://x/ya", subdir: "" }),
-    );
+describe("buildPontePaths", () => {
+  it("places ponte under the home directory by default", () => {
+    expect(buildPontePaths({ home: "/home/u" })).toEqual({
+      config: join("/home/u", ".config", "ponte"),
+      configFile: join("/home/u", ".config", "ponte", "config.toml"),
+      overridePrompt: join(
+        "/home/u",
+        ".local",
+        "share",
+        "ponte",
+        "instruction",
+      ),
+      sourceCache: join("/home/u", ".cache", "ponte", "sources"),
+    });
   });
 
-  it("treats an absent subdir as empty", () => {
-    expect(sourceKey({ source: "https://x/y" })).toBe(
-      sourceKey({ source: "https://x/y", subdir: "" }),
+  it("follows the XDG base directories", () => {
+    const paths = buildPontePaths({
+      home: "/home/u",
+      configHome: "/xdg/config",
+      dataHome: "/xdg/data",
+      cacheHome: "/xdg/cache",
+    });
+    expect(paths.configFile).toBe(join("/xdg/config", "ponte", "config.toml"));
+    expect(paths.overridePrompt).toBe(
+      join("/xdg/data", "ponte", "instruction"),
     );
+    expect(paths.sourceCache).toBe(join("/xdg/cache", "ponte", "sources"));
+  });
+
+  it("ignores a relative XDG directory, as the XDG specification says", () => {
+    expect(
+      buildPontePaths({ home: "/home/u", configHome: "relative" }).config,
+    ).toBe(join("/home/u", ".config", "ponte"));
   });
 });

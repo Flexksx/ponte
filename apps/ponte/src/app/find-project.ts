@@ -1,29 +1,44 @@
 import {
-  type FindProjectRoot,
   getProjectEnabledVendors,
+  ok,
   type Platform,
+  type Problem,
   type Project,
+  type ProjectFiles,
   projectLayout,
-  type ReadProjectConfig,
+  type Result,
+  resolveProjectConfigPaths,
 } from "@ponte/core";
+import type { ReadVendorVersions } from "./vendor-versions";
 
-export type FindProject = () => Promise<Project | null>;
+export type FindProject = () => Promise<Result<Project | null, Problem>>;
 
 type FindProjectDeps = {
-  findProjectRoot: FindProjectRoot;
-  readProjectConfig: ReadProjectConfig;
+  projectFiles: ProjectFiles;
   cwd: string;
   platform: Platform;
+  readVendorVersions: ReadVendorVersions;
 };
 
 export const createFindProject =
   (deps: FindProjectDeps): FindProject =>
   async () => {
-    const root = await deps.findProjectRoot(deps.cwd);
+    const root = await deps.projectFiles.findRoot(deps.cwd);
     if (root === null) {
-      return null;
+      return ok(null);
     }
-    const config = await deps.readProjectConfig(root);
-    const enabled = getProjectEnabledVendors(config);
-    return { layout: projectLayout(root, deps.platform, enabled), config };
+    const declared = await deps.projectFiles.readConfig(root);
+    if (!declared.ok) {
+      return declared;
+    }
+    const config = resolveProjectConfigPaths(declared.value, root);
+    const layout = projectLayout(
+      {
+        root,
+        platform: deps.platform,
+        versions: await deps.readVendorVersions(),
+      },
+      getProjectEnabledVendors(config),
+    );
+    return ok({ layout, config });
   };

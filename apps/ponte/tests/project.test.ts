@@ -1,80 +1,75 @@
 import { describe, expect, it } from "bun:test";
 import {
-  ConfigError,
   decodeLock,
   decodeProjectConfig,
   encodeLock,
 } from "../src/infra/config-codec";
+import { getAncestorDirectories } from "../src/infra/project-file";
+import { decoded, issuesOf, issueText } from "./codec-helpers";
 
 describe("decodeProjectConfig", () => {
   it("decodes skill entries as an ordered array", () => {
-    const config = decodeProjectConfig({
-      skills: [{ source: "https://x/y", ref: "abc", subdir: "sub" }],
-    });
+    const config = decoded(
+      decodeProjectConfig({
+        skills: [{ source: "https://x/y", ref: "abc", subdir: "sub" }],
+      }),
+    );
     expect(config.skills).toEqual([
       { source: "https://x/y", ref: "abc", subdir: "sub" },
     ]);
   });
 
   it("rejects an unknown top-level key", () => {
-    try {
+    const issues = issuesOf(
       decodeProjectConfig({
         unknown_key: {},
         system_prompt_file: "AGENTS.md",
-      });
-      expect(true).toBe(false);
-    } catch (e) {
-      expect(e instanceof ConfigError).toBe(true);
-      expect((e as ConfigError).problems.length).toBe(2);
-    }
+      }),
+    );
+    expect(issues.length).toBeGreaterThan(0);
+    expect(issues.length).toBe(2);
   });
 
   it("accepts an optional vendors section", () => {
-    const config = decodeProjectConfig({
-      vendors: {
-        "claude-code": { enabled: true },
-        codex: { enabled: false },
-      },
-      skills: [{ source: "https://x/y" }],
-    });
+    const config = decoded(
+      decodeProjectConfig({
+        vendors: {
+          "claude-code": { enabled: true },
+          codex: { enabled: false },
+        },
+        skills: [{ source: "https://x/y" }],
+      }),
+    );
     expect(config.vendors?.["claude-code"]?.enabled).toBe(true);
     expect(config.vendors?.codex?.enabled).toBe(false);
   });
 
   it("treats missing vendors section as all enabled", () => {
-    const config = decodeProjectConfig({ skills: [] });
+    const config = decoded(decodeProjectConfig({ skills: [] }));
     expect(config.vendors).toBe(undefined);
   });
 
   it("rejects an unknown vendor name", () => {
-    try {
+    const issues = issuesOf(
       decodeProjectConfig({
         vendors: { "not-a-vendor": { enabled: true } },
         skills: [],
-      });
-      expect(true).toBe(false);
-    } catch (e) {
-      expect(e instanceof ConfigError).toBe(true);
-      expect((e as ConfigError).message).toContain("not-a-vendor");
-    }
+      }),
+    );
+    expect(issues.length).toBeGreaterThan(0);
+    expect(issueText(issues)).toContain("not-a-vendor");
   });
 
   it("rejects an entry without a source", () => {
-    try {
-      decodeProjectConfig({ skills: [{ ref: "abc" }] });
-      expect(true).toBe(false);
-    } catch (e) {
-      expect(e instanceof ConfigError).toBe(true);
-    }
+    const issues = issuesOf(decodeProjectConfig({ skills: [{ ref: "abc" }] }));
+    expect(issues.length).toBeGreaterThan(0);
   });
 
   it("tells a named skill table how to migrate", () => {
-    try {
-      decodeProjectConfig({ skills: { mine: { source: "skills/mine" } } });
-      expect(true).toBe(false);
-    } catch (e) {
-      expect((e as ConfigError).message).toContain("[[skills]]");
-    }
+    const issues = issuesOf(
+      decodeProjectConfig({ skills: { mine: { source: "skills/mine" } } }),
+    );
+    expect(issueText(issues)).toContain("[[skills]]");
   });
 });
 
@@ -88,7 +83,7 @@ describe("lock file", () => {
     const encoded = encodeLock(lock);
     expect(encoded).toContain("[skills.mine]");
     expect(encoded).toContain('source = "https://x/y"');
-    expect(decodeLock(Bun.TOML.parse(encoded))).toEqual(lock);
+    expect(decoded(decodeLock(Bun.TOML.parse(encoded)))).toEqual(lock);
   });
 
   it("omits an empty subdir", () => {
@@ -99,27 +94,40 @@ describe("lock file", () => {
   });
 
   it("encodes an empty lock without a table", () => {
-    expect(decodeLock(Bun.TOML.parse(encodeLock({ skills: {} })))).toEqual({
+    expect(
+      decoded(decodeLock(Bun.TOML.parse(encodeLock({ skills: {} })))),
+    ).toEqual({
       skills: {},
     });
   });
 
   it("rejects an entry without a commit", () => {
-    try {
-      decodeLock({ skills: { mine: { source: "https://x/y" } } });
-      expect(true).toBe(false);
-    } catch (e) {
-      expect(e instanceof ConfigError).toBe(true);
-    }
+    const issues = issuesOf(
+      decodeLock({ skills: { mine: { source: "https://x/y" } } }),
+    );
+    expect(issues.length).toBeGreaterThan(0);
   });
 
   it("rejects a lock entry from an older ponte that has no source", () => {
-    try {
-      decodeLock({ skills: { mine: { commit: "abc123" } } });
-      expect(true).toBe(false);
-    } catch (e) {
-      expect(e instanceof ConfigError).toBe(true);
-      expect((e as ConfigError).message).toContain("source");
-    }
+    const issues = issuesOf(
+      decodeLock({ skills: { mine: { commit: "abc123" } } }),
+    );
+    expect(issues.length).toBeGreaterThan(0);
+    expect(issueText(issues)).toContain("source");
+  });
+});
+
+describe("getAncestorDirectories", () => {
+  it("walks up to the filesystem root", () => {
+    expect(getAncestorDirectories("/repo/src/app")).toEqual([
+      "/repo/src/app",
+      "/repo/src",
+      "/repo",
+      "/",
+    ]);
+  });
+
+  it("returns the root itself for the root", () => {
+    expect(getAncestorDirectories("/")).toEqual(["/"]);
   });
 });

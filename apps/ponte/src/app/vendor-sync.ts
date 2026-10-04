@@ -1,58 +1,41 @@
 import {
-  type ApplyPlan,
+  type Bootstrap,
   type Config,
+  type ConfigStore,
   createDefaultConfig,
   err,
-  type FileExists,
   getStaleLinkPaths,
+  type LinkPlan,
+  type LinkStore,
   ok,
-  type ReadConfig,
-  type ReadSymlinks,
+  type Problem,
+  type PromptStore,
   type Result,
   resolveVendors,
+  type SyncReport,
+  type SyncRequest,
   type VendorName,
-  type VendorPlan,
-  type WriteConfig,
-  type WritePrompt,
-  type WriteText,
 } from "@ponte/core";
 import type { BuildVendorPlans } from "./vendor-resolve";
 
-export type SyncRequest = {
-  readonly promptOverride: string | undefined;
-  readonly requestedVendors: readonly string[];
-};
-
-export type Bootstrap = {
-  readonly configDirectory: string;
-  readonly systemPromptFile: string;
-};
-
-export type SyncReport = {
-  readonly vendors: readonly VendorName[];
-  readonly stale: number;
-  readonly bootstrap: Bootstrap | null;
-};
+export type SyncVendors = (
+  request: SyncRequest,
+  apply: boolean,
+) => Promise<Result<SyncReport, Problem>>;
 
 type PendingSync = {
   readonly vendors: readonly VendorName[];
-  readonly plans: Readonly<Record<VendorName, VendorPlan>>;
+  readonly plans: Readonly<Record<VendorName, LinkPlan>>;
   readonly stale: Readonly<Record<string, readonly string[]>>;
   readonly bootstrap: Bootstrap | null;
 };
 
 type SyncDeps = {
-  readConfig: ReadConfig;
-  writeConfig: WriteConfig;
-  writePrompt: WritePrompt;
-  fileExists: FileExists;
-  writeText: WriteText;
-  readSymlinks: ReadSymlinks;
-  applyPlan: ApplyPlan;
+  config: ConfigStore;
+  prompts: PromptStore;
+  links: LinkStore;
   buildVendorPlans: BuildVendorPlans;
   configDirectory: string;
-  overridePromptPath: string;
-  resolvePromptPath: (filename: string) => string;
 };
 
 const countStale = (pending: PendingSync): number =>
@@ -61,14 +44,14 @@ const countStale = (pending: PendingSync): number =>
     0,
   );
 
-export const createSyncVendors = (deps: SyncDeps) => {
+export const createSyncVendors = (deps: SyncDeps): SyncVendors => {
   const bootstrapConfig = async (): Promise<{
     config: Config;
     bootstrap: Bootstrap;
   }> => {
     const config = createDefaultConfig();
-    await deps.writeConfig(config);
-    await deps.writePrompt(config.systemPromptFile, "");
+    await deps.config.write(config);
+    await deps.prompts.write(config.systemPromptFile, "");
     return {
       config,
       bootstrap: {
@@ -80,61 +63,67 @@ export const createSyncVendors = (deps: SyncDeps) => {
 
   const configuredPromptPath = async (
     config: Config,
-  ): Promise<Result<string, string>> => {
-    const path = deps.resolvePromptPath(config.systemPromptFile);
-    if (!(await deps.fileExists(path))) {
-      return err(`system prompt not found: ${config.systemPromptFile}`);
-    }
-    return ok(path);
+  ): Promise<Result<string, Problem>> => {
+    const path = await deps.prompts.locate(config.systemPromptFile);
+    return path === null
+      ? err({ kind: "prompt-not-found", file: config.systemPromptFile })
+      : ok(path);
   };
 
-  const materializedOverridePath = async (
-    override: string,
-  ): Promise<string> => {
-    if (await deps.fileExists(override)) {
-      return override;
-    }
-    await deps.writeText(deps.overridePromptPath, override);
-    return deps.overridePromptPath;
-  };
+  // An override is a path when a file exists there, and prompt text when not.
+  const overridePromptPath = async (override: string): Promise<string> =>
+    (await deps.prompts.isFile(override))
+      ? override
+      : deps.prompts.writeOverride(override);
 
   const pendingSync = async (
     request: SyncRequest,
-  ): Promise<Result<PendingSync, string>> => {
-    const existing = await deps.readConfig();
+  ): Promise<Result<PendingSync, Problem>> => {
+    const existing = await deps.config.read();
+    if (!existing.ok) {
+      return existing;
+    }
     const { config, bootstrap } =
-      existing === null
+      existing.value === null
         ? await bootstrapConfig()
-        : { config: existing, bootstrap: null };
+        : { config: existing.value, bootstrap: null };
 
     const vendors = resolveVendors(request.requestedVendors, config);
-    if (vendors.length === 0) {
-      return err("no agents enabled in config - run with -a to specify agents");
+    if (!vendors.ok) {
+      return vendors;
+    }
+    if (vendors.value.length === 0) {
+      return err({ kind: "no-vendors-enabled" });
     }
 
-    const promptResult =
+    const promptPath =
       request.promptOverride === undefined
         ? await configuredPromptPath(config)
-        : ok(await materializedOverridePath(request.promptOverride));
-    if (!promptResult.ok) {
-      return promptResult;
+        : ok(await overridePromptPath(request.promptOverride));
+    if (!promptPath.ok) {
+      return promptPath;
     }
 
-    const plans = await deps.buildVendorPlans(config, promptResult.value);
+    const plans = await deps.buildVendorPlans(config, promptPath.value);
+    if (!plans.ok) {
+      return plans;
+    }
     const stale: Record<string, readonly string[]> = {};
-    for (const vendor of vendors) {
+    for (const vendor of vendors.value) {
       stale[vendor] = getStaleLinkPaths(
-        plans[vendor],
-        await deps.readSymlinks(plans[vendor]),
+        plans.value[vendor],
+        await deps.links.read(plans.value[vendor]),
       );
     }
-    return ok({ vendors, plans, stale, bootstrap });
+    return ok({
+      vendors: vendors.value,
+      plans: plans.value,
+      stale,
+      bootstrap,
+    });
   };
 
-  return async (
-    request: SyncRequest,
-    apply: boolean,
-  ): Promise<Result<SyncReport, string>> => {
+  return async (request, apply) => {
     const result = await pendingSync(request);
     if (!result.ok) {
       return result;
@@ -142,7 +131,7 @@ export const createSyncVendors = (deps: SyncDeps) => {
     const pending = result.value;
     if (apply) {
       for (const vendor of pending.vendors) {
-        await deps.applyPlan(
+        await deps.links.apply(
           pending.plans[vendor],
           pending.stale[vendor] ?? [],
         );

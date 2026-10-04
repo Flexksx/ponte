@@ -1,20 +1,10 @@
 import { join } from "node:path";
-
-export type NamedSkill = { readonly name: string; readonly source: string };
-
-export class SkillNameError extends Error {}
-
-export class VendoredSkillRenamedError extends Error {
-  constructor(directory: string, name: string, declared: string) {
-    super(
-      `vendored skill ${directory}: its ${SKILL_FILE} declares name "${declared}" but the directory is named "${name}" - restore the name, or delete the directory and run ponte sync`,
-    );
-  }
-}
+import { err, ok, type Result } from "../shared";
+import type { NamedSkill, SkillProblem } from "./types";
 
 export const SKILL_FILE = "SKILL.md";
 
-const MAX_SKILL_NAME_LENGTH = 64;
+export const MAX_SKILL_NAME_LENGTH = 64;
 
 const FRONTMATTER_DELIMITER = "---";
 
@@ -66,44 +56,49 @@ export const parseSkillName = (
   source: string,
   directory: string,
   text: string | null,
-): string => {
+): Result<string, SkillProblem> => {
   if (text === null) {
-    throw new SkillNameError(
-      `skill ${source}: no ${SKILL_FILE} in ${directory} - every skill directory needs one`,
-    );
+    return err({ kind: "missing-skill-file", source, directory });
   }
   const file = skillFilePath(directory);
   const block = frontmatterBlock(text);
   if (block === null) {
-    throw new SkillNameError(
-      `skill ${source}: ${file} has no frontmatter - add a --- block that declares name`,
-    );
+    return err({ kind: "missing-frontmatter", source, file });
   }
   const name = frontmatterName(block);
   if (name === null) {
-    throw new SkillNameError(
-      `skill ${source}: the frontmatter in ${file} declares no name`,
-    );
+    return err({ kind: "missing-skill-name", source, file });
   }
   if (!isSkillName(name)) {
-    throw new SkillNameError(
-      `skill ${source}: ${SKILL_FILE} declares the invalid name "${name}" - a name holds 1 to ${MAX_SKILL_NAME_LENGTH} characters from a-z, 0-9 and single hyphens, and it starts and ends with a letter or a digit`,
-    );
+    return err({ kind: "invalid-skill-name", source, name });
   }
-  return name;
+  return ok(name);
 };
 
 export const requireUniqueSkillNames = (
   skills: readonly NamedSkill[],
-): void => {
+): Result<null, SkillProblem> => {
   const seen = new Map<string, string>();
   for (const skill of skills) {
     const first = seen.get(skill.name);
     if (first !== undefined) {
-      throw new SkillNameError(
-        `two skills declare the name "${skill.name}": ${first} and ${skill.source} - remove one of the entries`,
-      );
+      return err({
+        kind: "duplicate-skill-name",
+        name: skill.name,
+        first,
+        second: skill.source,
+      });
     }
     seen.set(skill.name, skill.source);
   }
+  return ok(null);
 };
+
+export const checkVendoredSkillName = (
+  directory: string,
+  name: string,
+  declared: string,
+): Result<null, SkillProblem> =>
+  declared === name
+    ? ok(null)
+    : err({ kind: "vendored-skill-renamed", directory, name, declared });

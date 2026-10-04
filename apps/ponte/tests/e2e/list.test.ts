@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
-import { newHarness, sourceEntry } from "./harness";
+import { join } from "node:path";
+import { newHarness, skillDoc, sourceEntry } from "./harness";
 
 describe("skills", () => {
   it("lists a local skill with the name from SKILL.md", async () => {
@@ -11,6 +12,18 @@ describe("skills", () => {
     for (const want of ["NAME", "simple-skill", "local", fixture]) {
       expect(stdout).toContain(want);
     }
+    await h.close();
+  });
+
+  it("shows a relative source as declared and reads its name", async () => {
+    const h = await newHarness();
+    await h.bootstrap();
+    await h.writeSkill(h.configPath(join("skills", "mine")), skillDoc("mine"));
+    await h.appendConfig(sourceEntry("skills", "skills/mine"));
+    const { stdout } = await h.mustRun("skills");
+    expect(stdout).toContain("mine");
+    expect(stdout).toContain("skills/mine");
+    expect(stdout).not.toContain(h.configPath("skills"));
     await h.close();
   });
 
