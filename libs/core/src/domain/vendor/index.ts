@@ -9,6 +9,7 @@ export {
 } from "./layout";
 export type {
   LayoutInput,
+  LayoutScope,
   Platform,
   VendorLayout,
   VendorName,

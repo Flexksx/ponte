@@ -97,6 +97,7 @@ export const createBuildVendorPlans =
     const layouts = buildVendorLayouts({
       root: deps.home,
       platform: deps.platform,
+      scope: "global",
       versions: await deps.readVendorVersions(),
     });
     const plans = {} as Record<VendorName, LinkPlan>;

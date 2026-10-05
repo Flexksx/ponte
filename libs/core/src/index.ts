@@ -90,6 +90,7 @@ export {
   buildVendorLayouts,
   CLAUDE_CODE_SHARED_SKILLS_VERSION,
   type LayoutInput,
+  type LayoutScope,
   type Platform,
   parseVersion,
   VENDORS,

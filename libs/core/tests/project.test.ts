@@ -20,6 +20,7 @@ const SOURCES = join(REPO, ".ponte", "sources");
 const posix = (versions: VendorVersions = {}) => ({
   root: REPO,
   platform: "posix" as const,
+  scope: "project" as const,
   versions,
 });
 

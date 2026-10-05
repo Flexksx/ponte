@@ -5,11 +5,10 @@ import type {
   VendorLayout,
   VendorName,
   VendorProblem,
-  VendorVersions,
 } from "./types";
 import { isVersionAtLeast } from "./version";
 
-type SkillsHome = "own" | "shared" | { readonly sharedSince: string };
+type SkillsHome = "own" | "shared" | { readonly projectSharedSince: string };
 
 type VendorSpec = {
   readonly posixRoot: string;
@@ -37,7 +36,7 @@ const VENDOR_SPECS = {
     posixRoot: ".claude",
     windowsRoot: join(WINDOWS_CONFIG_ROOT, "Claude"),
     instruction: "CLAUDE.md",
-    skillsHome: { sharedSince: CLAUDE_CODE_SHARED_SKILLS_VERSION },
+    skillsHome: { projectSharedSince: CLAUDE_CODE_SHARED_SKILLS_VERSION },
     versionCommand: "claude",
   },
   codex: {
@@ -105,13 +104,18 @@ export const parseVendorNames = (
 const usesSharedSkills = (
   home: SkillsHome,
   name: VendorName,
-  versions: VendorVersions,
+  input: LayoutInput,
 ): boolean => {
   if (typeof home === "string") {
     return home === "shared";
   }
-  const version = versions[name];
-  return version !== undefined && isVersionAtLeast(version, home.sharedSince);
+  if (input.scope !== "project") {
+    return false;
+  }
+  const version = input.versions[name];
+  return (
+    version !== undefined && isVersionAtLeast(version, home.projectSharedSince)
+  );
 };
 
 export const buildVendorLayouts = (
@@ -129,7 +133,7 @@ export const buildVendorLayouts = (
         ? root
         : join(root, spec.resourceSubdirectory);
     const ownSkills = join(resources, SKILLS_DIRECTORY);
-    const shared = usesSharedSkills(spec.skillsHome, name, input.versions);
+    const shared = usesSharedSkills(spec.skillsHome, name, input);
     layouts[name] = {
       instruction: join(root, spec.instruction),
       skills: shared ? join(input.root, SHARED_SKILLS_DIRECTORY) : ownSkills,

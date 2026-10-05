@@ -36,6 +36,7 @@ export const createFindProject =
       {
         root,
         platform: deps.platform,
+        scope: "project",
         versions: await deps.readVendorVersions(),
       },
       getProjectEnabledVendors(config),

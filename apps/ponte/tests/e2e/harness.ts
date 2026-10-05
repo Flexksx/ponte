@@ -250,6 +250,7 @@ export class Home {
     return buildVendorLayouts({
       root: this.home,
       platform: PLATFORM,
+      scope: "global",
       versions:
         this.claudeVersion === null
           ? {}

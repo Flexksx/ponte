@@ -72,9 +72,9 @@ source = "skills/my-skill"   # relative to ~/.config/ponte/
 The declaration carries no name. ponte reads the `name` field from the
 frontmatter of `SKILL.md`, the same name the agent uses. A skill that
 declares `name: my-skill` lands at `~/.agents/skills/my-skill`. Codex,
-Cursor, OpenCode, Pi, and Claude Code 2.1.280 or later read that directory.
-Older Claude Code versions and Antigravity CLI get a link in their own
-directory, for example `~/.claude/skills/my-skill`.
+Cursor, OpenCode, and Pi read that directory. Claude Code and Antigravity
+CLI get a link in their own directory, for example
+`~/.claude/skills/my-skill`.
 
 ## Project mode
 

@@ -51,10 +51,9 @@ source at a new ref.
 ### Skill directories
 
 Codex, Cursor, OpenCode, and Pi read skills from `~/.agents/skills/`, so
-ponte links each skill there one time. Claude Code reads `~/.agents/skills/`
-from version 2.1.280. ponte runs `claude --version` to find the version. If
-the version is older, or if `claude` is not on `PATH`, ponte links the skill
-into `~/.claude/skills/`. Antigravity CLI keeps its own skills directory.
+ponte links each skill there one time. Claude Code does not read
+`~/.agents/skills/`, so ponte links each skill into `~/.claude/skills/`.
+Antigravity CLI keeps its own skills directory.
 
 A vendor that reads `~/.agents/skills/` keeps its old skills directory, for
 example `~/.codex/skills/`. `ponte sync` removes the ponte links in that
@@ -207,8 +206,11 @@ Any other top-level key is an error.
 
 `ponte sync` links every skill into `.agents/skills/`. It also links each
 skill into the project skills directory of every enabled vendor that does
-not read `.agents/skills/`. Claude Code before 2.1.280 reads
-`.claude/skills/`. Antigravity CLI reads `.gemini/antigravity-cli/skills/`.
+not read `.agents/skills/`. Claude Code reads the project `.agents/skills/`
+from version 2.1.280. ponte runs `claude --version` to find the version. If
+the version is older, or if `claude` is not on `PATH`, ponte links the skill
+into `.claude/skills/`. Antigravity CLI reads
+`.gemini/antigravity-cli/skills/`.
 The [skill directories](#skill-directories) rules apply here too.
 
 ### Vendoring

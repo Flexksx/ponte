@@ -54,21 +54,18 @@ describe("shared skills directory", () => {
     await h.close();
   });
 
-  it("moves Claude Code to .agents/skills from the cutoff", async () => {
+  it("keeps Claude Code on .claude/skills from the cutoff", async () => {
     if (isWindows()) {
       return;
     }
     const h = await newHarness();
+    await h.setClaudeVersion(CLAUDE_CODE_SHARED_SKILLS_VERSION);
     const source = await withSkill(h);
+
     await h.mustRun("sync");
 
-    await h.setClaudeVersion(CLAUDE_CODE_SHARED_SKILLS_VERSION);
-    const { stdout } = await h.mustRun("sync");
-
-    expect(stdout).toContain("stale link(s) removed");
-    await h.assertMissing(join(h.home, ".claude", "skills", "simple-skill"));
     await h.assertSymlinkTo(
-      join(h.home, ".agents", "skills", "simple-skill"),
+      join(h.home, ".claude", "skills", "simple-skill"),
       source,
     );
     await h.close();
