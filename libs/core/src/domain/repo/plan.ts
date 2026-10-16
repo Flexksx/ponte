@@ -1,18 +1,18 @@
 import { dirname, isAbsolute, join, relative } from "node:path";
 import type { LinkPlan, LinkState } from "../link";
 import { getLinkState } from "../link";
-import type { ProjectLayout, ProjectSkillTarget } from "./types";
+import type { RepoLayout, RepoSkillTarget } from "./types";
 
-export const getProjectState = (
+export const getRepoState = (
   plan: LinkPlan,
   actual: ReadonlyMap<string, string>,
   pending: number,
 ): LinkState =>
   pending > 0 && actual.size > 0 ? "drifted" : getLinkState(plan, actual);
 
-export const buildProjectPlan = (
-  layout: ProjectLayout,
-  skills: readonly ProjectSkillTarget[],
+export const buildRepoPlan = (
+  layout: RepoLayout,
+  skills: readonly RepoSkillTarget[],
 ): LinkPlan => {
   const allDirectories = [layout.skills, ...layout.vendorSkillDirectories];
   return {

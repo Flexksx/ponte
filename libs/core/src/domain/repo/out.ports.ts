@@ -1,19 +1,16 @@
 import type { ConfigProblem } from "../config";
 import type { Result } from "../shared";
-import type { ProjectConfig, ProjectLayout, ProjectLock } from "./types";
+import type { RepoConfig, RepoLayout, RepoLock } from "./types";
 
-export type ProjectFiles = {
+export type RepoFiles = {
   readonly findRoot: (start: string) => Promise<string | null>;
   readonly readConfig: (
     root: string,
-  ) => Promise<Result<ProjectConfig, ConfigProblem>>;
+  ) => Promise<Result<RepoConfig, ConfigProblem>>;
   readonly readLock: (
-    layout: ProjectLayout,
-  ) => Promise<Result<ProjectLock, ConfigProblem>>;
-  readonly writeLock: (
-    layout: ProjectLayout,
-    lock: ProjectLock,
-  ) => Promise<void>;
+    layout: RepoLayout,
+  ) => Promise<Result<RepoLock, ConfigProblem>>;
+  readonly writeLock: (layout: RepoLayout, lock: RepoLock) => Promise<void>;
 };
 
 export type VendoredSkills = {

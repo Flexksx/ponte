@@ -1,16 +1,16 @@
 import { describe, expect, it } from "bun:test";
 import {
   decodeLock,
-  decodeProjectConfig,
+  decodeRepoConfig,
   encodeLock,
 } from "../src/infra/config-codec";
-import { getAncestorDirectories } from "../src/infra/project-file";
+import { getAncestorDirectories } from "../src/infra/repo-file";
 import { decoded, issuesOf, issueText } from "./codec-helpers";
 
-describe("decodeProjectConfig", () => {
+describe("decodeRepoConfig", () => {
   it("decodes skill entries as an ordered array", () => {
     const config = decoded(
-      decodeProjectConfig({
+      decodeRepoConfig({
         skills: [{ source: "https://x/y", ref: "abc", subdir: "sub" }],
       }),
     );
@@ -21,7 +21,7 @@ describe("decodeProjectConfig", () => {
 
   it("rejects an unknown top-level key", () => {
     const issues = issuesOf(
-      decodeProjectConfig({
+      decodeRepoConfig({
         unknown_key: {},
         system_prompt_file: "AGENTS.md",
       }),
@@ -32,7 +32,7 @@ describe("decodeProjectConfig", () => {
 
   it("accepts an optional vendors section", () => {
     const config = decoded(
-      decodeProjectConfig({
+      decodeRepoConfig({
         vendors: {
           "claude-code": { enabled: true },
           codex: { enabled: false },
@@ -45,13 +45,13 @@ describe("decodeProjectConfig", () => {
   });
 
   it("treats missing vendors section as all enabled", () => {
-    const config = decoded(decodeProjectConfig({ skills: [] }));
+    const config = decoded(decodeRepoConfig({ skills: [] }));
     expect(config.vendors).toBe(undefined);
   });
 
   it("rejects an unknown vendor name", () => {
     const issues = issuesOf(
-      decodeProjectConfig({
+      decodeRepoConfig({
         vendors: { "not-a-vendor": { enabled: true } },
         skills: [],
       }),
@@ -61,13 +61,13 @@ describe("decodeProjectConfig", () => {
   });
 
   it("rejects an entry without a source", () => {
-    const issues = issuesOf(decodeProjectConfig({ skills: [{ ref: "abc" }] }));
+    const issues = issuesOf(decodeRepoConfig({ skills: [{ ref: "abc" }] }));
     expect(issues.length).toBeGreaterThan(0);
   });
 
   it("tells a named skill table how to migrate", () => {
     const issues = issuesOf(
-      decodeProjectConfig({ skills: { mine: { source: "skills/mine" } } }),
+      decodeRepoConfig({ skills: { mine: { source: "skills/mine" } } }),
     );
     expect(issueText(issues)).toContain("[[skills]]");
   });

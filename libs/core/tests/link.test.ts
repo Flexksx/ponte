@@ -3,7 +3,7 @@ import { join } from "node:path";
 import {
   buildVendorPlan,
   getLinkState,
-  getProjectState,
+  getRepoState,
   getStaleLinkPaths,
 } from "@ponte/core";
 
@@ -118,16 +118,16 @@ describe("getLinkState", () => {
   });
 });
 
-describe("getProjectState", () => {
+describe("getRepoState", () => {
   it("has drifted when a skill is still to vendor and links exist", () => {
-    expect(getProjectState(plan, actualFor(plan), 1)).toBe("drifted");
+    expect(getRepoState(plan, actualFor(plan), 1)).toBe("drifted");
   });
 
   it("reports not synced when nothing is linked yet", () => {
-    expect(getProjectState(plan, new Map(), 1)).toBe("not synced");
+    expect(getRepoState(plan, new Map(), 1)).toBe("not synced");
   });
 
   it("falls back to the vendor state when nothing is pending", () => {
-    expect(getProjectState(plan, actualFor(plan), 0)).toBe("in sync");
+    expect(getRepoState(plan, actualFor(plan), 0)).toBe("in sync");
   });
 });

@@ -1,15 +1,15 @@
 import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import {
-  buildProjectPlan,
+  buildRepoPlan,
   buildUpdateTargets,
   CLAUDE_CODE_SHARED_SKILLS_VERSION,
   createLockEntry,
   findLockedSkillName,
-  getProjectEnabledVendors,
+  getRepoEnabledVendors,
   locksAreEqual,
-  projectLayout,
-  resolveProjectConfigPaths,
+  repoLayout,
+  resolveRepoConfigPaths,
   type VendorVersions,
   vendoredSkillPath,
 } from "@ponte/core";
@@ -20,11 +20,11 @@ const SOURCES = join(REPO, ".ponte", "sources");
 const posix = (versions: VendorVersions = {}) => ({
   root: REPO,
   platform: "posix" as const,
-  scope: "project" as const,
+  scope: "repo" as const,
   versions,
 });
 
-const layout = projectLayout(posix());
+const layout = repoLayout(posix());
 
 // .agents/skills, plus Claude Code and Antigravity, which keep their own.
 const LINKED_DIRECTORIES = 3;
@@ -38,7 +38,7 @@ const findLink = (
   path: string,
 ) => links.find(l => l.path === path);
 
-describe("projectLayout", () => {
+describe("repoLayout", () => {
   it("places the links, the sources and the lock file", () => {
     expect(layout.root).toBe(REPO);
     expect(layout.skills).toBe(join(REPO, ".agents", "skills"));
@@ -62,7 +62,7 @@ describe("projectLayout", () => {
   });
 
   it("moves Claude Code to .agents/skills from the cutoff version", () => {
-    const shared = projectLayout(
+    const shared = repoLayout(
       posix({ "claude-code": CLAUDE_CODE_SHARED_SKILLS_VERSION }),
     );
     expect(shared.vendorSkillDirectories).toEqual([
@@ -74,13 +74,13 @@ describe("projectLayout", () => {
   });
 });
 
-describe("getProjectEnabledVendors", () => {
+describe("getRepoEnabledVendors", () => {
   it("returns undefined when no vendors section is present", () => {
-    expect(getProjectEnabledVendors({ skills: [] })).toBe(undefined);
+    expect(getRepoEnabledVendors({ skills: [] })).toBe(undefined);
   });
 
   it("returns only enabled vendors", () => {
-    const enabled = getProjectEnabledVendors({
+    const enabled = getRepoEnabledVendors({
       vendors: {
         "claude-code": { enabled: true },
         codex: { enabled: false },
@@ -91,7 +91,7 @@ describe("getProjectEnabledVendors", () => {
   });
 
   it("returns empty when all vendors are disabled", () => {
-    const enabled = getProjectEnabledVendors({
+    const enabled = getRepoEnabledVendors({
       vendors: { "claude-code": { enabled: false } },
       skills: [],
     });
@@ -99,13 +99,13 @@ describe("getProjectEnabledVendors", () => {
   });
 
   it("returns empty when vendors section exists but lists none", () => {
-    expect(getProjectEnabledVendors({ vendors: {}, skills: [] })).toEqual([]);
+    expect(getRepoEnabledVendors({ vendors: {}, skills: [] })).toEqual([]);
   });
 });
 
-describe("projectLayout with vendor filter", () => {
+describe("repoLayout with vendor filter", () => {
   it("includes only filtered vendor directories", () => {
-    const filtered = projectLayout(posix(), ["claude-code"]);
+    const filtered = repoLayout(posix(), ["claude-code"]);
     expect(filtered.vendorSkillDirectories).toEqual([
       join(REPO, ".claude", "skills"),
     ]);
@@ -113,7 +113,7 @@ describe("projectLayout with vendor filter", () => {
   });
 
   it("cleans only the old directories of filtered vendors", () => {
-    const filtered = projectLayout(posix(), ["codex"]);
+    const filtered = repoLayout(posix(), ["codex"]);
     expect(filtered.vendorSkillDirectories).toEqual([]);
     expect(filtered.legacySkillDirectories).toEqual([
       join(REPO, ".codex", "skills"),
@@ -121,9 +121,9 @@ describe("projectLayout with vendor filter", () => {
   });
 });
 
-describe("buildProjectPlan", () => {
+describe("buildRepoPlan", () => {
   it("links a vendored skill into agents and all vendor directories", () => {
-    const plan = buildProjectPlan(layout, [
+    const plan = buildRepoPlan(layout, [
       { name: "java", directory: join(SOURCES, "java") },
     ]);
     const up2 = join("..", "..", ".ponte", "sources", "java");
@@ -137,7 +137,7 @@ describe("buildProjectPlan", () => {
   });
 
   it("uses a deeper relative path for vendors with subdirectories", () => {
-    const plan = buildProjectPlan(layout, [
+    const plan = buildRepoPlan(layout, [
       { name: "java", directory: join(SOURCES, "java") },
     ]);
     const geminiLink = findLink(
@@ -149,8 +149,8 @@ describe("buildProjectPlan", () => {
     );
   });
 
-  it("keeps a source outside the project absolute", () => {
-    const plan = buildProjectPlan(layout, [
+  it("keeps a source outside the repo absolute", () => {
+    const plan = buildRepoPlan(layout, [
       { name: "java", directory: "/elsewhere/java" },
     ]);
     expect(
@@ -162,7 +162,7 @@ describe("buildProjectPlan", () => {
   });
 
   it("owns the linked and the legacy skill directories", () => {
-    const dirs = buildProjectPlan(layout, []).ownedDirectories;
+    const dirs = buildRepoPlan(layout, []).ownedDirectories;
     expect(dirs).toContain(join(REPO, ".agents", "skills"));
     expect(dirs).toContain(join(REPO, ".claude", "skills"));
     expect(dirs).toContain(join(REPO, ".codex", "skills"));
@@ -170,9 +170,9 @@ describe("buildProjectPlan", () => {
   });
 });
 
-describe("resolveProjectConfigPaths", () => {
-  it("expands a relative local source against the project root", () => {
-    const config = resolveProjectConfigPaths(
+describe("resolveRepoConfigPaths", () => {
+  it("expands a relative local source against the repo root", () => {
+    const config = resolveRepoConfigPaths(
       { skills: [{ source: "skills/mine" }] },
       REPO,
     );
@@ -180,7 +180,7 @@ describe("resolveProjectConfigPaths", () => {
   });
 
   it("preserves vendors through normalization", () => {
-    const config = resolveProjectConfigPaths(
+    const config = resolveRepoConfigPaths(
       {
         vendors: { "claude-code": { enabled: true } },
         skills: [],
@@ -191,12 +191,12 @@ describe("resolveProjectConfigPaths", () => {
   });
 
   it("omits vendors when absent in the original", () => {
-    const config = resolveProjectConfigPaths({ skills: [] }, "/repo");
+    const config = resolveRepoConfigPaths({ skills: [] }, "/repo");
     expect(config.vendors).toBe(undefined);
   });
 
   it("leaves git sources and absolute paths untouched", () => {
-    const config = resolveProjectConfigPaths(
+    const config = resolveRepoConfigPaths(
       { skills: [{ source: "https://x/y" }, { source: "/abs/path" }] },
       "/repo",
     );

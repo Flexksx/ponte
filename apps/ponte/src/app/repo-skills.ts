@@ -4,8 +4,8 @@ import {
   isGitSource,
   ok,
   type Problem,
-  type Project,
-  type ProjectFiles,
+  type Repo,
+  type RepoFiles,
   type Result,
   resolveConfigPaths,
   type SkillRow,
@@ -14,8 +14,8 @@ import type { SkillNames } from "./skill-name";
 
 export type ListConfigSkills = (config: Config) => Promise<SkillRow[]>;
 
-export type ListProjectSkills = (
-  project: Project,
+export type ListRepoSkills = (
+  repo: Repo,
 ) => Promise<Result<SkillRow[], Problem>>;
 
 type ListConfigSkillsDeps = {
@@ -23,8 +23,8 @@ type ListConfigSkillsDeps = {
   configDirectory: string;
 };
 
-type ListProjectSkillsDeps = {
-  projectFiles: ProjectFiles;
+type ListRepoSkillsDeps = {
+  repoFiles: RepoFiles;
   skillNames: SkillNames;
 };
 
@@ -46,15 +46,15 @@ export const createListConfigSkills =
     );
   };
 
-export const createListProjectSkills =
-  (deps: ListProjectSkillsDeps): ListProjectSkills =>
-  async project => {
-    const lock = await deps.projectFiles.readLock(project.layout);
+export const createListRepoSkills =
+  (deps: ListRepoSkillsDeps): ListRepoSkills =>
+  async repo => {
+    const lock = await deps.repoFiles.readLock(repo.layout);
     if (!lock.ok) {
       return lock;
     }
     const rows: SkillRow[] = [];
-    for (const entry of project.config.skills) {
+    for (const entry of repo.config.skills) {
       if (!isGitSource(entry.source)) {
         rows.push({
           name: await deps.skillNames.readOrNull(entry.source),

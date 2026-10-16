@@ -76,7 +76,7 @@ Cursor, OpenCode, and Pi read that directory. Claude Code and Antigravity
 CLI get a link in their own directory, for example
 `~/.claude/skills/my-skill`.
 
-## Project mode
+## Repo mode
 
 A repository can carry its own skills. Put a `ponte.toml` file in the
 repository root:
@@ -88,7 +88,7 @@ ref    = "abc123def456"
 subdir = "house-style"       # optional
 
 [[skills]]
-source = "skills/internal"   # relative to the project root
+source = "skills/internal"   # relative to the repo root
 ```
 
 ```sh
@@ -99,10 +99,10 @@ git add ponte.toml .ponte .agents   # commit the copies and the links
 ```
 
 ponte finds the file by walking up from the working directory, so no flag
-selects project mode. A git skill is copied into `.ponte/sources/` with its
+selects repo mode. A git skill is copied into `.ponte/sources/` with its
 commit recorded in `.ponte/lock.toml`. The copy is never overwritten by a
 sync, so a local edit survives. Read
-[Project mode](apps/ponte/src/cli/manual.md#project-mode) for the rest.
+[Repo mode](apps/ponte/src/cli/manual.md#repo-mode) for the rest.
 
 ## Home-manager module
 

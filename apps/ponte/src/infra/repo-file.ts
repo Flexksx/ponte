@@ -4,16 +4,16 @@ import {
   type ConfigProblem,
   err,
   ok,
-  PROJECT_CONFIG_FILE,
-  type ProjectConfig,
-  type ProjectFiles,
-  type ProjectLayout,
-  type ProjectLock,
+  REPO_CONFIG_FILE,
+  type RepoConfig,
+  type RepoFiles,
+  type RepoLayout,
+  type RepoLock,
   type Result,
 } from "@ponte/core";
 import {
   decodeLock,
-  decodeProjectConfig,
+  decodeRepoConfig,
   encodeLock,
   parseToml,
 } from "./config-codec";
@@ -30,32 +30,28 @@ export const getAncestorDirectories = (start: string): readonly string[] => {
   return directories;
 };
 
-export const findProjectRoot = async (
-  start: string,
-): Promise<string | null> => {
+export const findRepoRoot = async (start: string): Promise<string | null> => {
   for (const directory of getAncestorDirectories(start)) {
-    if (await Bun.file(join(directory, PROJECT_CONFIG_FILE)).exists()) {
+    if (await Bun.file(join(directory, REPO_CONFIG_FILE)).exists()) {
       return directory;
     }
   }
   return null;
 };
 
-export const readProjectConfig = async (
+export const readRepoConfig = async (
   root: string,
-): Promise<Result<ProjectConfig, ConfigProblem>> => {
-  const parsed = parseToml(
-    await Bun.file(join(root, PROJECT_CONFIG_FILE)).text(),
-  );
-  const config = parsed.ok ? decodeProjectConfig(parsed.value) : parsed;
+): Promise<Result<RepoConfig, ConfigProblem>> => {
+  const parsed = parseToml(await Bun.file(join(root, REPO_CONFIG_FILE)).text());
+  const config = parsed.ok ? decodeRepoConfig(parsed.value) : parsed;
   return config.ok
     ? config
     : err({ kind: "invalid-config", issues: config.error });
 };
 
-export const readProjectLock = async (
-  layout: ProjectLayout,
-): Promise<Result<ProjectLock, ConfigProblem>> => {
+export const readRepoLock = async (
+  layout: RepoLayout,
+): Promise<Result<RepoLock, ConfigProblem>> => {
   const file = Bun.file(layout.lockFile);
   if (!(await file.exists())) {
     return ok({ skills: {} });
@@ -65,17 +61,17 @@ export const readProjectLock = async (
   return lock.ok ? lock : err({ kind: "invalid-config", issues: lock.error });
 };
 
-export const writeProjectLock = async (
-  layout: ProjectLayout,
-  lock: ProjectLock,
+export const writeRepoLock = async (
+  layout: RepoLayout,
+  lock: RepoLock,
 ): Promise<void> => {
   await mkdir(dirname(layout.lockFile), { recursive: true });
   await Bun.write(layout.lockFile, encodeLock(lock));
 };
 
-export const projectFiles: ProjectFiles = {
-  findRoot: findProjectRoot,
-  readConfig: readProjectConfig,
-  readLock: readProjectLock,
-  writeLock: writeProjectLock,
+export const repoFiles: RepoFiles = {
+  findRoot: findRepoRoot,
+  readConfig: readRepoConfig,
+  readLock: readRepoLock,
+  writeLock: writeRepoLock,
 };

@@ -1,11 +1,6 @@
 import type { SourceEntry } from "../source";
 import { sourceKey } from "../source";
-import type {
-  LockEntry,
-  ProjectConfig,
-  ProjectLock,
-  UpdateTarget,
-} from "./types";
+import type { LockEntry, RepoConfig, RepoLock, UpdateTarget } from "./types";
 
 const lockEntriesMatch = (
   left: LockEntry,
@@ -25,7 +20,7 @@ export const createLockEntry = (
 });
 
 export const findLockedSkillName = (
-  lock: ProjectLock,
+  lock: RepoLock,
   entry: SourceEntry,
 ): string | null => {
   const key = sourceKey(entry);
@@ -37,10 +32,7 @@ export const findLockedSkillName = (
   return null;
 };
 
-export const locksAreEqual = (
-  left: ProjectLock,
-  right: ProjectLock,
-): boolean => {
+export const locksAreEqual = (left: RepoLock, right: RepoLock): boolean => {
   const names = Object.keys(left.skills);
   if (names.length !== Object.keys(right.skills).length) {
     return false;
@@ -52,8 +44,8 @@ export const locksAreEqual = (
 };
 
 export const buildUpdateTargets = (
-  config: ProjectConfig,
-  lock: ProjectLock,
+  config: RepoConfig,
+  lock: RepoLock,
 ): UpdateTarget[] => {
   const targets: UpdateTarget[] = [];
   for (const [name, locked] of Object.entries(lock.skills)) {

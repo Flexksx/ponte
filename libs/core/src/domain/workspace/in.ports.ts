@@ -1,4 +1,4 @@
-import type { ProjectUpdateReport } from "../project";
+import type { RepoUpdateReport } from "../repo";
 import type { Result } from "../shared";
 import type { SourceEntry } from "../source";
 import type {
@@ -25,7 +25,7 @@ export type ListSubagents = () => Promise<
 export type UpdateSkills = (
   name: string | undefined,
   force: boolean,
-) => Promise<Result<ProjectUpdateReport, Problem>>;
+) => Promise<Result<RepoUpdateReport, Problem>>;
 
 export type ReadSystemPrompt = () => Promise<Result<string, Problem>>;
 

@@ -68,22 +68,20 @@ describe("buildVendorLayouts", () => {
   });
 
   it("keeps Claude Code on its own directory when the version is unknown", () => {
-    const claude = posix({}, "project")["claude-code"];
+    const claude = posix({}, "repo")["claude-code"];
     expect(claude.skills).toBe(join(HOME, ".claude", "skills"));
     expect(claude.legacySkills).toEqual([]);
   });
 
   it("keeps Claude Code on its own directory below the cutoff", () => {
-    const claude = posix({ "claude-code": "2.1.279" }, "project")[
-      "claude-code"
-    ];
+    const claude = posix({ "claude-code": "2.1.279" }, "repo")["claude-code"];
     expect(claude.skills).toBe(join(HOME, ".claude", "skills"));
   });
 
   it("moves Claude Code to .agents/skills from the cutoff version", () => {
     const claude = posix(
       { "claude-code": CLAUDE_CODE_SHARED_SKILLS_VERSION },
-      "project",
+      "repo",
     )["claude-code"];
     expect(claude.skills).toBe(SHARED);
     expect(claude.legacySkills).toEqual([join(HOME, ".claude", "skills")]);
@@ -100,7 +98,7 @@ describe("buildVendorLayouts", () => {
 
 describe("Claude Code version cutoff", () => {
   const claudeSkills = (version: string) =>
-    posix({ "claude-code": version }, "project")["claude-code"].skills;
+    posix({ "claude-code": version }, "repo")["claude-code"].skills;
 
   it("compares each part as a number, not as text", () => {
     expect(claudeSkills("2.1.31")).toBe(join(HOME, ".claude", "skills"));

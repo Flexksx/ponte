@@ -8,7 +8,7 @@ import type {
 } from "./types";
 import { isVersionAtLeast } from "./version";
 
-type SkillsHome = "own" | "shared" | { readonly projectSharedSince: string };
+type SkillsHome = "own" | "shared" | { readonly repoSharedSince: string };
 
 type VendorSpec = {
   readonly posixRoot: string;
@@ -36,7 +36,7 @@ const VENDOR_SPECS = {
     posixRoot: ".claude",
     windowsRoot: join(WINDOWS_CONFIG_ROOT, "Claude"),
     instruction: "CLAUDE.md",
-    skillsHome: { projectSharedSince: CLAUDE_CODE_SHARED_SKILLS_VERSION },
+    skillsHome: { repoSharedSince: CLAUDE_CODE_SHARED_SKILLS_VERSION },
     versionCommand: "claude",
   },
   codex: {
@@ -109,12 +109,12 @@ const usesSharedSkills = (
   if (typeof home === "string") {
     return home === "shared";
   }
-  if (input.scope !== "project") {
+  if (input.scope !== "repo") {
     return false;
   }
   const version = input.versions[name];
   return (
-    version !== undefined && isVersionAtLeast(version, home.projectSharedSince)
+    version !== undefined && isVersionAtLeast(version, home.repoSharedSince)
   );
 };
 
