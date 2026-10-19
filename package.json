@@ -3,5 +3,9 @@
   "workspaces": ["apps/*", "libs/*"],
   "scripts": {
     "postinstall": "bunx bun2nix > bun.nix"
+  },
+  "devDependencies": {
+    "bun-plugin-svelte": "^0.0.6",
+    "svelte": "^5.57.2"
   }
 }

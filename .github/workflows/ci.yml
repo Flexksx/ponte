@@ -101,4 +101,4 @@ jobs:
       - name: Build the Nix package
         run: nix build .#default --print-build-logs
       - name: Run the Nix package
-        run: ./result/bin/ponte --help
+        run: ./result/bin/ponte --help | grep "Usage: ponte"

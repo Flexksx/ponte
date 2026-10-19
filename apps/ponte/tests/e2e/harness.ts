@@ -43,8 +43,9 @@ const resolveBinary = (): Promise<string> => {
     const bin = join(await osTmpdir(), `ponte-e2e-bin-${randId()}`);
     await mkdir(bin, { recursive: true });
     const out = join(bin, process.platform === "win32" ? "ponte.exe" : "ponte");
-    const build =
-      await $`bun build ${root}/src/index.ts --compile --outfile ${out}`.quiet();
+    const build = await $`bun scripts/build.ts ${out}`
+      .cwd(join(root, "..", ".."))
+      .quiet();
     if (build.exitCode !== 0) {
       throw new Error(
         `could not build ponte for e2e: ${build.stderr.toString()}`,

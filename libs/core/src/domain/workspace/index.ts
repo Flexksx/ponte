@@ -1,5 +1,13 @@
+export {
+  describeDirectoryMatch,
+  describeSessions,
+  describeWorkspace,
+} from "./describe";
 export { applyWorkspaceEdit, checkWorkspaceName, newWorkspace } from "./edit";
-export { findWorkspacesForDirectory } from "./match";
+export {
+  findSessionsForWorkspace,
+  findWorkspacesForDirectory,
+} from "./match";
 export type {
   Decision,
   Workspace,

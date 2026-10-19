@@ -1,0 +1,10 @@
+{
+  "name": "@ponte/api-client",
+  "version": "0.0.1",
+  "type": "module",
+  "exports": {
+    "./client": "./src/client.ts",
+    "./dto": "./src/dto.ts",
+    "./routes": "./src/routes.ts"
+  }
+}

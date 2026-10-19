@@ -19,6 +19,7 @@ import { createGetStatusReport } from "./app/vendor-status";
 import { createSyncVendors } from "./app/vendor-sync";
 import { createReadVendorVersions } from "./app/vendor-versions";
 import { createWorkspaces } from "./app/workspaces";
+import { createListAgentSessions } from "./infra/agent-sessions";
 import { createConfigStore, createPromptStore } from "./infra/config-file";
 import { listFiles, readSkillFile, vendoredSkills } from "./infra/filesystem";
 import { createSources } from "./infra/git";
@@ -36,6 +37,8 @@ import { createWorkspaceStore } from "./infra/workspace-file";
 type BootstrapDeps = {
   warn: Warn;
 };
+
+const ISO_DATE_LENGTH = 10;
 
 // The composition root: the one place that wires adapters into use cases.
 export const bootstrap = (deps: BootstrapDeps): App => {
@@ -111,8 +114,9 @@ export const bootstrap = (deps: BootstrapDeps): App => {
     }),
     workspaces: createWorkspaces({
       store: createWorkspaceStore(directories.workspaces),
-      cwd: currentDirectory(),
+      listSessions: createListAgentSessions(homeDirectory(), platform),
       home: homeDirectory(),
+      today: () => new Date().toISOString().slice(0, ISO_DATE_LENGTH),
     }),
   });
 };

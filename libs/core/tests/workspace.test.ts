@@ -1,7 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import {
+  type AgentSession,
   applyWorkspaceEdit,
   checkWorkspaceName,
+  findSessionsForWorkspace,
   findWorkspacesForDirectory,
   newWorkspace,
   type Workspace,
@@ -58,6 +60,32 @@ describe("findWorkspacesForDirectory", () => {
 
   it("does not match a parent of a linked folder", () => {
     expect(namesFor("/home/u/workspaces")).toEqual([]);
+  });
+});
+
+describe("findSessionsForWorkspace", () => {
+  const session = (id: string, directory: string, startedAt: string) =>
+    ({
+      agent: "claude-code",
+      id,
+      directory,
+      startedAt,
+      title: "t",
+      resume: "r",
+    }) satisfies AgentSession;
+
+  it("keeps the sessions inside linked folders, newest first", () => {
+    const sessions = [
+      session("old", "/home/u/workspaces/ENG-1", "2026-10-01T10:00:00Z"),
+      session("other", "/home/u/tech", "2026-10-05T10:00:00Z"),
+      session("new", "/home/u/workspaces/ENG-1/code", "2026-10-09T10:00:00Z"),
+    ];
+    const found = findSessionsForWorkspace(
+      withLinks("builds", "~/workspaces/ENG-1"),
+      sessions,
+      HOME,
+    );
+    expect(found.map(s => s.id)).toEqual(["new", "old"]);
   });
 });
 

@@ -6,6 +6,7 @@ export {
   SHARED_SKILLS_DIRECTORY,
   VENDORS,
   VERSION_COMMANDS,
+  vendorRoot,
 } from "./layout";
 export type {
   LayoutInput,

@@ -5,8 +5,13 @@
   "dev": true,
   "trust": [],
   "dependencies": {
+    "@hono/mcp": "^0.3.2",
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "@ponte/api-client": "workspace:*",
     "@ponte/core": "workspace:*",
+    "@ponte/web": "workspace:*",
     "chalk": "^6.0.0",
+    "hono": "^4.13.13",
     "zod": "^4.6.5"
   },
   "devDependencies": {

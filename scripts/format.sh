@@ -4,6 +4,8 @@ set -euo pipefail
 SOURCES=(
   apps/ponte/src
   apps/ponte/tests
+  apps/web/src
+  libs/api-client/src
   libs/core/src
   libs/core/tests
 )

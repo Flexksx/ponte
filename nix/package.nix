@@ -9,6 +9,12 @@
       src = ../.;
       inherit bunDeps;
       module = "apps/ponte/src/index.ts";
+      dontFixup = true;
+      buildPhase = ''
+        runHook preBuild
+        bun scripts/build.ts ponte
+        runHook postBuild
+      '';
     };
   };
 }

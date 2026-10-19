@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { err, ok, type Result } from "../shared";
 import type {
   LayoutInput,
+  Platform,
   VendorLayout,
   VendorName,
   VendorProblem,
@@ -118,16 +119,22 @@ const usesSharedSkills = (
   );
 };
 
+export const vendorRoot = (
+  vendor: VendorName,
+  home: string,
+  platform: Platform,
+): string => {
+  const spec: VendorSpec = VENDOR_SPECS[vendor];
+  return join(home, platform === "win32" ? spec.windowsRoot : spec.posixRoot);
+};
+
 export const buildVendorLayouts = (
   input: LayoutInput,
 ): Record<VendorName, VendorLayout> => {
   const layouts = {} as Record<VendorName, VendorLayout>;
   for (const name of VENDORS) {
     const spec: VendorSpec = VENDOR_SPECS[name];
-    const root = join(
-      input.root,
-      input.platform === "win32" ? spec.windowsRoot : spec.posixRoot,
-    );
+    const root = vendorRoot(name, input.root, input.platform);
     const resources =
       spec.resourceSubdirectory === undefined
         ? root

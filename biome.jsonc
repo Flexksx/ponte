@@ -6,7 +6,8 @@
       "apps/*/src/**",
       "apps/*/tests/**",
       "libs/*/src/**",
-      "libs/*/tests/**"
+      "libs/*/tests/**",
+      "!**/*.svelte"
     ]
   },
 

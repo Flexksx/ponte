@@ -1,0 +1,16 @@
+{
+  "name": "@ponte/web",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./index.html": "./src/index.html"
+  },
+  "dependencies": {
+    "@ponte/api-client": "workspace:*",
+    "svelte": "^5.57.2"
+  },
+  "devDependencies": {
+    "svelte-check": "^4.7.7",
+    "typescript": "^6"
+  }
+}

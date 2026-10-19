@@ -22,7 +22,8 @@ declare namespace Bun {
     hostname: string;
     port: number;
     routes: Record<string, unknown>;
-  }): { url: URL };
+    fetch: (request: Request) => Response | Promise<Response>;
+  }): { url: URL; port: number };
 }
 
 declare module "*.html" {
@@ -31,6 +32,7 @@ declare module "*.html" {
 }
 
 interface BunFile {
+  slice(start: number, end: number): BunFile;
   exists(): Promise<boolean>;
   text(): Promise<string>;
   bytes(): Promise<Uint8Array>;

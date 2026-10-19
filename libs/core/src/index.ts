@@ -70,6 +70,8 @@ export {
   vendoredSkillPath,
 } from "./domain/repo";
 export type * from "./domain/repo/out.ports";
+export type { AgentSession, SessionAgent } from "./domain/session";
+export type * from "./domain/session/out.ports";
 export { collect, err, ok, type Result } from "./domain/shared";
 export type * from "./domain/shared/out.ports";
 export {
@@ -108,12 +110,17 @@ export {
   type VendorName,
   type VendorProblem,
   type VendorVersions,
+  vendorRoot,
 } from "./domain/vendor";
 export type * from "./domain/vendor/out.ports";
 export {
   applyWorkspaceEdit,
   checkWorkspaceName,
   type Decision,
+  describeDirectoryMatch,
+  describeSessions,
+  describeWorkspace,
+  findSessionsForWorkspace,
   findWorkspacesForDirectory,
   newWorkspace,
   type Workspace,
