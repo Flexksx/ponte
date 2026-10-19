@@ -24,6 +24,14 @@
     url = "https://registry.npmjs.org/@floating-ui/utils/-/utils-0.2.12.tgz";
     hash = "sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==";
   };
+  "@fontsource-variable/ibm-plex-sans@5.3.0" = fetchurl {
+    url = "https://registry.npmjs.org/@fontsource-variable/ibm-plex-sans/-/ibm-plex-sans-5.3.0.tgz";
+    hash = "sha512-agG8tXFEo0hD9+J7npa4vbbWult52eMLVaQ6WQRlhs/iCAojrMAoejru85W9HTVXHfyUj96KM7gp/KGAS87XaQ==";
+  };
+  "@fontsource/ibm-plex-mono@5.3.0" = fetchurl {
+    url = "https://registry.npmjs.org/@fontsource/ibm-plex-mono/-/ibm-plex-mono-5.3.0.tgz";
+    hash = "sha512-eTgnZjZEGk1QtD3ZstF+Vclo2HLAni8YMy34/DxllwZvyz1lR/1RF/xTiAquOBO7MvqBx8D2Ig2WCPMVfdZu7Q==";
+  };
   "@hono/mcp@0.3.2" = fetchurl {
     url = "https://registry.npmjs.org/@hono/mcp/-/mcp-0.3.2.tgz";
     hash = "sha512-IJQ4RazhwFLRwcTM95Dj9YfNBYXwOQzd1IfnDy4S3hiaBbtnVY0sWiT83auOOnhaCiE0TTbud4JV9UD30zknXA==";
@@ -56,10 +64,6 @@
     url = "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz";
     hash = "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==";
   };
-  "@lucide/svelte@1.59.0" = fetchurl {
-    url = "https://registry.npmjs.org/@lucide/svelte/-/svelte-1.59.0.tgz";
-    hash = "sha512-ga9IrEsFJBkt/34VnRFcQ2HLs8eOpOovXZ62XzwfC7f0zBfo4y116FBIDroZkD0gInYYY2hSSAcsQEm/Vm+AoA==";
-  };
   "@modelcontextprotocol/sdk@1.32.1" = fetchurl {
     url = "https://registry.npmjs.org/@modelcontextprotocol/sdk/-/sdk-1.32.1.tgz";
     hash = "sha512-2DdE+SJDtzLEEWzY1ZjY7Q+VcPhcV1KisD3zI4u0XZyktsjHum1mwbMI+JaulUBi2OZk+KJAi2uPXzxichPkdw==";
@@ -79,6 +83,14 @@
   "@swc/helpers@0.5.23" = fetchurl {
     url = "https://registry.npmjs.org/@swc/helpers/-/helpers-0.5.23.tgz";
     hash = "sha512-5lSsMOTXURePglDfvuAQUqkGek9Hg2kksOYay2m0+XR++b2NWYL/4sWyuvVBIs8oKnJaxkdi9whaL/sqN13afw==";
+  };
+  "@tabler/icons-svelte-runes@3.49.0" = fetchurl {
+    url = "https://registry.npmjs.org/@tabler/icons-svelte-runes/-/icons-svelte-runes-3.49.0.tgz";
+    hash = "sha512-dZx7LH0chL7Dad1G9NX5xFXwp8XNa0u2IAaozraQHlEWfi4GzuyxMVbtNRv3RmpPnvV/QTfDWa4miSemLwETgg==";
+  };
+  "@tabler/icons@3.49.0" = fetchurl {
+    url = "https://registry.npmjs.org/@tabler/icons/-/icons-3.49.0.tgz";
+    hash = "sha512-l+GnSkFETx0U26icxv1VUFnxxiTqXfCcVRiRAnyMwibupM2S2L/hSaZ9gmSgz01rkrsH/93NvLsxykqdanc6lw==";
   };
   "@types/bun@1.4.3" = fetchurl {
     url = "https://registry.npmjs.org/@types/bun/-/bun-1.4.3.tgz";

@@ -1,25 +1,17 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import type { LucideIcon } from "@lucide/svelte";
 
-  let {
-    icon: ButtonIcon,
-    onclick,
-    children,
-  }: { icon: LucideIcon; onclick: () => void; children: Snippet } = $props();
+  let { onclick, children }: { onclick: () => void; children: Snippet } = $props();
 </script>
 
-<button type="button" {onclick}><ButtonIcon size={15} aria-hidden="true" />{@render children()}</button>
+<button type="button" {onclick}>{@render children()}</button>
 
 <style>
   button {
-    display: inline-flex;
-    align-items: center;
     justify-self: start;
-    gap: 6px;
-    padding: 7px 12px;
+    padding: 6px 12px;
     border: 1px solid var(--ui-border);
-    border-radius: var(--ui-radius-small);
+    border-radius: var(--ui-radius);
     background: var(--ui-surface);
     color: var(--ui-text);
     font: 500 13px var(--ui-font);
@@ -28,5 +20,9 @@
 
   button:hover {
     background: var(--ui-surface-hover);
+  }
+
+  button:active {
+    transform: translateY(1px);
   }
 </style>

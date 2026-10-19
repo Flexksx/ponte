@@ -1,6 +1,6 @@
 <script lang="ts">
-  import Check from "@lucide/svelte/icons/check";
-  import Copy from "@lucide/svelte/icons/copy";
+  import Check from "@tabler/icons-svelte-runes/icons/check";
+  import Copy from "@tabler/icons-svelte-runes/icons/copy";
   import { Tooltip } from "bits-ui";
 
   const COPIED_DISPLAY_MS = 1500;
@@ -25,9 +25,9 @@
         {#snippet child({ props })}
           <button {...props} type="button" onclick={copy} class:copied>
             {#if copied}
-              <Check size={14} aria-hidden="true" />Copied
+              <Check size={13} stroke={1.5} aria-hidden="true" />Copied
             {:else}
-              <Copy size={14} aria-hidden="true" />Copy
+              <Copy size={13} stroke={1.5} aria-hidden="true" />Copy
             {/if}
           </button>
         {/snippet}
@@ -52,7 +52,7 @@
     display: flex;
     align-items: stretch;
     border: 1px solid var(--ui-border);
-    border-radius: var(--ui-radius-small);
+    border-radius: var(--ui-radius);
     background: var(--ui-bg);
     overflow: hidden;
   }
@@ -91,11 +91,10 @@
   .tooltip {
     max-width: min(520px, calc(100vw - 32px));
     padding: 8px 10px;
-    border-radius: var(--ui-radius-small);
+    border-radius: var(--ui-radius);
     background: var(--ui-text);
     color: var(--ui-bg);
     font: 12px/1.5 var(--ui-mono);
     overflow-wrap: anywhere;
-    box-shadow: 0 4px 16px rgb(0 0 0 / 0.18);
   }
 </style>

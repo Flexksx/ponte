@@ -1,5 +1,5 @@
 <script lang="ts">
-  import ArrowLeft from "@lucide/svelte/icons/arrow-left";
+  import ArrowLeft from "@tabler/icons-svelte-runes/icons/arrow-left";
 
   type Back = { href: string; label: string };
 
@@ -9,7 +9,7 @@
 
 <div class="page-header">
   {#if back}
-    <a class="back" href={back.href}><ArrowLeft size={15} aria-hidden="true" />{back.label}</a>
+    <a class="back" href={back.href}><ArrowLeft size={14} stroke={1.5} aria-hidden="true" />{back.label}</a>
   {/if}
   <h1>{title}</h1>
   <p>{description}</p>
@@ -19,6 +19,7 @@
   .page-header {
     display: grid;
     gap: 4px;
+    max-width: 72ch;
   }
 
   .back {
@@ -26,9 +27,8 @@
     align-items: center;
     gap: 6px;
     width: fit-content;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     color: var(--ui-muted);
-    font-size: 14px;
     text-decoration: none;
   }
 
@@ -38,14 +38,14 @@
 
   h1 {
     margin: 0;
-    font-size: 26px;
-    font-weight: 650;
+    font-size: 22px;
+    font-weight: 600;
     letter-spacing: -0.01em;
   }
 
   p {
     margin: 0;
     color: var(--ui-muted);
-    font-size: 16px;
+    font-size: 15px;
   }
 </style>

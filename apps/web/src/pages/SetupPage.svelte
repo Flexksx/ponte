@@ -1,8 +1,4 @@
 <script lang="ts">
-  import Bot from "@lucide/svelte/icons/bot";
-  import FileText from "@lucide/svelte/icons/file-text";
-  import Users from "@lucide/svelte/icons/users";
-  import WandSparkles from "@lucide/svelte/icons/wand-sparkles";
   import Alert from "@ponte/ui/Alert.svelte";
   import Badge from "@ponte/ui/Badge.svelte";
   import Code from "@ponte/ui/Code.svelte";
@@ -18,7 +14,7 @@
   import Text from "@ponte/ui/Text.svelte";
   import { api, load } from "../lib/api";
   import { sourceText } from "../lib/format";
-  import { LINK_STATE_BADGES } from "../lib/presentation";
+  import { LINK_STATE_TONES } from "../lib/presentation";
 
   const status = load(api.status());
   const systemPrompt = load(api.readSystemPrompt());
@@ -29,7 +25,7 @@
 <Stack gap="large">
   <PageHeader title="Setup" description="What ponte links into each agent." />
 
-  <Section title="Agents" icon={Bot}>
+  <Section title="Agents">
     {#await status}
       <Loading label="Checking agent links…" />
     {:then current}
@@ -39,20 +35,18 @@
         </Text>
         <Table columns={["Agent", "Enabled", "Links", "State"]}>
           {#each current.report.vendors as agent (agent.name)}
-            {@const badge = LINK_STATE_BADGES[agent.state]}
             <tr>
               <td>{agent.name}</td>
               <td>{agent.enabled ? "yes" : "no"}</td>
               <td>{agent.linkCount}</td>
-              <td><Badge tone={badge.tone} icon={badge.icon}>{agent.state}</Badge></td>
+              <td><Badge tone={LINK_STATE_TONES[agent.state]}>{agent.state}</Badge></td>
             </tr>
           {/each}
         </Table>
       {:else}
-        {@const badge = LINK_STATE_BADGES[current.report.state]}
         <Row justify="start">
           <Text>Repo mode: <Code>{current.report.root}</Code>, {current.report.linkCount} links</Text>
-          <Badge tone={badge.tone} icon={badge.icon}>{current.report.state}</Badge>
+          <Badge tone={LINK_STATE_TONES[current.report.state]}>{current.report.state}</Badge>
         </Row>
       {/if}
     {:catch error}
@@ -60,7 +54,7 @@
     {/await}
   </Section>
 
-  <Section title="System prompt" icon={FileText}>
+  <Section title="System prompt">
     {#await systemPrompt}
       <Loading label="Reading the system prompt…" />
     {:then prompt}
@@ -73,16 +67,16 @@
   </Section>
 
   {#await skills}
-    <Section title="Skills" icon={WandSparkles}><Loading label="Listing skills…" /></Section>
+    <Section title="Skills"><Loading label="Listing skills…" /></Section>
   {:then listing}
-    <Section title="Skills" icon={WandSparkles} count={listing.rows.length}>
+    <Section title="Skills" count={listing.rows.length}>
       {#if listing.rows.length === 0}
-        <EmptyState icon={WandSparkles}><Text>No skills configured.</Text></EmptyState>
+        <EmptyState><Text>No skills configured.</Text></EmptyState>
       {:else}
         <Table columns={["Name", "Type", "Source"]}>
           {#each listing.rows as row (sourceText(row.entry))}
             <tr>
-              <td>{row.name ?? "—"}</td>
+              <td>{row.name ?? "-"}</td>
               <td><Badge tone="neutral">{row.vendored ? "git" : "local"}</Badge></td>
               <td>{sourceText(row.entry)}</td>
             </tr>
@@ -91,15 +85,15 @@
       {/if}
     </Section>
   {:catch error}
-    <Section title="Skills" icon={WandSparkles}><Alert message={error.message} /></Section>
+    <Section title="Skills"><Alert message={error.message} /></Section>
   {/await}
 
   {#await subagents}
-    <Section title="Subagents" icon={Users}><Loading label="Listing subagents…" /></Section>
+    <Section title="Subagents"><Loading label="Listing subagents…" /></Section>
   {:then list}
-    <Section title="Subagents" icon={Users} count={list.length}>
+    <Section title="Subagents" count={list.length}>
       {#if list.length === 0}
-        <EmptyState icon={Users}><Text>No subagents configured.</Text></EmptyState>
+        <EmptyState><Text>No subagents configured.</Text></EmptyState>
       {:else}
         <Table columns={["Source"]}>
           {#each list as entry (sourceText(entry))}
@@ -109,6 +103,6 @@
       {/if}
     </Section>
   {:catch error}
-    <Section title="Subagents" icon={Users}><Alert message={error.message} /></Section>
+    <Section title="Subagents"><Alert message={error.message} /></Section>
   {/await}
 </Stack>

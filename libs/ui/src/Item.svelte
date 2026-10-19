@@ -1,5 +1,5 @@
 <script lang="ts">
-  import ExternalLink from "@lucide/svelte/icons/external-link";
+  import ArrowUpRight from "@tabler/icons-svelte-runes/icons/arrow-up-right";
 
   type LabelStyle = "plain" | "code";
 
@@ -23,7 +23,7 @@
   <span class="body">
     {#if href}
       <a {href} target="_blank" rel="noopener noreferrer" class={labelStyle}>
-        {label}<ExternalLink size={12} aria-hidden="true" />
+        {label}<ArrowUpRight size={12} stroke={1.5} aria-hidden="true" />
       </a>
     {:else}
       <span class="label {labelStyle}">{label}</span>
@@ -63,9 +63,8 @@
   a {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
     color: var(--ui-accent);
-    font-weight: 500;
     text-decoration: none;
   }
 

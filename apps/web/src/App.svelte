@@ -1,6 +1,4 @@
 <script lang="ts">
-  import LayoutGrid from "@lucide/svelte/icons/layout-grid";
-  import Settings2 from "@lucide/svelte/icons/settings-2";
   import AppShell from "@ponte/ui/AppShell.svelte";
   import { HOME_HREF, parseRoute, SETUP_HREF } from "./lib/route";
   import SetupPage from "./pages/SetupPage.svelte";
@@ -10,8 +8,8 @@
   let hash = $state(location.hash);
   const route = $derived(parseRoute(hash));
   const nav = $derived([
-    { href: HOME_HREF, label: "Workspaces", icon: LayoutGrid, active: route.page !== "setup" },
-    { href: SETUP_HREF, label: "Setup", icon: Settings2, active: route.page === "setup" },
+    { href: HOME_HREF, label: "Workspaces", active: route.page !== "setup" },
+    { href: SETUP_HREF, label: "Setup", active: route.page === "setup" },
   ]);
 </script>
 

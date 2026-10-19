@@ -1,5 +1,5 @@
 <script lang="ts">
-  import ChevronRight from "@lucide/svelte/icons/chevron-right";
+  import ChevronRight from "@tabler/icons-svelte-runes/icons/chevron-right";
   import { Collapsible } from "bits-ui";
   import type { Snippet } from "svelte";
 
@@ -11,7 +11,7 @@
     <Collapsible.Trigger>
       {#snippet child({ props })}
         <button {...props} class="trigger">
-          <ChevronRight size={16} aria-hidden="true" />{summary}
+          <ChevronRight size={14} stroke={1.5} aria-hidden="true" />{summary}
         </button>
       {/snippet}
     </Collapsible.Trigger>

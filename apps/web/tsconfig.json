@@ -12,5 +12,5 @@
     "noUncheckedIndexedAccess": true,
     "types": []
   },
-  "include": ["src/**/*", "../../libs/core/src/env.d.ts"]
+  "include": ["src/**/*", "../../libs/core/src/env.d.ts", "../../libs/ui/src/css.d.ts"]
 }
