@@ -66,6 +66,42 @@ describe("tags", () => {
   });
 });
 
+describe("done", () => {
+  it("marks a workspace done once, reopens it, and refuses to reopen an active one", () => {
+    const done = applyWorkspaceEdit(withLinks("w"), {
+      kind: "done",
+      date: "2026-10-19",
+    });
+    expect(done.ok && done.value.doneOn).toBe("2026-10-19");
+    if (!done.ok) {
+      return;
+    }
+    expect(
+      applyWorkspaceEdit(done.value, { kind: "done", date: "2026-10-20" }).ok,
+    ).toBe(false);
+    const reopened = applyWorkspaceEdit(done.value, { kind: "reopen" });
+    expect(reopened.ok && reopened.value.doneOn).toBeNull();
+    expect(applyWorkspaceEdit(withLinks("w"), { kind: "reopen" }).ok).toBe(
+      false,
+    );
+  });
+
+  it("stops a done workspace from loading for its folders", () => {
+    const active = withLinks("active", "~/workspaces/ENG-1");
+    const finished = {
+      ...withLinks("finished", "~/workspaces/ENG-1"),
+      doneOn: "2026-10-19",
+    };
+    expect(
+      findWorkspacesForDirectory(
+        [active, finished],
+        "/home/u/workspaces/ENG-1",
+        HOME,
+      ).map(w => w.name),
+    ).toEqual(["active"]);
+  });
+});
+
 describe("parseGitHubRepository", () => {
   it("reads the owner and name from GitHub URLs and remotes", () => {
     for (const url of [

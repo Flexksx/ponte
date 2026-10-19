@@ -20,6 +20,7 @@ const WORKSPACE_SCHEMA = z.strictObject({
   goal: z.string(),
   next: z.string(),
   tags: z.array(z.string()).default([]),
+  doneOn: z.string().nullable().default(null),
   links: z.array(z.strictObject({ target: z.string(), note: z.string() })),
   decisions: z.array(z.strictObject({ date: z.string(), text: z.string() })),
 });

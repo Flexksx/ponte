@@ -17,17 +17,18 @@
   import {
     type Filters,
     matchesFilters,
-    NO_FILTERS,
+    DEFAULT_FILTERS,
     organizationOptions,
     repositoryLabel,
     repositoryOptions,
+    statusOptions,
     tagOptions,
   } from "../lib/filters";
   import { countOf, relativeTime } from "../lib/format";
   import { workspaceHref } from "../lib/route";
 
   const overview = load(api.workspaces.overview());
-  let filters = $state<Filters>(NO_FILTERS);
+  let filters = $state<Filters>(DEFAULT_FILTERS);
 </script>
 
 <Stack gap="large">
@@ -46,6 +47,13 @@
     {:else}
       {@const visible = entries.filter(entry => matchesFilters(entry, filters))}
       <Stack gap="small">
+        <ChipFilter
+          label="Status"
+          icon="passed"
+          options={statusOptions(entries)}
+          selected={filters.status}
+          onselect={status => (filters = { ...filters, status })}
+        />
         <ChipFilter
           label="Tag"
           icon="tag"
@@ -84,6 +92,9 @@
                 <Callout label="Next">{entry.workspace.next}</Callout>
               {/if}
               <Row justify="start">
+                {#if entry.workspace.doneOn !== null}
+                  <Badge tone="success" icon="passed">done {entry.workspace.doneOn}</Badge>
+                {/if}
                 {#each entry.workspace.tags as tag (tag)}
                   <Badge tone="accent" icon="tag">{tag}</Badge>
                 {/each}

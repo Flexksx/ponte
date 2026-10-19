@@ -34,7 +34,10 @@ export const findWorkspacesForDirectory = (
   directory: string,
   home: string,
 ): Workspace[] =>
-  workspaces.filter(workspace => ownsDirectory(workspace, directory, home));
+  workspaces.filter(
+    workspace =>
+      workspace.doneOn === null && ownsDirectory(workspace, directory, home),
+  );
 
 const identifiersOf = (workspace: Workspace): Set<string> =>
   new Set(extractMentions(workspace.links.map(link => link.target).join("\n")));

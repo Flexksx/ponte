@@ -9,6 +9,7 @@ export type Workspace = {
   readonly goal: string;
   readonly next: string;
   readonly tags: readonly string[];
+  readonly doneOn: string | null;
   readonly links: readonly WorkspaceLink[];
   readonly decisions: readonly Decision[];
 };
@@ -25,7 +26,9 @@ export type WorkspaceEdit =
   | { readonly kind: "decide"; readonly date: string; readonly text: string }
   | { readonly kind: "next"; readonly text: string }
   | { readonly kind: "tag"; readonly tag: string }
-  | { readonly kind: "untag"; readonly tag: string };
+  | { readonly kind: "untag"; readonly tag: string }
+  | { readonly kind: "done"; readonly date: string }
+  | { readonly kind: "reopen" };
 
 export type WorkspaceProblem =
   | { readonly kind: "invalid-workspace-name"; readonly name: string }
@@ -34,6 +37,8 @@ export type WorkspaceProblem =
   | { readonly kind: "link-not-found"; readonly target: string }
   | { readonly kind: "invalid-tag"; readonly tag: string }
   | { readonly kind: "tag-not-found"; readonly tag: string }
+  | { readonly kind: "workspace-already-done"; readonly name: string }
+  | { readonly kind: "workspace-not-done"; readonly name: string }
   | {
       readonly kind: "invalid-workspace-file";
       readonly file: string;

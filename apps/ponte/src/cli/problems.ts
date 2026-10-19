@@ -72,6 +72,10 @@ export const describeProblem = (problem: Problem): string => {
       return `invalid tag "${problem.tag}" - use a-z, 0-9 and hyphens, starting with a letter or a digit`;
     case "tag-not-found":
       return `the workspace has no tag ${problem.tag}`;
+    case "workspace-already-done":
+      return `workspace ${problem.name} is already done - ponte ws reopen ${problem.name} reopens it`;
+    case "workspace-not-done":
+      return `workspace ${problem.name} is not done`;
     case "invalid-workspace-file":
       return `${problem.file}: ${problem.message}`;
   }

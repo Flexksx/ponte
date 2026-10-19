@@ -50,7 +50,9 @@ const WORKSPACE_USAGE = `Usage:
   ponte ws next <name> <text>            replace the next step
   ponte ws sessions <name>               list the agent sessions that ran in its folders
   ponte ws tag <name> <tag>...           add tags, for example work or personal
-  ponte ws untag <name> <tag>            remove a tag`;
+  ponte ws untag <name> <tag>            remove a tag
+  ponte ws done <name>                   mark the effort done; it stops loading for its folders
+  ponte ws reopen <name>                 make a done workspace active again`;
 
 const HELP_FLAGS = new Set(["help", "--help", "-h"]);
 
@@ -316,8 +318,11 @@ const printWorkspaceList = (workspaces: readonly Workspace[]): void => {
   }
   const width = Math.max(...workspaces.map(workspace => workspace.name.length));
   for (const workspace of workspaces) {
-    const tags =
-      workspace.tags.length === 0 ? "" : ` [${workspace.tags.join(", ")}]`;
+    const labels = [
+      ...workspace.tags,
+      ...(workspace.doneOn === null ? [] : ["done"]),
+    ];
+    const tags = labels.length === 0 ? "" : ` [${labels.join(", ")}]`;
     write(
       `${workspace.name.padEnd(width)}${chalk.cyan(tags)}  ${chalk.dim(workspace.goal)}\n`,
     );
@@ -411,6 +416,14 @@ const runWorkspaceAction = async (
       write(`${name}: untagged ${tag}\n`);
       return;
     }
+    case "done":
+      unwrap(await app.workspaces.markDone(name));
+      write(`${name}: marked done\n`);
+      return;
+    case "reopen":
+      unwrap(await app.workspaces.reopen(name));
+      write(`${name}: reopened\n`);
+      return;
     case "sessions":
       write(
         `${describeSessions(unwrap(await app.workspaces.sessions(name)))}\n`,

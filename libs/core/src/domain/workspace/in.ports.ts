@@ -47,4 +47,10 @@ export type Workspaces = {
     name: string,
     tag: string,
   ) => Promise<Result<Workspace, WorkspaceProblem>>;
+  readonly markDone: (
+    name: string,
+  ) => Promise<Result<Workspace, WorkspaceProblem>>;
+  readonly reopen: (
+    name: string,
+  ) => Promise<Result<Workspace, WorkspaceProblem>>;
 };

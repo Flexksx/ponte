@@ -15,6 +15,8 @@ const UNPROCESSABLE = 422;
 
 const FORBIDDEN = 403;
 
+const HTTP_SCHEME = "http://";
+
 const send = async <T>(
   context: Context,
   pending: Promise<Result<T, Problem>>,
@@ -32,6 +34,14 @@ const createApi = (app: App, allowedHosts: ReadonlySet<string>): Hono => {
     if (!allowedHosts.has(context.req.header("host") ?? "")) {
       return context.text("unknown host", FORBIDDEN);
     }
+    const origin = context.req.header("origin");
+    if (
+      context.req.method !== "GET" &&
+      origin !== undefined &&
+      !allowedHosts.has(origin.replace(HTTP_SCHEME, ""))
+    ) {
+      return context.text("cross-site request", FORBIDDEN);
+    }
     await next();
   });
   api.get(API_ROUTES.workspaces, context =>
@@ -48,6 +58,12 @@ const createApi = (app: App, allowedHosts: ReadonlySet<string>): Hono => {
   );
   api.get(API_ROUTES.workspacePullRequests, context =>
     send(context, app.workspaces.pullRequests(context.req.param("name"))),
+  );
+  api.post(API_ROUTES.workspaceDone, context =>
+    send(context, app.workspaces.markDone(context.req.param("name"))),
+  );
+  api.post(API_ROUTES.workspaceReopen, context =>
+    send(context, app.workspaces.reopen(context.req.param("name"))),
   );
   api.get(API_ROUTES.status, context => send(context, app.status()));
   api.get(API_ROUTES.systemPrompt, context =>

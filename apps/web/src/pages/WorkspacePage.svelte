@@ -1,8 +1,9 @@
 <script lang="ts">
-  import type { PullRequestLookup } from "@ponte/core";
+  import type { PullRequestLookup, Workspace } from "@ponte/core";
   import Alert from "@ponte/ui/Alert.svelte";
   import Badge from "@ponte/ui/Badge.svelte";
   import Button from "@ponte/ui/Button.svelte";
+  import Callout from "@ponte/ui/Callout.svelte";
   import CopyButton from "@ponte/ui/CopyButton.svelte";
   import CopyField from "@ponte/ui/CopyField.svelte";
   import Disclosure from "@ponte/ui/Disclosure.svelte";
@@ -39,7 +40,8 @@
   let { name }: { name: string } = $props();
   let showAllSessions = $state(false);
 
-  const workspace = $derived(load(api.workspaces.show(name)));
+  let changed = $state<Promise<Workspace> | null>(null);
+  const workspace = $derived(changed ?? load(api.workspaces.show(name)));
   const sessions = $derived(load(api.workspaces.sessions(name)));
   const pullRequests = $derived(load(api.workspaces.pullRequests(name)));
 
@@ -92,12 +94,22 @@
         description={current.goal}
         back={{ href: HOME_HREF, label: "Workspaces" }}
       />
-      {#if current.tags.length > 0}
+      <Row justify="between">
         <Row justify="start">
           {#each current.tags as tag (tag)}
             <Badge tone="accent" icon="tag">{tag}</Badge>
           {/each}
         </Row>
+        {#if current.doneOn === null}
+          <Button onclick={() => (changed = load(api.workspaces.markDone(name)))}>Mark done</Button>
+        {:else}
+          <Button onclick={() => (changed = load(api.workspaces.reopen(name)))}>Reopen</Button>
+        {/if}
+      </Row>
+      {#if current.doneOn !== null}
+        <Callout label="Done">
+          Finished on {current.doneOn}. It no longer loads when a session starts in its folders.
+        </Callout>
       {/if}
     </Stack>
 

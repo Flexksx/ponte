@@ -166,6 +166,33 @@ export const createMcpServer = (app: App): McpServer => {
   );
 
   server.registerTool(
+    "workspace_done",
+    {
+      description:
+        "Mark a workspace done when its effort is finished. A done workspace no longer loads for its folders.",
+      inputSchema: { name },
+    },
+    async args =>
+      reply(
+        await workspaces.markDone(args.name),
+        confirm(`${args.name}: marked done`),
+      ),
+  );
+
+  server.registerTool(
+    "workspace_reopen",
+    {
+      description: "Make a done workspace active again.",
+      inputSchema: { name },
+    },
+    async args =>
+      reply(
+        await workspaces.reopen(args.name),
+        confirm(`${args.name}: reopened`),
+      ),
+  );
+
+  server.registerTool(
     "workspace_sessions",
     {
       description:

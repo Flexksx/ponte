@@ -59,7 +59,8 @@ export const describeDirectoryMatch = (
   if (matches.length > 1) {
     return `Several workspaces link this folder: ${workspaceNames(matches)}. Load one by name.\n`;
   }
-  return all.length === 0
+  const active = all.filter(workspace => workspace.doneOn === null);
+  return active.length === 0
     ? ""
-    : `No workspace links this folder. Workspaces: ${workspaceNames(all)}. Load one by name.\n`;
+    : `No workspace links this folder. Workspaces: ${workspaceNames(active)}. Load one by name.\n`;
 };

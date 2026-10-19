@@ -18,6 +18,7 @@ export const newWorkspace = (name: string, goal: string): Workspace => ({
   goal,
   next: "",
   tags: [],
+  doneOn: null,
   links: [],
   decisions: [],
 });
@@ -74,5 +75,13 @@ export const applyWorkspaceEdit = (
             tags: workspace.tags.filter(tag => tag !== edit.tag),
           })
         : err({ kind: "tag-not-found", tag: edit.tag });
+    case "done":
+      return workspace.doneOn === null
+        ? ok({ ...workspace, doneOn: edit.date })
+        : err({ kind: "workspace-already-done", name: workspace.name });
+    case "reopen":
+      return workspace.doneOn === null
+        ? err({ kind: "workspace-not-done", name: workspace.name })
+        : ok({ ...workspace, doneOn: null });
   }
 };

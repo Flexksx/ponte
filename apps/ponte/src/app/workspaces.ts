@@ -163,5 +163,7 @@ export const createWorkspaces = (deps: WorkspacesDeps): Workspaces => {
     setNext: (name, text) => edit(name, { kind: "next", text }),
     tag: (name, tag) => edit(name, { kind: "tag", tag }),
     untag: (name, tag) => edit(name, { kind: "untag", tag }),
+    markDone: name => edit(name, { kind: "done", date: deps.today() }),
+    reopen: name => edit(name, { kind: "reopen" }),
   };
 };
