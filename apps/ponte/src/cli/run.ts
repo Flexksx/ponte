@@ -4,11 +4,11 @@ import {
   describeSourceEntry,
   isGitSource,
   type LinkState,
-  PROJECT_SKILLS_DIRECTORY,
-  PROJECT_SOURCES_DIRECTORY,
   type Problem,
-  type ProjectStatusReport,
-  type ProjectSyncReport,
+  REPO_SKILLS_DIRECTORY,
+  REPO_SOURCES_DIRECTORY,
+  type RepoStatusReport,
+  type RepoSyncReport,
   type Result,
   type SkillRow,
   type SourceEntry,
@@ -72,18 +72,18 @@ const printStale = (stale: number, dryRun: boolean): void => {
   write(`${chalk.dim(`${stale} stale link(s) ${removal}.`)}\n`);
 };
 
-const printProjectSync = (report: ProjectSyncReport, dryRun: boolean): void => {
-  const verb = dryRun ? "Dry run - would sync project" : "Synced project";
+const printRepoSync = (report: RepoSyncReport, dryRun: boolean): void => {
+  const verb = dryRun ? "Dry run - would sync repo" : "Synced repo";
   write(`${verb} ${chalk.cyan(report.root)}\n`);
   if (report.vendored > 0) {
     const action = dryRun ? "would be vendored into" : "vendored into";
     write(
-      `${report.vendored} skill(s) ${action} ${chalk.cyan(PROJECT_SOURCES_DIRECTORY)}\n`,
+      `${report.vendored} skill(s) ${action} ${chalk.cyan(REPO_SOURCES_DIRECTORY)}\n`,
     );
   }
   const linked = dryRun ? "Would link" : "Linked";
   write(
-    `${linked} ${report.linked} skill(s) into ${chalk.cyan(PROJECT_SKILLS_DIRECTORY)}\n`,
+    `${linked} ${report.linked} skill(s) into ${chalk.cyan(REPO_SKILLS_DIRECTORY)}\n`,
   );
   printStale(report.stale, dryRun);
 };
@@ -111,8 +111,8 @@ const runSyncCommand = async (app: App, args: string[]): Promise<void> => {
     requestedVendors: Array.isArray(agents) ? agents : [],
   };
   const outcome = unwrap(await app.sync(request, !dryRun));
-  if (outcome.mode === "project") {
-    printProjectSync(outcome.report, dryRun);
+  if (outcome.mode === "repo") {
+    printRepoSync(outcome.report, dryRun);
     return;
   }
   printBootstrap(outcome.report);
@@ -146,8 +146,8 @@ const printStatus = (report: StatusReport): void => {
   }
 };
 
-const printProjectStatus = (report: ProjectStatusReport): void => {
-  write(`Project: ${chalk.cyan(report.root)}\n`);
+const printRepoStatus = (report: RepoStatusReport): void => {
+  write(`Repo:    ${chalk.cyan(report.root)}\n`);
   write(`Skills:  ${chalk.cyan(report.skillsDirectory)}\n\n`);
   const links =
     report.linkCount === 0
@@ -161,8 +161,8 @@ const runStatusCommand = async (app: App, args: string[]): Promise<void> => {
     throw new Error(`unexpected argument for status: ${args[0]}`);
   }
   const outcome = unwrap(await app.status());
-  if (outcome.mode === "project") {
-    printProjectStatus(outcome.report);
+  if (outcome.mode === "repo") {
+    printRepoStatus(outcome.report);
     return;
   }
   printStatus(outcome.report);
@@ -205,7 +205,7 @@ const printSubagents = (entries: readonly SourceEntry[]): void => {
   }
 };
 
-const printProjectSkills = (rows: readonly SkillRow[]): void => {
+const printRepoSkills = (rows: readonly SkillRow[]): void => {
   if (rows.length === 0) {
     write("No skills configured.\n");
     return;
@@ -231,8 +231,8 @@ const runSkillsCommand = async (app: App, args: string[]): Promise<void> => {
     throw new Error(`unexpected argument for skills: ${args[0]}`);
   }
   const listing = unwrap(await app.listSkills());
-  if (listing.mode === "project") {
-    printProjectSkills(listing.rows);
+  if (listing.mode === "repo") {
+    printRepoSkills(listing.rows);
     return;
   }
   printConfigSkills(listing.rows);
@@ -307,12 +307,12 @@ const commandTable = (app: App): readonly Command[] => [
   {
     name: "skills",
     summary:
-      "List the declared skills, from ponte.toml in a project or from config.toml",
+      "List the declared skills, from ponte.toml in a repo or from config.toml",
     run: args => runSkillsCommand(app, args),
   },
   {
     name: "update",
-    summary: "Re-vendor project skills from their sources (project mode only)",
+    summary: "Re-vendor repo skills from their sources (repo mode only)",
     run: args => runUpdateCommand(app, args),
   },
   {

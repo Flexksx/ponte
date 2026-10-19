@@ -3,17 +3,17 @@ import type { LinkState } from "../link";
 import type { SourceEntry } from "../source";
 import type { VendorName } from "../vendor";
 
-export type ProjectConfig = {
+export type RepoConfig = {
   readonly vendors?: Readonly<Partial<Record<VendorName, VendorConfig>>>;
   readonly skills: readonly SourceEntry[];
 };
 
-export type RawProjectConfig = {
+export type RawRepoConfig = {
   readonly vendors?: RawVendorTable;
   readonly skills?: readonly SourceEntry[];
 };
 
-export type ProjectLayout = {
+export type RepoLayout = {
   readonly root: string;
   readonly skills: string;
   readonly vendorSkillDirectories: readonly string[];
@@ -22,12 +22,12 @@ export type ProjectLayout = {
   readonly lockFile: string;
 };
 
-export type Project = {
-  readonly layout: ProjectLayout;
-  readonly config: ProjectConfig;
+export type Repo = {
+  readonly layout: RepoLayout;
+  readonly config: RepoConfig;
 };
 
-export type ProjectSkillTarget = {
+export type RepoSkillTarget = {
   readonly name: string;
   readonly directory: string;
 };
@@ -38,7 +38,7 @@ export type LockEntry = {
   readonly commit: string;
 };
 
-export type ProjectLock = {
+export type RepoLock = {
   readonly skills: Readonly<Record<string, LockEntry>>;
 };
 
@@ -47,14 +47,14 @@ export type UpdateTarget = {
   readonly entry: SourceEntry;
 };
 
-export type ProjectStatusReport = {
+export type RepoStatusReport = {
   readonly root: string;
   readonly skillsDirectory: string;
   readonly linkCount: number;
   readonly state: LinkState;
 };
 
-export type ProjectSyncReport = {
+export type RepoSyncReport = {
   readonly root: string;
   readonly vendored: number;
   readonly linked: number;
@@ -66,12 +66,12 @@ export type UpdatedSkill = {
   readonly commit: string | null;
 };
 
-export type ProjectUpdateReport = {
+export type RepoUpdateReport = {
   readonly root: string;
   readonly updated: readonly UpdatedSkill[];
 };
 
-export type ProjectProblem =
+export type RepoProblem =
   | { readonly kind: "unknown-vendored-skill"; readonly name: string }
   | { readonly kind: "modified-vendored-skills"; readonly names: string[] }
   | {

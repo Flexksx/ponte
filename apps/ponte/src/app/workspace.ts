@@ -15,28 +15,28 @@ import {
   type Sync,
   type UpdateSkills,
 } from "@ponte/core";
-import type { FindProject } from "./find-project";
-import type { ListConfigSkills, ListProjectSkills } from "./project-skills";
-import type { GetProjectStatusReport } from "./project-status";
-import type { SyncProject } from "./project-sync";
-import type { RunProjectUpdate } from "./project-update";
+import type { FindRepo } from "./find-repo";
+import type { ListConfigSkills, ListRepoSkills } from "./repo-skills";
+import type { GetRepoStatusReport } from "./repo-status";
+import type { SyncRepo } from "./repo-sync";
+import type { RunRepoUpdate } from "./repo-update";
 import type { GetStatusReport } from "./vendor-status";
 import type { SyncVendors } from "./vendor-sync";
 
 type WorkspaceDeps = {
-  findProject: FindProject;
+  findRepo: FindRepo;
   config: ConfigStore;
   prompts: PromptStore;
-  syncProject: SyncProject;
+  syncRepo: SyncRepo;
   syncVendors: SyncVendors;
-  getProjectStatusReport: GetProjectStatusReport;
+  getRepoStatusReport: GetRepoStatusReport;
   getStatusReport: GetStatusReport;
-  listProjectSkills: ListProjectSkills;
+  listRepoSkills: ListRepoSkills;
   listConfigSkills: ListConfigSkills;
-  runProjectUpdate: RunProjectUpdate;
+  runRepoUpdate: RunRepoUpdate;
 };
 
-// A project directory, one that holds ponte.toml, selects project mode.
+// A repo directory, one that holds ponte.toml, selects repo mode.
 // Every other directory selects global mode.
 export const createWorkspace = (deps: WorkspaceDeps): App => {
   const requireConfig = async (): Promise<Result<Config, Problem>> => {
@@ -50,11 +50,11 @@ export const createWorkspace = (deps: WorkspaceDeps): App => {
   };
 
   const sync: Sync = async (request, apply) => {
-    const project = await deps.findProject();
-    if (!project.ok) {
-      return project;
+    const repo = await deps.findRepo();
+    if (!repo.ok) {
+      return repo;
     }
-    if (project.value === null) {
+    if (repo.value === null) {
       const report = await deps.syncVendors(request, apply);
       return report.ok ? ok({ mode: "global", report: report.value }) : report;
     }
@@ -62,20 +62,20 @@ export const createWorkspace = (deps: WorkspaceDeps): App => {
       request.promptOverride !== undefined ||
       request.requestedVendors.length > 0
     ) {
-      return err({ kind: "global-options-in-project" });
+      return err({ kind: "global-options-in-repo" });
     }
-    const report = await deps.syncProject(project.value, apply);
-    return report.ok ? ok({ mode: "project", report: report.value }) : report;
+    const report = await deps.syncRepo(repo.value, apply);
+    return report.ok ? ok({ mode: "repo", report: report.value }) : report;
   };
 
   const status: Status = async () => {
-    const project = await deps.findProject();
-    if (!project.ok) {
-      return project;
+    const repo = await deps.findRepo();
+    if (!repo.ok) {
+      return repo;
     }
-    if (project.value !== null) {
-      const report = await deps.getProjectStatusReport(project.value);
-      return report.ok ? ok({ mode: "project", report: report.value }) : report;
+    if (repo.value !== null) {
+      const report = await deps.getRepoStatusReport(repo.value);
+      return report.ok ? ok({ mode: "repo", report: report.value }) : report;
     }
     const config = await requireConfig();
     if (!config.ok) {
@@ -86,13 +86,13 @@ export const createWorkspace = (deps: WorkspaceDeps): App => {
   };
 
   const listSkills: ListSkills = async () => {
-    const project = await deps.findProject();
-    if (!project.ok) {
-      return project;
+    const repo = await deps.findRepo();
+    if (!repo.ok) {
+      return repo;
     }
-    if (project.value !== null) {
-      const rows = await deps.listProjectSkills(project.value);
-      return rows.ok ? ok({ mode: "project", rows: rows.value }) : rows;
+    if (repo.value !== null) {
+      const rows = await deps.listRepoSkills(repo.value);
+      return rows.ok ? ok({ mode: "repo", rows: rows.value }) : rows;
     }
     const config = await requireConfig();
     if (!config.ok) {
@@ -110,13 +110,13 @@ export const createWorkspace = (deps: WorkspaceDeps): App => {
   };
 
   const updateSkills: UpdateSkills = async (name, force) => {
-    const project = await deps.findProject();
-    if (!project.ok) {
-      return project;
+    const repo = await deps.findRepo();
+    if (!repo.ok) {
+      return repo;
     }
-    return project.value === null
-      ? err({ kind: "not-in-project" })
-      : deps.runProjectUpdate(project.value, name, force);
+    return repo.value === null
+      ? err({ kind: "not-in-repo" })
+      : deps.runRepoUpdate(repo.value, name, force);
   };
 
   const readSystemPrompt: ReadSystemPrompt = async () => {

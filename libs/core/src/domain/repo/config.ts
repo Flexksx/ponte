@@ -3,14 +3,14 @@ import { ok, type Result } from "../shared";
 import { resolveSourcePaths } from "../source";
 import type { VendorName } from "../vendor";
 import { VENDORS } from "../vendor";
-import type { ProjectConfig, RawProjectConfig } from "./types";
+import type { RawRepoConfig, RepoConfig } from "./types";
 
-export const PROJECT_CONFIG_FILE = "ponte.toml";
+export const REPO_CONFIG_FILE = "ponte.toml";
 
-export const PROJECT_CONFIG_KEYS = ["vendors", "skills"];
+export const REPO_CONFIG_KEYS = ["vendors", "skills"];
 
-export const getProjectEnabledVendors = (
-  config: ProjectConfig,
+export const getRepoEnabledVendors = (
+  config: RepoConfig,
 ): VendorName[] | undefined => {
   if (config.vendors === undefined) {
     return undefined;
@@ -18,17 +18,17 @@ export const getProjectEnabledVendors = (
   return VENDORS.filter(name => config.vendors?.[name]?.enabled === true);
 };
 
-export const resolveProjectConfigPaths = (
-  config: ProjectConfig,
+export const resolveRepoConfigPaths = (
+  config: RepoConfig,
   root: string,
-): ProjectConfig => ({
+): RepoConfig => ({
   ...(config.vendors !== undefined && { vendors: config.vendors }),
   skills: resolveSourcePaths(config.skills, root),
 });
 
-export const buildProjectConfig = (
-  raw: RawProjectConfig,
-): Result<ProjectConfig, ConfigIssue[]> => {
+export const buildRepoConfig = (
+  raw: RawRepoConfig,
+): Result<RepoConfig, ConfigIssue[]> => {
   if (raw.vendors === undefined) {
     return ok({ skills: raw.skills ?? [] });
   }

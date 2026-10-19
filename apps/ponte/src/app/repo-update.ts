@@ -5,12 +5,12 @@ import {
   type LockEntry,
   ok,
   type Problem,
-  type Project,
-  type ProjectFiles,
-  type ProjectLayout,
-  type ProjectLock,
-  type ProjectUpdateReport,
   parseSource,
+  type Repo,
+  type RepoFiles,
+  type RepoLayout,
+  type RepoLock,
+  type RepoUpdateReport,
   type Result,
   type Sources,
   type UpdatedSkill,
@@ -18,13 +18,13 @@ import {
   type VendoredSkills,
   vendoredSkillPath,
 } from "@ponte/core";
-import type { FetchedSkill, FetchSkill, VendorSkill } from "./project-resolve";
+import type { FetchedSkill, FetchSkill, VendorSkill } from "./repo-resolve";
 
-export type RunProjectUpdate = (
-  project: Project,
+export type RunRepoUpdate = (
+  repo: Repo,
   name: string | undefined,
   force: boolean,
-) => Promise<Result<ProjectUpdateReport, Problem>>;
+) => Promise<Result<RepoUpdateReport, Problem>>;
 
 type PlannedUpdate = {
   readonly target: UpdateTarget;
@@ -32,7 +32,7 @@ type PlannedUpdate = {
 };
 
 type UpdateDeps = {
-  projectFiles: ProjectFiles;
+  repoFiles: RepoFiles;
   sources: Sources;
   fetchSkill: FetchSkill;
   vendorSkill: VendorSkill;
@@ -40,11 +40,11 @@ type UpdateDeps = {
 };
 
 const updateTargets = (
-  project: Project,
-  lock: ProjectLock,
+  repo: Repo,
+  lock: RepoLock,
   name: string | undefined,
 ): Result<readonly UpdateTarget[], Problem> => {
-  const targets = buildUpdateTargets(project.config, lock);
+  const targets = buildUpdateTargets(repo.config, lock);
   if (name === undefined) {
     return ok(targets);
   }
@@ -54,10 +54,10 @@ const updateTargets = (
     : ok([target]);
 };
 
-export const createRunProjectUpdate = (deps: UpdateDeps): RunProjectUpdate => {
+export const createRunRepoUpdate = (deps: UpdateDeps): RunRepoUpdate => {
   const isModified = async (
-    layout: ProjectLayout,
-    lock: ProjectLock,
+    layout: RepoLayout,
+    lock: RepoLock,
     target: UpdateTarget,
   ): Promise<Result<boolean, Problem>> => {
     const directory = vendoredSkillPath(layout, target.name);
@@ -82,8 +82,8 @@ export const createRunProjectUpdate = (deps: UpdateDeps): RunProjectUpdate => {
   };
 
   const modifiedTargets = async (
-    layout: ProjectLayout,
-    lock: ProjectLock,
+    layout: RepoLayout,
+    lock: RepoLock,
     targets: readonly UpdateTarget[],
   ): Promise<Result<string[], Problem>> => {
     const modified: string[] = [];
@@ -120,19 +120,19 @@ export const createRunProjectUpdate = (deps: UpdateDeps): RunProjectUpdate => {
     return ok(planned);
   };
 
-  return async (project, name, force) => {
-    const lock = await deps.projectFiles.readLock(project.layout);
+  return async (repo, name, force) => {
+    const lock = await deps.repoFiles.readLock(repo.layout);
     if (!lock.ok) {
       return lock;
     }
-    const targets = updateTargets(project, lock.value, name);
+    const targets = updateTargets(repo, lock.value, name);
     if (!targets.ok) {
       return targets;
     }
 
     if (!force) {
       const modified = await modifiedTargets(
-        project.layout,
+        repo.layout,
         lock.value,
         targets.value,
       );
@@ -151,15 +151,15 @@ export const createRunProjectUpdate = (deps: UpdateDeps): RunProjectUpdate => {
     const updated: UpdatedSkill[] = [];
     for (const { target, fetched } of planned.value) {
       await deps.vendoredSkills.remove(
-        vendoredSkillPath(project.layout, target.name),
+        vendoredSkillPath(repo.layout, target.name),
       );
-      await deps.vendorSkill(project.layout, fetched);
+      await deps.vendorSkill(repo.layout, fetched);
       if (fetched.commit !== null) {
         locked[target.name] = createLockEntry(target.entry, fetched.commit);
       }
       updated.push({ name: target.name, commit: fetched.commit });
     }
-    await deps.projectFiles.writeLock(project.layout, { skills: locked });
-    return ok({ root: project.layout.root, updated });
+    await deps.repoFiles.writeLock(repo.layout, { skills: locked });
+    return ok({ root: repo.layout.root, updated });
   };
 };

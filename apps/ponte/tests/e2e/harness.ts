@@ -126,7 +126,7 @@ export class Home {
     return join(this.home, ".config", "ponte", name);
   }
 
-  projectSkillLink(root: string, name: string): string {
+  repoSkillLink(root: string, name: string): string {
     return join(root, ".agents", "skills", name);
   }
 

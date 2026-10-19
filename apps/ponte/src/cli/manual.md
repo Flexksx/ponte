@@ -8,12 +8,12 @@ ponte runs in one of two modes:
 
 - Global mode reads `~/.config/ponte/config.toml` and links into your home
   directory. It carries a system prompt, skills, and subagents.
-- Project mode reads `ponte.toml` in a repository and links inside that
+- Repo mode reads `ponte.toml` in a repository and links inside that
   repository. It carries skills only.
 
 Every command walks up from the working directory to look for `ponte.toml`.
-If a command finds the file, that directory is the project root and the
-command runs in project mode. If no directory holds the file, the command
+If a command finds the file, that directory is the repo root and the
+command runs in repo mode. If no directory holds the file, the command
 runs in global mode. No flag selects the mode.
 
 ponte follows the XDG base directories. If `XDG_CONFIG_HOME`,
@@ -159,11 +159,11 @@ source = "subagents/claude"
 
 ---
 
-## Project mode
+## Repo mode
 
 Put a `ponte.toml` file in the repository root and declare the skills in it.
 
-Project mode never reads and never creates `~/.config/ponte/`, and it needs
+Repo mode never reads and never creates `~/.config/ponte/`, and it needs
 no system prompt. The only shared resource it uses is the git cache.
 
 ```toml
@@ -181,17 +181,17 @@ ref    = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
 subdir = ""
 
 [[skills]]
-source = "skills/house-style"   # relative to the project root
+source = "skills/house-style"   # relative to the repo root
 ```
 
-A relative local path resolves against the project root. The keys
-`system_prompt_file` and `[subagents]` are not part of the project schema.
+A relative local path resolves against the repo root. The keys
+`system_prompt_file` and `[subagents]` are not part of the repo schema.
 Any other top-level key is an error.
 
 ### Layout
 
 ```text
-<project>/
+<repo>/
   ponte.toml
   .ponte/
     lock.toml                commit per vendored skill
@@ -205,8 +205,8 @@ Any other top-level key is an error.
 ```
 
 `ponte sync` links every skill into `.agents/skills/`. It also links each
-skill into the project skills directory of every enabled vendor that does
-not read `.agents/skills/`. Claude Code reads the project `.agents/skills/`
+skill into the repo skills directory of every enabled vendor that does
+not read `.agents/skills/`. Claude Code reads the repo `.agents/skills/`
 from version 2.1.280. ponte runs `claude --version` to find the version. If
 the version is older, or if `claude` is not on `PATH`, ponte links the skill
 into `.claude/skills/`. Antigravity CLI reads
@@ -217,7 +217,7 @@ The [skill directories](#skill-directories) rules apply here too.
 
 `ponte sync` fetches a git source through the cache, then copies the
 resolved directory to `.ponte/sources/<name>`. The copy holds no `.git`
-directory, so the project owns the files.
+directory, so the repo owns the files.
 
 `ponte sync` copies a skill only when `.ponte/sources/<name>` is absent, so
 a local edit survives every later sync. Commit the edit. To take a new
@@ -251,8 +251,8 @@ its directory name. If the two differ, `ponte sync` stops.
 
 Commit `ponte.toml`, `.ponte/`, and the skill links (`.agents/skills/`,
 `.claude/skills/`, and so on). A link to a path inside the
-project is relative, so it keeps working in every clone. A link to a local
-source outside the project stays absolute.
+repo is relative, so it keeps working in every clone. A link to a local
+source outside the repo stays absolute.
 
 ---
 
@@ -276,10 +276,10 @@ ponte sync [flags]
 | `--agents <list>` | `-a` | Comma-separated vendors to target, in place of the configuration. Example: `claude-code,codex`. |
 | `--dry-run` | | Resolve every source and report the vendors and the stale link count, without any write. |
 
-In project mode, `ponte sync` also vendors the missing git skills. It
-reports the project root, the number of vendored skills, the number of
+In repo mode, `ponte sync` also vendors the missing git skills. It
+reports the repo root, the number of vendored skills, the number of
 links, and the number of removed links. The `-g` and `-a` flags belong to a
-global sync, so `ponte sync` rejects them inside a project.
+global sync, so `ponte sync` rejects them inside a repo.
 
 ```sh
 ponte sync
@@ -292,7 +292,7 @@ ponte sync -g "Temporary debugging instructions"
 
 ### `ponte update [name]`
 
-Re-vendor a project skill from its source. This command works in project
+Re-vendor a repo skill from its source. This command works in repo
 mode only.
 
 ```text
@@ -335,7 +335,7 @@ A vendor is `drifted` when a link is missing, points elsewhere, or the
 configuration no longer declares it. `ponte status` resolves git sources,
 exactly as a real sync does.
 
-In project mode, `ponte status` prints the project root, the path of
+In repo mode, `ponte status` prints the repo root, the path of
 `.agents/skills`, the total link count across all vendor directories, and
 one state for the whole set.
 
@@ -354,7 +354,7 @@ repository to list it.
 ponte skills
 ```
 
-In project mode, the `KIND` column holds `vendored` for a git source and
+In repo mode, the `KIND` column holds `vendored` for a git source and
 `local` for a path. The `COMMIT` column holds the short commit from the lock
 file, or `—` when the lock file has no entry for the skill.
 

@@ -1,15 +1,15 @@
 import {
   buildConfig,
-  buildProjectConfig,
+  buildRepoConfig,
   type Config,
   type ConfigIssue,
   err,
   type LockEntry,
   ok,
-  PROJECT_CONFIG_FILE,
-  PROJECT_CONFIG_KEYS,
-  type ProjectConfig,
-  type ProjectLock,
+  REPO_CONFIG_FILE,
+  REPO_CONFIG_KEYS,
+  type RepoConfig,
+  type RepoLock,
   type Result,
   SKILL_FILE,
   type SourceEntry,
@@ -63,14 +63,14 @@ const CONFIG_SCHEMA = z.object({
   subagents: ENTRY_LIST("subagents", SUBAGENT_TABLE_MIGRATION),
 });
 
-const PROJECT_CONFIG_SCHEMA = z.strictObject(
+const REPO_CONFIG_SCHEMA = z.strictObject(
   {
     vendors: VENDOR_TABLE.optional(),
     skills: ENTRY_LIST("skills", SKILL_TABLE_MIGRATION),
   },
   {
     error: () =>
-      `unknown key, ${PROJECT_CONFIG_FILE} supports only ${PROJECT_CONFIG_KEYS.join(", ")}`,
+      `unknown key, ${REPO_CONFIG_FILE} supports only ${REPO_CONFIG_KEYS.join(", ")}`,
   },
 );
 
@@ -138,16 +138,14 @@ export const decodeConfig = (value: unknown): Result<Config, ConfigIssue[]> => {
   return raw.ok ? buildConfig(raw.value) : raw;
 };
 
-export const decodeProjectConfig = (
+export const decodeRepoConfig = (
   value: unknown,
-): Result<ProjectConfig, ConfigIssue[]> => {
-  const raw = parse(PROJECT_CONFIG_SCHEMA, value);
-  return raw.ok ? buildProjectConfig(raw.value) : raw;
+): Result<RepoConfig, ConfigIssue[]> => {
+  const raw = parse(REPO_CONFIG_SCHEMA, value);
+  return raw.ok ? buildRepoConfig(raw.value) : raw;
 };
 
-export const decodeLock = (
-  value: unknown,
-): Result<ProjectLock, ConfigIssue[]> => {
+export const decodeLock = (value: unknown): Result<RepoLock, ConfigIssue[]> => {
   const raw = parse(LOCK_SCHEMA, value);
   return raw.ok ? ok({ skills: raw.value.skills ?? {} }) : raw;
 };
@@ -196,7 +194,7 @@ const lockEntryTable = (name: string, entry: LockEntry): string => {
   return `${lines.join("\n")}\n`;
 };
 
-export const encodeLock = (lock: ProjectLock): string => {
+export const encodeLock = (lock: RepoLock): string => {
   const tables = Object.entries(lock.skills).map(([name, entry]) =>
     lockEntryTable(name, entry),
   );

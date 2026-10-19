@@ -2,9 +2,9 @@ import { join } from "node:path";
 import {
   type ConfigIssue,
   MAX_SKILL_NAME_LENGTH,
-  PROJECT_CONFIG_FILE,
-  PROJECT_SOURCES_DIRECTORY,
   type Problem,
+  REPO_CONFIG_FILE,
+  REPO_SOURCES_DIRECTORY,
   SKILL_FILE,
   VENDORS,
 } from "@ponte/core";
@@ -51,14 +51,14 @@ export const describeProblem = (problem: Problem): string => {
     case "vendored-skill-renamed":
       return `vendored skill ${problem.directory}: its ${SKILL_FILE} declares name "${problem.declared}" but the directory is named "${problem.name}" - restore the name, or delete the directory and run ponte sync`;
     case "unknown-vendored-skill":
-      return `unknown vendored skill: ${problem.name} - ponte update works on the git skills that ${PROJECT_CONFIG_FILE} declares and ${PROJECT_SOURCES_DIRECTORY} holds`;
+      return `unknown vendored skill: ${problem.name} - ponte update works on the git skills that ${REPO_CONFIG_FILE} declares and ${REPO_SOURCES_DIRECTORY} holds`;
     case "modified-vendored-skills":
       return `${problem.names.join(", ")}: the vendored copy differs from its locked commit, or the lock entry is missing - commit the copy, or pass --force to overwrite it`;
     case "skill-renamed":
-      return `${problem.name}: the source now declares the name "${problem.declared}" - run ponte sync to vendor the skill under the new name, then delete ${join(PROJECT_SOURCES_DIRECTORY, problem.name)} by hand`;
-    case "not-in-project":
-      return `no ${PROJECT_CONFIG_FILE} in this directory or any parent directory`;
-    case "global-options-in-project":
-      return "-g and -a apply to a global sync only, and this directory is a project";
+      return `${problem.name}: the source now declares the name "${problem.declared}" - run ponte sync to vendor the skill under the new name, then delete ${join(REPO_SOURCES_DIRECTORY, problem.name)} by hand`;
+    case "not-in-repo":
+      return `no ${REPO_CONFIG_FILE} in this directory or any parent directory`;
+    case "global-options-in-repo":
+      return "-g and -a apply to a global sync only, and this directory is a repo";
   }
 };

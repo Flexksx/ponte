@@ -1,17 +1,17 @@
 import type { App, Warn } from "@ponte/core";
-import { createFindProject } from "./app/find-project";
+import { createFindRepo } from "./app/find-repo";
 import {
   createFetchSkill,
-  createResolveProjectSkills,
+  createResolveRepoSkills,
   createVendorSkill,
-} from "./app/project-resolve";
+} from "./app/repo-resolve";
 import {
   createListConfigSkills,
-  createListProjectSkills,
-} from "./app/project-skills";
-import { createGetProjectStatusReport } from "./app/project-status";
-import { createSyncProject } from "./app/project-sync";
-import { createRunProjectUpdate } from "./app/project-update";
+  createListRepoSkills,
+} from "./app/repo-skills";
+import { createGetRepoStatusReport } from "./app/repo-status";
+import { createSyncRepo } from "./app/repo-sync";
+import { createRunRepoUpdate } from "./app/repo-update";
 import { createSkillNames } from "./app/skill-name";
 import { createBuildVendorPlans } from "./app/vendor-resolve";
 import { createGetStatusReport } from "./app/vendor-status";
@@ -28,7 +28,7 @@ import {
   homeDirectory,
   pontePaths,
 } from "./infra/paths";
-import { projectFiles } from "./infra/project-file";
+import { repoFiles } from "./infra/repo-file";
 import { readVersionOutput } from "./infra/version";
 
 type BootstrapDeps = {
@@ -56,8 +56,8 @@ export const bootstrap = (deps: BootstrapDeps): App => {
   });
   const fetchSkill = createFetchSkill({ sources, skillNames });
   const vendorSkill = createVendorSkill({ vendoredSkills });
-  const resolveProjectSkills = createResolveProjectSkills({
-    projectFiles,
+  const resolveRepoSkills = createResolveRepoSkills({
+    repoFiles,
     sources,
     vendoredSkills,
     skillNames,
@@ -66,18 +66,18 @@ export const bootstrap = (deps: BootstrapDeps): App => {
   });
 
   return createWorkspace({
-    findProject: createFindProject({
-      projectFiles,
+    findRepo: createFindRepo({
+      repoFiles,
       cwd: currentDirectory(),
       platform,
       readVendorVersions,
     }),
     config,
     prompts,
-    syncProject: createSyncProject({
-      resolveProjectSkills,
+    syncRepo: createSyncRepo({
+      resolveRepoSkills,
       links: linkStore,
-      projectFiles,
+      repoFiles,
     }),
     syncVendors: createSyncVendors({
       config,
@@ -86,8 +86,8 @@ export const bootstrap = (deps: BootstrapDeps): App => {
       buildVendorPlans,
       configDirectory: directories.config,
     }),
-    getProjectStatusReport: createGetProjectStatusReport({
-      resolveProjectSkills,
+    getRepoStatusReport: createGetRepoStatusReport({
+      resolveRepoSkills,
       links: linkStore,
     }),
     getStatusReport: createGetStatusReport({
@@ -95,13 +95,13 @@ export const bootstrap = (deps: BootstrapDeps): App => {
       links: linkStore,
       buildVendorPlans,
     }),
-    listProjectSkills: createListProjectSkills({ projectFiles, skillNames }),
+    listRepoSkills: createListRepoSkills({ repoFiles, skillNames }),
     listConfigSkills: createListConfigSkills({
       skillNames,
       configDirectory: directories.config,
     }),
-    runProjectUpdate: createRunProjectUpdate({
-      projectFiles,
+    runRepoUpdate: createRunRepoUpdate({
+      repoFiles,
       sources,
       fetchSkill,
       vendorSkill,

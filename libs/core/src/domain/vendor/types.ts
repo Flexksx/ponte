@@ -10,7 +10,7 @@ export type VendorName =
 
 export type VendorVersions = Readonly<Partial<Record<VendorName, string>>>;
 
-export type LayoutScope = "global" | "project";
+export type LayoutScope = "global" | "repo";
 
 export type LayoutInput = {
   readonly root: string;

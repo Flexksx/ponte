@@ -31,36 +31,36 @@ export {
 } from "./domain/link";
 export type * from "./domain/link/out.ports";
 export {
-  buildProjectConfig,
-  buildProjectPlan,
+  buildRepoConfig,
+  buildRepoPlan,
   buildUpdateTargets,
   createLockEntry,
   findLockedSkillName,
-  getProjectEnabledVendors,
-  getProjectState,
+  getRepoEnabledVendors,
+  getRepoState,
   type LockEntry,
   locksAreEqual,
-  PROJECT_CONFIG_FILE,
-  PROJECT_CONFIG_KEYS,
-  PROJECT_SKILLS_DIRECTORY,
-  PROJECT_SOURCES_DIRECTORY,
-  type Project,
-  type ProjectConfig,
-  type ProjectLayout,
-  type ProjectLock,
-  type ProjectProblem,
-  type ProjectSkillTarget,
-  type ProjectStatusReport,
-  type ProjectSyncReport,
-  type ProjectUpdateReport,
-  projectLayout,
-  type RawProjectConfig,
-  resolveProjectConfigPaths,
+  type RawRepoConfig,
+  REPO_CONFIG_FILE,
+  REPO_CONFIG_KEYS,
+  REPO_SKILLS_DIRECTORY,
+  REPO_SOURCES_DIRECTORY,
+  type Repo,
+  type RepoConfig,
+  type RepoLayout,
+  type RepoLock,
+  type RepoProblem,
+  type RepoSkillTarget,
+  type RepoStatusReport,
+  type RepoSyncReport,
+  type RepoUpdateReport,
+  repoLayout,
+  resolveRepoConfigPaths,
   type UpdatedSkill,
   type UpdateTarget,
   vendoredSkillPath,
-} from "./domain/project";
-export type * from "./domain/project/out.ports";
+} from "./domain/repo";
+export type * from "./domain/repo/out.ports";
 export { collect, err, ok, type Result } from "./domain/shared";
 export type * from "./domain/shared/out.ports";
 export {
