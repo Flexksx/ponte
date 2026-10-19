@@ -5,7 +5,7 @@ import type { SkillProblem, SkillRow } from "../skill";
 import type { SourceProblem } from "../source";
 import type { VendorProblem } from "../vendor";
 
-export type WorkspaceProblem =
+export type ModeProblem =
   | { readonly kind: "not-in-repo" }
   | { readonly kind: "global-options-in-repo" };
 
@@ -16,7 +16,7 @@ export type Problem =
   | SkillProblem
   | SourceProblem
   | VendorProblem
-  | WorkspaceProblem;
+  | ModeProblem;
 
 export type SyncRequest = {
   readonly promptOverride: string | undefined;

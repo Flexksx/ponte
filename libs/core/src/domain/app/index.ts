@@ -4,5 +4,5 @@ export type {
   StatusOutcome,
   SyncOutcome,
   SyncRequest,
-  WorkspaceProblem,
+  ModeProblem,
 } from "./types";

@@ -107,6 +107,6 @@ export type {
   StatusOutcome,
   SyncOutcome,
   SyncRequest,
-  WorkspaceProblem,
-} from "./domain/workspace";
-export type * from "./domain/workspace/in.ports";
+  ModeProblem,
+} from "./domain/app";
+export type * from "./domain/app/in.ports";

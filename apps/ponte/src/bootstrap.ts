@@ -17,7 +17,7 @@ import { createBuildVendorPlans } from "./app/vendor-resolve";
 import { createGetStatusReport } from "./app/vendor-status";
 import { createSyncVendors } from "./app/vendor-sync";
 import { createReadVendorVersions } from "./app/vendor-versions";
-import { createWorkspace } from "./app/workspace";
+import { createApp } from "./app/app";
 import { createConfigStore, createPromptStore } from "./infra/config-file";
 import { listFiles, readSkillFile, vendoredSkills } from "./infra/filesystem";
 import { createSources } from "./infra/git";
@@ -65,7 +65,7 @@ export const bootstrap = (deps: BootstrapDeps): App => {
     vendorSkill,
   });
 
-  return createWorkspace({
+  return createApp({
     findRepo: createFindRepo({
       repoFiles,
       cwd: currentDirectory(),

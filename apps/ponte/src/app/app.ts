@@ -23,7 +23,7 @@ import type { RunRepoUpdate } from "./repo-update";
 import type { GetStatusReport } from "./vendor-status";
 import type { SyncVendors } from "./vendor-sync";
 
-type WorkspaceDeps = {
+type AppDeps = {
   findRepo: FindRepo;
   config: ConfigStore;
   prompts: PromptStore;
@@ -38,7 +38,7 @@ type WorkspaceDeps = {
 
 // A repo directory, one that holds ponte.toml, selects repo mode.
 // Every other directory selects global mode.
-export const createWorkspace = (deps: WorkspaceDeps): App => {
+export const createApp = (deps: AppDeps): App => {
   const requireConfig = async (): Promise<Result<Config, Problem>> => {
     const config = await deps.config.read();
     if (!config.ok) {
