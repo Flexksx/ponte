@@ -30,6 +30,7 @@
       "name": "@ponte/web",
       "dependencies": {
         "@ponte/api-client": "workspace:*",
+        "@ponte/core": "workspace:*",
         "svelte": "^5.57.2",
       },
       "devDependencies": {
@@ -40,6 +41,9 @@
     "libs/api-client": {
       "name": "@ponte/api-client",
       "version": "0.0.1",
+      "dependencies": {
+        "@ponte/core": "workspace:*",
+      },
     },
     "libs/core": {
       "name": "@ponte/core",

@@ -1,6 +1,6 @@
 <script lang="ts">
   import CopyCommand from "../components/CopyCommand.svelte";
-  import { api } from "../lib/api";
+  import { api, load } from "../lib/api";
   import { AGENT_LABELS, formatDateTime } from "../lib/format";
   import { groupLinks } from "../lib/links";
   import { HOME_HREF } from "../lib/route";
@@ -10,8 +10,8 @@
   let { name }: { name: string } = $props();
   let showAllSessions = $state(false);
 
-  const workspace = $derived(api.workspace(name));
-  const sessions = $derived(api.workspaceSessions(name));
+  const workspace = $derived(load(api.workspaces.show(name)));
+  const sessions = $derived(load(api.workspaces.sessions(name)));
 </script>
 
 <a class="back" href={HOME_HREF}>← Workspaces</a>

@@ -1,4 +1,4 @@
-import type { WorkspaceLinkDto } from "@ponte/api-client/dto";
+import type { WorkspaceLink } from "@ponte/core";
 
 export type LinkKind =
   | "pull-request"
@@ -71,12 +71,12 @@ const describeWebLink = (target: string): Omit<DescribedLink, "note"> => {
   return { kind: "page", label: `${url.host}${url.pathname}`, href: target };
 };
 
-export const describeLink = (link: WorkspaceLinkDto): DescribedLink =>
+export const describeLink = (link: WorkspaceLink): DescribedLink =>
   WEB_ADDRESS.test(link.target)
     ? { ...describeWebLink(link.target), note: link.note }
     : { kind: "folder", label: link.target, href: null, note: link.note };
 
-export const groupLinks = (links: readonly WorkspaceLinkDto[]): LinkGroup[] => {
+export const groupLinks = (links: readonly WorkspaceLink[]): LinkGroup[] => {
   const described = links.map(describeLink);
   return GROUP_HEADINGS.map(([kind, heading]) => ({
     heading,

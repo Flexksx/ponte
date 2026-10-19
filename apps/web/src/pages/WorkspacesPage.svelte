@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { api } from "../lib/api";
+  import { api, load } from "../lib/api";
   import { workspaceHref } from "../lib/route";
 
-  const workspaces = api.workspaces();
+  const workspaces = load(api.workspaces.list());
 </script>
 
 <h1>Workspaces</h1>

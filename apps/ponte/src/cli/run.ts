@@ -21,7 +21,7 @@ import {
   type Workspace,
 } from "@ponte/core";
 import chalk from "chalk";
-import { serve } from "../server/http";
+import { serve } from "../http/server";
 import { formatShortCommit } from "./format";
 import manualText from "./manual.md" with { type: "text" };
 import { describeProblem } from "./problems";

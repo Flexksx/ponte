@@ -80,17 +80,17 @@
     },
     {
       "name": "cli-uses-core-ports",
-      "comment": "The CLI drives the app through the App port from @ponte/core. It never imports a use case.",
+      "comment": "A driving adapter (CLI, HTTP, MCP) drives the app through the App port from @ponte/core. It never imports a use case.",
       "severity": "error",
-      "from": { "path": "^src/cli/" },
+      "from": { "path": "^src/(cli|http|mcp)/" },
       "to": { "path": "^src/app/" }
     },
     {
       "name": "app-does-not-print",
-      "comment": "A use case must not import the CLI layer. Return data and let the CLI format it.",
+      "comment": "A use case must not import a driving adapter. Return data and let the adapter format it.",
       "severity": "error",
       "from": { "path": "^src/app/" },
-      "to": { "path": "^src/cli/" }
+      "to": { "path": "^src/(cli|http|mcp)/" }
     },
     {
       "name": "app-has-no-io",

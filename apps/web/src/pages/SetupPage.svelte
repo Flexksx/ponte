@@ -1,10 +1,11 @@
 <script lang="ts">
-  import { api } from "../lib/api";
+  import { api, load } from "../lib/api";
+  import { sourceText } from "../lib/format";
 
-  const status = api.status();
-  const systemPrompt = api.systemPrompt();
-  const skills = api.skills();
-  const subagents = api.subagents();
+  const status = load(api.status());
+  const systemPrompt = load(api.readSystemPrompt());
+  const skills = load(api.listSkills());
+  const subagents = load(api.listSubagents());
 </script>
 
 <h1>Setup</h1>
@@ -15,13 +16,13 @@
   <p class="muted">Loading…</p>
 {:then current}
   {#if current.mode === "global"}
-    <p class="muted">System prompt file: <code>{current.promptFile}</code></p>
+    <p class="muted">System prompt file: <code>{current.report.promptFile}</code></p>
     <table>
       <thead>
         <tr><th>Agent</th><th>Enabled</th><th>Links</th><th>State</th></tr>
       </thead>
       <tbody>
-        {#each current.agents as agent (agent.name)}
+        {#each current.report.vendors as agent (agent.name)}
           <tr>
             <td>{agent.name}</td>
             <td>{agent.enabled ? "yes" : "no"}</td>
@@ -33,8 +34,8 @@
     </table>
   {:else}
     <p>
-      Repo mode: <code>{current.root}</code>, {current.linkCount} links,
-      <span class="state" data-state={current.state}>{current.state}</span>
+      Repo mode: <code>{current.report.root}</code>, {current.report.linkCount} links,
+      <span class="state" data-state={current.report.state}>{current.report.state}</span>
     </p>
   {/if}
 {:catch error}
@@ -46,8 +47,8 @@
   <p class="muted">Loading…</p>
 {:then prompt}
   <details>
-    <summary>Show the prompt every agent gets ({prompt.text.split("\n").length} lines)</summary>
-    <pre>{prompt.text}</pre>
+    <summary>Show the prompt every agent gets ({prompt.split("\n").length} lines)</summary>
+    <pre>{prompt}</pre>
   </details>
 {:catch error}
   <p class="error">{error.message}</p>
@@ -57,7 +58,7 @@
 {#await skills}
   <p class="muted">Loading…</p>
 {:then listing}
-  {#if listing.skills.length === 0}
+  {#if listing.rows.length === 0}
     <p class="muted">No skills configured.</p>
   {:else}
     <table>
@@ -65,11 +66,11 @@
         <tr><th>Name</th><th>Type</th><th>Source</th></tr>
       </thead>
       <tbody>
-        {#each listing.skills as skill (skill.source)}
+        {#each listing.rows as row (sourceText(row.entry))}
           <tr>
-            <td>{skill.name ?? "—"}</td>
-            <td class="muted">{skill.kind}</td>
-            <td>{skill.source}</td>
+            <td>{row.name ?? "—"}</td>
+            <td class="muted">{row.vendored ? "git" : "local"}</td>
+            <td>{sourceText(row.entry)}</td>
           </tr>
         {/each}
       </tbody>
@@ -88,11 +89,11 @@
   {:else}
     <table>
       <thead>
-        <tr><th>Type</th><th>Source</th></tr>
+        <tr><th>Source</th></tr>
       </thead>
       <tbody>
-        {#each list as subagent (subagent.source)}
-          <tr><td class="muted">{subagent.kind}</td><td>{subagent.source}</td></tr>
+        {#each list as entry (sourceText(entry))}
+          <tr><td>{sourceText(entry)}</td></tr>
         {/each}
       </tbody>
     </table>

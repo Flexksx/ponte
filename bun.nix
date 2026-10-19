@@ -11,7 +11,8 @@
   fetchgit,
   fetchurl,
   ...
-}: {
+}:
+{
   "@hono/mcp@0.3.2" = fetchurl {
     url = "https://registry.npmjs.org/@hono/mcp/-/mcp-0.3.2.tgz";
     hash = "sha512-IJQ4RazhwFLRwcTM95Dj9YfNBYXwOQzd1IfnDy4S3hiaBbtnVY0sWiT83auOOnhaCiE0TTbud4JV9UD30zknXA==";

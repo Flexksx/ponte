@@ -128,4 +128,5 @@ export {
   type WorkspaceLink,
   type WorkspaceProblem,
 } from "./domain/workspace";
+export type * from "./domain/workspace/in.ports";
 export type * from "./domain/workspace/out.ports";

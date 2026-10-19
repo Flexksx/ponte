@@ -4,7 +4,9 @@
   "type": "module",
   "exports": {
     "./client": "./src/client.ts",
-    "./dto": "./src/dto.ts",
     "./routes": "./src/routes.ts"
+  },
+  "dependencies": {
+    "@ponte/core": "workspace:*"
   }
 }

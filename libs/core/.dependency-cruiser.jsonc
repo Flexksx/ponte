@@ -11,14 +11,15 @@
     },
     {
       "name": "cross-domain-through-index",
-      "comment": "A domain reaches another domain only through that domain's index.ts, which is its public API.",
+      "comment": "A domain reaches another domain only through that domain's index.ts, which is its public API. A port file may also name another domain's port, which logic-does-not-import-ports keeps away from logic.",
       "severity": "error",
       "from": { "path": "(^|/)src/domain/([^/]+)/" },
       "to": {
         "path": "(^|/)src/domain/",
         "pathNot": [
           "(^|/)src/domain/$2/",
-          "(^|/)src/domain/[^/]+/index\\.ts$"
+          "(^|/)src/domain/[^/]+/index\\.ts$",
+          "(^|/)src/domain/[^/]+/(in|out)\\.ports\\.ts$"
         ]
       }
     },
