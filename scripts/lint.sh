@@ -23,6 +23,7 @@ bun run scripts/check-conventions.ts libs/core/src
 bun run scripts/check-conventions.ts libs/api-client/src
 bun run scripts/check-conventions.ts apps/web/src
 bun run scripts/check-conventions.ts libs/ui/src
+bun run scripts/check-web-composition.ts apps/web/src
 
 (cd apps/ponte && ./node_modules/.bin/tsc --noEmit -p tsconfig.json)
 (cd apps/ponte && ./node_modules/.bin/tsc --noEmit -p ../../libs/core/tsconfig.json)

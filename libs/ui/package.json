@@ -9,7 +9,8 @@
     "svelte": "^5.57.2"
   },
   "dependencies": {
-    "@lucide/svelte": "^1.59.0"
+    "@lucide/svelte": "^1.59.0",
+    "bits-ui": "^2.19.5"
   },
   "devDependencies": {
     "svelte-check": "^4.7.7",

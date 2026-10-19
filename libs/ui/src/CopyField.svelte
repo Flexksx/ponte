@@ -1,8 +1,11 @@
 <script lang="ts">
   import Check from "@lucide/svelte/icons/check";
   import Copy from "@lucide/svelte/icons/copy";
+  import { Tooltip } from "bits-ui";
 
   const COPIED_DISPLAY_MS = 1500;
+  const TOOLTIP_DELAY_MS = 300;
+  const TOOLTIP_OFFSET_PX = 6;
 
   let { value }: { value: string } = $props();
   let copied = $state(false);
@@ -15,14 +18,33 @@
 </script>
 
 <div class="field">
-  <code title={value}>{value}</code>
-  <button type="button" onclick={copy} class:copied>
-    {#if copied}
-      <Check size={14} aria-hidden="true" />Copied
-    {:else}
-      <Copy size={14} aria-hidden="true" />Copy
-    {/if}
-  </button>
+  <code>{value}</code>
+  <Tooltip.Provider delayDuration={TOOLTIP_DELAY_MS}>
+    <Tooltip.Root>
+      <Tooltip.Trigger>
+        {#snippet child({ props })}
+          <button {...props} type="button" onclick={copy} class:copied>
+            {#if copied}
+              <Check size={14} aria-hidden="true" />Copied
+            {:else}
+              <Copy size={14} aria-hidden="true" />Copy
+            {/if}
+          </button>
+        {/snippet}
+      </Tooltip.Trigger>
+      <Tooltip.Portal>
+        <Tooltip.Content forceMount side="top" align="end" sideOffset={TOOLTIP_OFFSET_PX}>
+          {#snippet child({ wrapperProps, props, open })}
+            {#if open}
+              <div {...wrapperProps}>
+                <div {...props} class="tooltip">{value}</div>
+              </div>
+            {/if}
+          {/snippet}
+        </Tooltip.Content>
+      </Tooltip.Portal>
+    </Tooltip.Root>
+  </Tooltip.Provider>
 </div>
 
 <style>
@@ -64,5 +86,16 @@
 
   button.copied {
     color: var(--ui-success);
+  }
+
+  .tooltip {
+    max-width: min(520px, calc(100vw - 32px));
+    padding: 8px 10px;
+    border-radius: var(--ui-radius-small);
+    background: var(--ui-text);
+    color: var(--ui-bg);
+    font: 12px/1.5 var(--ui-mono);
+    overflow-wrap: anywhere;
+    box-shadow: 0 4px 16px rgb(0 0 0 / 0.18);
   }
 </style>
