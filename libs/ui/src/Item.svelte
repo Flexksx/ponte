@@ -1,5 +1,6 @@
 <script lang="ts">
   import ArrowUpRight from "@tabler/icons-svelte-runes/icons/arrow-up-right";
+  import type { Snippet } from "svelte";
 
   type LabelStyle = "plain" | "code";
 
@@ -9,12 +10,14 @@
     href,
     note = "",
     meta = "",
+    children,
   }: {
     label: string;
     labelStyle?: LabelStyle;
     href?: string;
     note?: string;
     meta?: string;
+    children?: Snippet;
   } = $props();
 </script>
 
@@ -30,6 +33,7 @@
     {/if}
     {#if note !== ""}<span class="note">{note}</span>{/if}
   </span>
+  {#if children}<span class="trailing">{@render children()}</span>{/if}
 </li>
 
 <style>
@@ -75,6 +79,14 @@
   .code {
     font: 13px/1.5 var(--ui-mono);
     overflow-wrap: anywhere;
+  }
+
+  .trailing {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-left: auto;
+    align-self: center;
   }
 
   .note {

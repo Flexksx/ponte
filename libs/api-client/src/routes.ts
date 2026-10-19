@@ -4,6 +4,7 @@ export const API_ROUTES = {
   workspaces: "/api/workspaces",
   workspace: `/api/workspaces/${NAME_PARAMETER}`,
   workspaceSessions: `/api/workspaces/${NAME_PARAMETER}/sessions`,
+  workspacePullRequests: `/api/workspaces/${NAME_PARAMETER}/pull-requests`,
   status: "/api/status",
   systemPrompt: "/api/system-prompt",
   skills: "/api/skills",

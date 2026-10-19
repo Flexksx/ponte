@@ -23,6 +23,7 @@ import { createListAgentSessions } from "./infra/agent-sessions";
 import { createConfigStore, createPromptStore } from "./infra/config-file";
 import { listFiles, readSkillFile, vendoredSkills } from "./infra/filesystem";
 import { createSources } from "./infra/git";
+import { readPullRequest } from "./infra/github";
 import { linkStore } from "./infra/links";
 import {
   currentDirectory,
@@ -115,6 +116,7 @@ export const bootstrap = (deps: BootstrapDeps): App => {
     workspaces: createWorkspaces({
       store: createWorkspaceStore(directories.workspaces),
       listSessions: createListAgentSessions(homeDirectory(), platform),
+      readPullRequest,
       home: homeDirectory(),
       today: () => new Date().toISOString().slice(0, ISO_DATE_LENGTH),
     }),

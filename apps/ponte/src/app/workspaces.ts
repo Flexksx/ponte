@@ -4,9 +4,11 @@ import {
   err,
   findSessionsForWorkspace,
   findWorkspacesForDirectory,
+  isPullRequestUrl,
   type ListAgentSessions,
   newWorkspace,
   ok,
+  type ReadPullRequest,
   type Result,
   type Workspace,
   type WorkspaceEdit,
@@ -18,6 +20,7 @@ import {
 type WorkspacesDeps = {
   store: WorkspaceStore;
   listSessions: ListAgentSessions;
+  readPullRequest: ReadPullRequest;
   home: string;
   today: () => string;
 };
@@ -70,6 +73,16 @@ export const createWorkspaces = (deps: WorkspacesDeps): Workspaces => {
       }
       const sessions = await deps.listSessions();
       return ok(findSessionsForWorkspace(workspace.value, sessions, deps.home));
+    },
+    pullRequests: async name => {
+      const workspace = await show(name);
+      if (!workspace.ok) {
+        return workspace;
+      }
+      const urls = workspace.value.links
+        .map(link => link.target)
+        .filter(isPullRequestUrl);
+      return ok(await Promise.all(urls.map(deps.readPullRequest)));
     },
     create: async (name, goal) => {
       const checked = checkWorkspaceName(name);

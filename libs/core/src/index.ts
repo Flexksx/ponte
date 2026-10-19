@@ -40,6 +40,15 @@ export {
 } from "./domain/link";
 export type * from "./domain/link/out.ports";
 export {
+  type ChecksState,
+  isPullRequestUrl,
+  type PullRequestLookup,
+  type PullRequestState,
+  type PullRequestStatus,
+  type ReviewState,
+} from "./domain/pull-request";
+export type * from "./domain/pull-request/out.ports";
+export {
   buildRepoConfig,
   buildRepoPlan,
   buildUpdateTargets,

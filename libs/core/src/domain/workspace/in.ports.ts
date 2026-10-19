@@ -1,3 +1,4 @@
+import type { PullRequestLookup } from "../pull-request";
 import type { AgentSession } from "../session";
 import type { Result } from "../shared";
 import type { Workspace, WorkspaceProblem } from "./types";
@@ -11,6 +12,9 @@ export type Workspaces = {
   readonly sessions: (
     name: string,
   ) => Promise<Result<AgentSession[], WorkspaceProblem>>;
+  readonly pullRequests: (
+    name: string,
+  ) => Promise<Result<PullRequestLookup[], WorkspaceProblem>>;
   readonly create: (
     name: string,
     goal: string,

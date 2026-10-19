@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
 
-  type Tone = "neutral" | "success" | "warning" | "danger";
+  type Tone = "neutral" | "accent" | "success" | "warning" | "danger";
 
   let { tone, children }: { tone: Tone; children: Snippet } = $props();
 </script>
@@ -22,6 +22,10 @@
 
   .neutral {
     color: var(--ui-muted);
+  }
+
+  .accent {
+    color: var(--ui-accent);
   }
 
   .success {

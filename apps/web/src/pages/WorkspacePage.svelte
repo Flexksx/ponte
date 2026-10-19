@@ -1,5 +1,6 @@
 <script lang="ts">
   import Alert from "@ponte/ui/Alert.svelte";
+  import Badge from "@ponte/ui/Badge.svelte";
   import Button from "@ponte/ui/Button.svelte";
   import Callout from "@ponte/ui/Callout.svelte";
   import CopyField from "@ponte/ui/CopyField.svelte";
@@ -17,16 +18,40 @@
   import { api, load } from "../lib/api";
   import { AGENT_LABELS, formatDateTime } from "../lib/format";
   import { groupLinks } from "../lib/links";
+  import { CHECKS_TONES, PULL_REQUEST_TONES, REVIEW_TONES } from "../lib/presentation";
   import { HOME_HREF } from "../lib/route";
 
   const COLLAPSED_SESSION_COUNT = 10;
+  const OPEN_STATES = new Set(["open", "draft"]);
 
   let { name }: { name: string } = $props();
   let showAllSessions = $state(false);
 
   const workspace = $derived(load(api.workspaces.show(name)));
   const sessions = $derived(load(api.workspaces.sessions(name)));
+  const pullRequests = $derived(load(api.workspaces.pullRequests(name)));
 </script>
+
+{#snippet pullRequestState(url: string)}
+  {#await pullRequests then lookups}
+    {@const lookup = lookups.find(candidate => candidate.url === url)}
+    {#if lookup?.kind === "found"}
+      <Badge tone={PULL_REQUEST_TONES[lookup.status.state]}>{lookup.status.state}</Badge>
+      {#if OPEN_STATES.has(lookup.status.state)}
+        {#if lookup.status.review}
+          <Badge tone={REVIEW_TONES[lookup.status.review]}>{lookup.status.review}</Badge>
+        {/if}
+        {#if lookup.status.checks}
+          <Badge tone={CHECKS_TONES[lookup.status.checks]}>checks {lookup.status.checks}</Badge>
+        {/if}
+      {/if}
+    {:else if lookup?.kind === "unavailable"}
+      <Badge tone="warning">{lookup.reason}</Badge>
+    {/if}
+  {:catch error}
+    <Badge tone="warning">{error.message}</Badge>
+  {/await}
+{/snippet}
 
 <Stack gap="large">
   {#await workspace}
@@ -52,7 +77,11 @@
                   labelStyle={link.href === null ? "code" : "plain"}
                   href={link.href ?? undefined}
                   note={link.note}
-                />
+                >
+                  {#if link.kind === "pull-request" && link.href !== null}
+                    {@render pullRequestState(link.href)}
+                  {/if}
+                </Item>
               {/each}
             </ItemList>
           </Section>

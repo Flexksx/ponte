@@ -43,6 +43,9 @@ const createApi = (app: App, allowedHosts: ReadonlySet<string>): Hono => {
   api.get(API_ROUTES.workspaceSessions, context =>
     send(context, app.workspaces.sessions(context.req.param("name"))),
   );
+  api.get(API_ROUTES.workspacePullRequests, context =>
+    send(context, app.workspaces.pullRequests(context.req.param("name"))),
+  );
   api.get(API_ROUTES.status, context => send(context, app.status()));
   api.get(API_ROUTES.systemPrompt, context =>
     send(context, app.readSystemPrompt()),
