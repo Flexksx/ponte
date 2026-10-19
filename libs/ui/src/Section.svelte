@@ -13,7 +13,7 @@
 
 <section>
   <h2>
-    <Icon name={icon} size={17} tone="muted" />
+    <Icon name={icon} size={17} tone="neutral" />
     {title}
     {#if count !== undefined}<span class="count">{count}</span>{/if}
   </h2>

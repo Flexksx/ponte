@@ -6,6 +6,8 @@ const pullRequest = (overrides: object) => ({
   state: "OPEN" as const,
   isDraft: false,
   reviewDecision: "",
+  mergeable: "MERGEABLE",
+  updatedAt: "2026-10-19T10:00:00Z",
   statusCheckRollup: [],
   ...overrides,
 });
@@ -26,6 +28,9 @@ describe("toPullRequestStatus", () => {
       state: "merged",
       review: null,
       checks: "passing",
+      conflicts: false,
+      updatedAt: "2026-10-19T10:00:00Z",
+      lane: "done",
     });
   });
 
@@ -40,6 +45,24 @@ describe("toPullRequestStatus", () => {
     expect(status.state).toBe("draft");
     expect(status.review).toBe("changes requested");
     expect(status.checks).toBe("failing");
+    expect(status.lane).toBe("needs-you");
+  });
+
+  it("puts an approved open pull request with passing checks in the ready lane, unless it conflicts", () => {
+    const approved = {
+      reviewDecision: "APPROVED",
+      statusCheckRollup: [{ conclusion: "SUCCESS" }],
+    };
+    expect(toPullRequestStatus(pullRequest(approved)).lane).toBe("ready");
+    expect(
+      toPullRequestStatus(
+        pullRequest({ ...approved, mergeable: "CONFLICTING" }),
+      ).lane,
+    ).toBe("needs-you");
+    expect(
+      toPullRequestStatus(pullRequest({ reviewDecision: "REVIEW_REQUIRED" }))
+        .lane,
+    ).toBe("in-review");
   });
 
   it("treats a running check run and a pending commit status as pending", () => {

@@ -1,5 +1,5 @@
 import { isAbsolute, join, relative } from "node:path";
-import type { AgentSession } from "../session";
+import { type AgentSession, extractMentions } from "../session";
 import type { Workspace } from "./types";
 
 const HOME_PREFIX = "~/";
@@ -36,11 +36,22 @@ export const findWorkspacesForDirectory = (
 ): Workspace[] =>
   workspaces.filter(workspace => ownsDirectory(workspace, directory, home));
 
+const identifiersOf = (workspace: Workspace): Set<string> =>
+  new Set(extractMentions(workspace.links.map(link => link.target).join("\n")));
+
 export const findSessionsForWorkspace = (
   workspace: Workspace,
   sessions: readonly AgentSession[],
   home: string,
-): AgentSession[] =>
-  sessions
-    .filter(session => ownsDirectory(workspace, session.directory, home))
-    .sort((first, second) => second.startedAt.localeCompare(first.startedAt));
+): AgentSession[] => {
+  const identifiers = identifiersOf(workspace);
+  return sessions
+    .filter(
+      session =>
+        ownsDirectory(workspace, session.directory, home) ||
+        session.mentions.some(mention => identifiers.has(mention)),
+    )
+    .sort((first, second) =>
+      second.lastActiveAt.localeCompare(first.lastActiveAt),
+    );
+};

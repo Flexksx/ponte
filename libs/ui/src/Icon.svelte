@@ -1,7 +1,7 @@
 <script lang="ts">
   import { GLYPHS, type IconName, isGlyph, LOGOS } from "./icons";
 
-  type Tone = "inherit" | "muted";
+  type Tone = "inherit" | "neutral" | "accent" | "success" | "warning" | "danger";
 
   const STROKE_WIDTH = 1.5;
   const LOGO_VIEWBOX = "0 0 24 24";
@@ -28,7 +28,23 @@
     flex: none;
   }
 
-  .muted {
+  .neutral {
     color: var(--ui-muted);
+  }
+
+  .accent {
+    color: var(--ui-accent);
+  }
+
+  .success {
+    color: var(--ui-success);
+  }
+
+  .warning {
+    color: var(--ui-warning);
+  }
+
+  .danger {
+    color: var(--ui-danger);
   }
 </style>

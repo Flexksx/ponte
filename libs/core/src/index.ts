@@ -42,6 +42,8 @@ export type * from "./domain/link/out.ports";
 export {
   type ChecksState,
   isPullRequestUrl,
+  laneOf,
+  type PullRequestLane,
   type PullRequestLookup,
   type PullRequestState,
   type PullRequestStatus,
@@ -81,7 +83,11 @@ export {
 export type * from "./domain/repo/out.ports";
 export { parseGitHubRepository, type Repository } from "./domain/repository";
 export type * from "./domain/repository/out.ports";
-export type { AgentSession, SessionAgent } from "./domain/session";
+export {
+  type AgentSession,
+  extractMentions,
+  type SessionAgent,
+} from "./domain/session";
 export type * from "./domain/session/out.ports";
 export { collect, err, ok, type Result } from "./domain/shared";
 export type * from "./domain/shared/out.ports";

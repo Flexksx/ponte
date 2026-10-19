@@ -23,7 +23,7 @@
     repositoryOptions,
     tagOptions,
   } from "../lib/filters";
-  import { countOf } from "../lib/format";
+  import { countOf, relativeTime } from "../lib/format";
   import { workspaceHref } from "../lib/route";
 
   const overview = load(api.workspaces.overview());
@@ -76,6 +76,9 @@
         <RowList>
           {#each visible as entry (entry.workspace.name)}
             <LinkRow href={workspaceHref(entry.workspace.name)} title={entry.workspace.name}>
+              <Text tone="muted" size="small">
+                {entry.lastActiveAt === null ? "No session yet" : `Active ${relativeTime(entry.lastActiveAt)}`}
+              </Text>
               <Text tone="muted">{entry.workspace.goal}</Text>
               {#if entry.workspace.next !== ""}
                 <Callout label="Next">{entry.workspace.next}</Callout>

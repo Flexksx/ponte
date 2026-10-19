@@ -16,12 +16,6 @@ export type DescribedLink = {
   readonly note: string;
 };
 
-export type LinkGroup = {
-  readonly heading: string;
-  readonly icon: IconName;
-  readonly links: readonly DescribedLink[];
-};
-
 const GITHUB_PULL_REQUEST =
   /^https:\/\/github\.com\/[^/]+\/([^/]+)\/pull\/(\d+)/;
 
@@ -35,14 +29,14 @@ const SLACK = /^https:\/\/[^/]+\.slack\.com\//;
 
 const WEB_ADDRESS = /^https?:\/\//;
 
-const GROUPS: ReadonlyArray<readonly [LinkKind, string, IconName]> = [
-  ["pull-request", "Pull requests", "github"],
-  ["workflow", "Workflows and runs", "workflow"],
-  ["ticket", "Tickets", "jira"],
-  ["thread", "Threads", "slack"],
-  ["folder", "Folders", "folder"],
-  ["page", "Pages", "world"],
-];
+export const LINK_ICONS: Record<LinkKind, IconName> = {
+  "pull-request": "github",
+  workflow: "workflow",
+  ticket: "jira",
+  thread: "slack",
+  folder: "folder",
+  page: "world",
+};
 
 const describeWebLink = (target: string): Omit<DescribedLink, "note"> => {
   const pullRequest = GITHUB_PULL_REQUEST.exec(target);
@@ -77,12 +71,3 @@ export const describeLink = (link: WorkspaceLink): DescribedLink =>
   WEB_ADDRESS.test(link.target)
     ? { ...describeWebLink(link.target), note: link.note }
     : { kind: "folder", label: link.target, href: null, note: link.note };
-
-export const groupLinks = (links: readonly WorkspaceLink[]): LinkGroup[] => {
-  const described = links.map(describeLink);
-  return GROUPS.map(([kind, heading, icon]) => ({
-    heading,
-    icon,
-    links: described.filter(link => link.kind === kind),
-  })).filter(group => group.links.length > 0);
-};

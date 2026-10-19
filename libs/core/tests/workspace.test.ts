@@ -112,14 +112,21 @@ describe("findWorkspacesForDirectory", () => {
 });
 
 describe("findSessionsForWorkspace", () => {
-  const session = (id: string, directory: string, startedAt: string) =>
+  const session = (
+    id: string,
+    directory: string,
+    lastActiveAt: string,
+    mentions: string[] = [],
+  ) =>
     ({
       agent: "claude-code",
       id,
       directory,
-      startedAt,
+      startedAt: lastActiveAt,
+      lastActiveAt,
       title: "t",
       resume: "r",
+      mentions,
     }) satisfies AgentSession;
 
   it("keeps the sessions inside linked folders, newest first", () => {
@@ -134,6 +141,25 @@ describe("findSessionsForWorkspace", () => {
       HOME,
     );
     expect(found.map(s => s.id)).toEqual(["new", "old"]);
+  });
+
+  it("also keeps a session that mentions one of the workspace's tickets or pull requests", () => {
+    const workspace = withLinks(
+      "pods",
+      "https://extole.atlassian.net/browse/ENG-35025",
+      "https://github.com/extole/tech/pull/2204",
+    );
+    const sessions = [
+      session("ticket", "/home/u/tech", "2026-10-02T10:00:00Z", ["ENG-35025"]),
+      session("pr", "/home/u/tech", "2026-10-03T10:00:00Z", ["tech#2204"]),
+      session("other", "/home/u/tech", "2026-10-04T10:00:00Z", [
+        "ENG-1",
+        "tech#1",
+      ]),
+    ];
+    expect(
+      findSessionsForWorkspace(workspace, sessions, HOME).map(s => s.id),
+    ).toEqual(["pr", "ticket"]);
   });
 });
 

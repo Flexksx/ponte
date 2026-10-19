@@ -32,6 +32,7 @@ declare module "*.html" {
 }
 
 interface BunFile {
+  readonly lastModified: number;
   slice(start: number, end: number): BunFile;
   exists(): Promise<boolean>;
   text(): Promise<string>;

@@ -1,17 +1,21 @@
-import type {
-  ChecksState,
-  PullRequestLookup,
-  PullRequestState,
-  PullRequestStatus,
-  ReadPullRequest,
-  ReviewState,
+import {
+  type ChecksState,
+  laneOf,
+  type PullRequestLookup,
+  type PullRequestState,
+  type PullRequestStatus,
+  type ReadPullRequest,
+  type ReviewState,
 } from "@ponte/core";
 import { $ } from "bun";
 import { z } from "zod";
 
 type PullRequestJson = z.infer<typeof PULL_REQUEST_JSON>;
 
-const GH_FIELDS = "title,state,isDraft,reviewDecision,statusCheckRollup";
+const GH_FIELDS =
+  "title,state,isDraft,reviewDecision,statusCheckRollup,mergeable,updatedAt";
+
+const CONFLICTING = "CONFLICTING";
 
 const GH_MISSING = "install the GitHub CLI (gh) to see pull request state";
 
@@ -39,6 +43,8 @@ const PULL_REQUEST_JSON = z.object({
   state: z.enum(["OPEN", "CLOSED", "MERGED"]),
   isDraft: z.boolean(),
   reviewDecision: z.string(),
+  mergeable: z.string(),
+  updatedAt: z.string(),
   statusCheckRollup: z.array(
     z.object({
       conclusion: z.string().nullish(),
@@ -76,12 +82,17 @@ const pullRequestState = (json: PullRequestJson): PullRequestState => {
 
 export const toPullRequestStatus = (
   json: PullRequestJson,
-): PullRequestStatus => ({
-  title: json.title,
-  state: pullRequestState(json),
-  review: REVIEWS[json.reviewDecision] ?? null,
-  checks: summarizeChecks(json.statusCheckRollup),
-});
+): PullRequestStatus => {
+  const status = {
+    title: json.title,
+    state: pullRequestState(json),
+    review: REVIEWS[json.reviewDecision] ?? null,
+    checks: summarizeChecks(json.statusCheckRollup),
+    conflicts: json.mergeable === CONFLICTING,
+    updatedAt: json.updatedAt,
+  };
+  return { ...status, lane: laneOf(status) };
+};
 
 const parseOutput = (url: string, output: string): PullRequestLookup => {
   try {

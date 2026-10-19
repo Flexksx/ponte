@@ -5,6 +5,8 @@ export type AgentSession = {
   readonly id: string;
   readonly directory: string;
   readonly startedAt: string;
+  readonly lastActiveAt: string;
   readonly title: string;
   readonly resume: string;
+  readonly mentions: readonly string[];
 };

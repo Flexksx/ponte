@@ -1,5 +1,7 @@
+export { laneOf } from "./lane";
 export type {
   ChecksState,
+  PullRequestLane,
   PullRequestLookup,
   PullRequestState,
   PullRequestStatus,

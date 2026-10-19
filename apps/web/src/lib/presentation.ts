@@ -2,6 +2,7 @@ import type {
   AgentSession,
   ChecksState,
   LinkState,
+  PullRequestLane,
   PullRequestState,
   ReviewState,
 } from "@ponte/core";
@@ -41,3 +42,13 @@ export const AGENT_ICONS: Record<AgentSession["agent"], IconName> = {
   "claude-code": "claudeCode",
   "pi-agent": "pi",
 };
+
+export const PULL_REQUEST_LANES: ReadonlyArray<
+  readonly [PullRequestLane, string, Tone]
+> = [
+  ["needs-you", "Needs you", "danger"],
+  ["ready", "Ready to merge", "success"],
+  ["in-review", "In review", "warning"],
+  ["draft", "Drafts", "neutral"],
+  ["done", "Merged or closed", "accent"],
+];

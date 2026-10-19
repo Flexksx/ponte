@@ -1,4 +1,5 @@
 import {
+  type AgentSession,
   applyWorkspaceEdit,
   checkWorkspaceName,
   err,
@@ -70,7 +71,10 @@ export const createWorkspaces = (deps: WorkspacesDeps): Workspaces => {
       : deps.readRepository(path);
   };
 
-  const describe = async (workspace: Workspace): Promise<WorkspaceOverview> => {
+  const describe = async (
+    workspace: Workspace,
+    sessions: readonly AgentSession[],
+  ): Promise<WorkspaceOverview> => {
     const found = await Promise.all(
       workspace.links.map(link => repositoryOf(link.target)),
     );
@@ -82,8 +86,10 @@ export const createWorkspaces = (deps: WorkspacesDeps): Workspaces => {
           repository,
         ]),
     );
+    const [latest] = findSessionsForWorkspace(workspace, sessions, deps.home);
     return {
       workspace,
+      lastActiveAt: latest?.lastActiveAt ?? null,
       repositories: [...unique.entries()]
         .sort(([first], [second]) => first.localeCompare(second))
         .map(([, repository]) => repository),
@@ -93,10 +99,21 @@ export const createWorkspaces = (deps: WorkspacesDeps): Workspaces => {
   return {
     list: deps.store.list,
     overview: async () => {
-      const workspaces = await deps.store.list();
-      return workspaces.ok
-        ? ok(await Promise.all(workspaces.value.map(describe)))
-        : workspaces;
+      const [workspaces, sessions] = await Promise.all([
+        deps.store.list(),
+        deps.listSessions(),
+      ]);
+      if (!workspaces.ok) {
+        return workspaces;
+      }
+      const overview = await Promise.all(
+        workspaces.value.map(workspace => describe(workspace, sessions)),
+      );
+      return ok(
+        overview.sort((first, second) =>
+          (second.lastActiveAt ?? "").localeCompare(first.lastActiveAt ?? ""),
+        ),
+      );
     },
     show,
     forDirectory: async directory => {

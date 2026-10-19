@@ -16,6 +16,7 @@ export type Workspace = {
 export type WorkspaceOverview = {
   readonly workspace: Workspace;
   readonly repositories: readonly Repository[];
+  readonly lastActiveAt: string | null;
 };
 
 export type WorkspaceEdit =

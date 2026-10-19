@@ -5,7 +5,8 @@ const NO_NEXT_STEP = "not set";
 
 const ISO_DATE_LENGTH = 10;
 
-const NO_SESSIONS = "No agent sessions ran in this workspace's folders.";
+const NO_SESSIONS =
+  "No agent session ran in this workspace's folders or named its tickets or pull requests.";
 
 const section = (heading: string, lines: readonly string[]): string[] =>
   lines.length === 0 ? [] : ["", `## ${heading}`, ...lines];

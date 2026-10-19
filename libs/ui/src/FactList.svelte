@@ -4,12 +4,14 @@
   let { children }: { children: Snippet } = $props();
 </script>
 
-<div>{@render children()}</div>
+<dl>{@render children()}</dl>
 
 <style>
-  div {
+  dl {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 10px;
+    margin: 0;
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius);
   }
 </style>

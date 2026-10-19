@@ -2,6 +2,7 @@ import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import {
   type AgentSession,
+  extractMentions,
   type ListAgentSessions,
   type Platform,
   vendorRoot,
@@ -9,6 +10,11 @@ import {
 import { directoryExists } from "./filesystem";
 
 type TranscriptRecord = { readonly [key: string]: unknown };
+
+export type TranscriptHead = {
+  readonly text: string;
+  readonly modifiedAt: string;
+};
 
 const HEAD_BYTES = 64 * 1024;
 
@@ -71,11 +77,11 @@ const textOf = (content: unknown): string => {
 };
 
 const titleOf = (text: string): string | null => {
-  const trimmed = text.trimStart();
-  if (HARNESS_TEXT_PREFIXES.some(prefix => trimmed.startsWith(prefix))) {
+  if (isHarnessText(text)) {
     return null;
   }
-  const title = trimmed
+  const title = text
+    .trimStart()
     .replace(MARKUP_TAG, " ")
     .replace(WHITESPACE, " ")
     .trim();
@@ -94,6 +100,23 @@ const messageOf = (record: TranscriptRecord): TranscriptRecord | null => {
     : null;
 };
 
+const isHarnessText = (text: string): boolean => {
+  const trimmed = text.trimStart();
+  return HARNESS_TEXT_PREFIXES.some(prefix => trimmed.startsWith(prefix));
+};
+
+const promptMentions = (
+  records: readonly TranscriptRecord[],
+  isPrompt: (record: TranscriptRecord) => boolean,
+): string[] =>
+  extractMentions(
+    records
+      .filter(isPrompt)
+      .map(record => textOf(messageOf(record)?.content))
+      .filter(text => !isHarnessText(text))
+      .join("\n"),
+  );
+
 const firstTitle = (
   records: readonly TranscriptRecord[],
   isPrompt: (record: TranscriptRecord) => boolean,
@@ -107,23 +130,25 @@ const firstTitle = (
   return null;
 };
 
+const isClaudePrompt = (record: TranscriptRecord): boolean =>
+  record.type === "user" &&
+  record.isMeta !== true &&
+  record.isSidechain !== true;
+
+const isPiPrompt = (record: TranscriptRecord): boolean =>
+  record.type === "message" && messageOf(record)?.role === "user";
+
 export const parseClaudeSession = (
   id: string,
-  text: string,
+  head: TranscriptHead,
 ): AgentSession | null => {
-  const records = parseRecords(text);
+  const records = parseRecords(head.text);
   const located = records.find(
     record =>
       stringField(record, "cwd") !== null &&
       stringField(record, "timestamp") !== null,
   );
-  const title = firstTitle(
-    records,
-    record =>
-      record.type === "user" &&
-      record.isMeta !== true &&
-      record.isSidechain !== true,
-  );
+  const title = firstTitle(records, isClaudePrompt);
   if (located === undefined || title === null) {
     return null;
   }
@@ -133,21 +158,20 @@ export const parseClaudeSession = (
     id,
     directory,
     startedAt: stringField(located, "timestamp") ?? "",
+    lastActiveAt: head.modifiedAt,
     title,
     resume: `cd ${shellQuote(directory)} && claude --resume ${id}`,
+    mentions: promptMentions(records, isClaudePrompt),
   };
 };
 
 export const parsePiSession = (
   file: string,
-  text: string,
+  head: TranscriptHead,
 ): AgentSession | null => {
-  const records = parseRecords(text);
+  const records = parseRecords(head.text);
   const header = records.find(record => record.type === "session");
-  const title = firstTitle(
-    records,
-    record => record.type === "message" && messageOf(record)?.role === "user",
-  );
+  const title = firstTitle(records, isPiPrompt);
   if (header === undefined || title === null) {
     return null;
   }
@@ -157,14 +181,20 @@ export const parsePiSession = (
     id: stringField(header, "id") ?? file,
     directory,
     startedAt: stringField(header, "timestamp") ?? "",
+    lastActiveAt: head.modifiedAt,
     title,
     resume: `cd ${shellQuote(directory)} && pi --session ${shellQuote(file)}`,
+    mentions: promptMentions(records, isPiPrompt),
   };
 };
 
-const readHead = async (file: string): Promise<string | null> => {
+const readHead = async (file: string): Promise<TranscriptHead | null> => {
   try {
-    return await Bun.file(file).slice(0, HEAD_BYTES).text();
+    const transcript = Bun.file(file);
+    return {
+      text: await transcript.slice(0, HEAD_BYTES).text(),
+      modifiedAt: new Date(transcript.lastModified).toISOString(),
+    };
   } catch {
     return null;
   }

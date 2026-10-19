@@ -1,8 +1,11 @@
 <script lang="ts">
+  import { ToggleGroup } from "bits-ui";
   import Icon from "./Icon.svelte";
   import type { IconName } from "./icons";
 
   type Option = { value: string; count: number };
+
+  const ALL = "*";
 
   let {
     label,
@@ -17,21 +20,31 @@
     selected: string | null;
     onselect: (value: string | null) => void;
   } = $props();
+
+  const choose = (value: string) => onselect(value === ALL || value === "" ? null : value);
 </script>
 
-<div class="filter" role="group" aria-label={label}>
-  <span class="label"><Icon name={icon} size={15} tone="muted" />{label}</span>
-  <button type="button" aria-pressed={selected === null} onclick={() => onselect(null)}>All</button>
-  {#each options as option (option.value)}
-    <button
-      type="button"
-      aria-pressed={selected === option.value}
-      onclick={() => onselect(selected === option.value ? null : option.value)}
-    >
-      {option.value}<span class="count">{option.count}</span>
-    </button>
-  {/each}
-</div>
+<ToggleGroup.Root type="single" value={selected ?? ALL} onValueChange={choose}>
+  {#snippet child({ props })}
+    <div {...props} class="filter" aria-label={label}>
+      <span class="label"><Icon name={icon} size={15} tone="neutral" />{label}</span>
+      <ToggleGroup.Item value={ALL}>
+        {#snippet child({ props: itemProps })}
+          <button {...itemProps} class="chip">All</button>
+        {/snippet}
+      </ToggleGroup.Item>
+      {#each options as option (option.value)}
+        <ToggleGroup.Item value={option.value}>
+          {#snippet child({ props: itemProps })}
+            <button {...itemProps} class="chip">
+              {option.value}<span class="count">{option.count}</span>
+            </button>
+          {/snippet}
+        </ToggleGroup.Item>
+      {/each}
+    </div>
+  {/snippet}
+</ToggleGroup.Root>
 
 <style>
   .filter {
@@ -50,7 +63,7 @@
     font-size: 13px;
   }
 
-  button {
+  .chip {
     display: inline-flex;
     align-items: center;
     gap: 6px;
@@ -63,18 +76,17 @@
     cursor: pointer;
   }
 
-  button:hover {
+  .chip:hover {
     background: var(--ui-surface-hover);
   }
 
-  button[aria-pressed="true"] {
+  .chip[data-state="on"] {
     border-color: var(--ui-text);
     background: var(--ui-text);
     color: var(--ui-bg);
   }
 
   .count {
-    color: inherit;
     opacity: 0.6;
     font-variant-numeric: tabular-nums;
   }
