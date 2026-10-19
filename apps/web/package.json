@@ -6,8 +6,10 @@
     "./index.html": "./src/index.html"
   },
   "dependencies": {
+    "@lucide/svelte": "^1.59.0",
     "@ponte/api-client": "workspace:*",
     "@ponte/core": "workspace:*",
+    "@ponte/ui": "workspace:*",
     "svelte": "^5.57.2"
   },
   "devDependencies": {

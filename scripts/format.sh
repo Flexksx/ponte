@@ -6,6 +6,7 @@ SOURCES=(
   apps/ponte/tests
   apps/web/src
   libs/api-client/src
+  libs/ui/src
   libs/core/src
   libs/core/tests
 )

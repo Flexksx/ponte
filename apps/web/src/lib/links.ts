@@ -1,3 +1,10 @@
+import type { LucideIcon } from "@lucide/svelte";
+import Folder from "@lucide/svelte/icons/folder";
+import GitPullRequest from "@lucide/svelte/icons/git-pull-request";
+import Globe from "@lucide/svelte/icons/globe";
+import MessageSquare from "@lucide/svelte/icons/message-square";
+import Ticket from "@lucide/svelte/icons/ticket";
+import Workflow from "@lucide/svelte/icons/workflow";
 import type { WorkspaceLink } from "@ponte/core";
 
 export type LinkKind =
@@ -17,6 +24,7 @@ export type DescribedLink = {
 
 export type LinkGroup = {
   readonly heading: string;
+  readonly icon: LucideIcon;
   readonly links: readonly DescribedLink[];
 };
 
@@ -33,13 +41,13 @@ const SLACK = /^https:\/\/[^/]+\.slack\.com\//;
 
 const WEB_ADDRESS = /^https?:\/\//;
 
-const GROUP_HEADINGS: ReadonlyArray<readonly [LinkKind, string]> = [
-  ["pull-request", "Pull requests"],
-  ["workflow", "Workflows and runs"],
-  ["ticket", "Tickets"],
-  ["thread", "Threads"],
-  ["folder", "Folders"],
-  ["page", "Pages"],
+const GROUPS: ReadonlyArray<readonly [LinkKind, string, LucideIcon]> = [
+  ["pull-request", "Pull requests", GitPullRequest],
+  ["workflow", "Workflows and runs", Workflow],
+  ["ticket", "Tickets", Ticket],
+  ["thread", "Threads", MessageSquare],
+  ["folder", "Folders", Folder],
+  ["page", "Pages", Globe],
 ];
 
 const describeWebLink = (target: string): Omit<DescribedLink, "note"> => {
@@ -78,8 +86,9 @@ export const describeLink = (link: WorkspaceLink): DescribedLink =>
 
 export const groupLinks = (links: readonly WorkspaceLink[]): LinkGroup[] => {
   const described = links.map(describeLink);
-  return GROUP_HEADINGS.map(([kind, heading]) => ({
+  return GROUPS.map(([kind, heading, icon]) => ({
     heading,
+    icon,
     links: described.filter(link => link.kind === kind),
   })).filter(group => group.links.length > 0);
 };

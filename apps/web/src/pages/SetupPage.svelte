@@ -1,6 +1,24 @@
 <script lang="ts">
+  import Bot from "@lucide/svelte/icons/bot";
+  import FileText from "@lucide/svelte/icons/file-text";
+  import Users from "@lucide/svelte/icons/users";
+  import WandSparkles from "@lucide/svelte/icons/wand-sparkles";
+  import Alert from "@ponte/ui/Alert.svelte";
+  import Badge from "@ponte/ui/Badge.svelte";
+  import Code from "@ponte/ui/Code.svelte";
+  import CodeBlock from "@ponte/ui/CodeBlock.svelte";
+  import Disclosure from "@ponte/ui/Disclosure.svelte";
+  import EmptyState from "@ponte/ui/EmptyState.svelte";
+  import Loading from "@ponte/ui/Loading.svelte";
+  import PageHeader from "@ponte/ui/PageHeader.svelte";
+  import Row from "@ponte/ui/Row.svelte";
+  import Section from "@ponte/ui/Section.svelte";
+  import Stack from "@ponte/ui/Stack.svelte";
+  import Table from "@ponte/ui/Table.svelte";
+  import Text from "@ponte/ui/Text.svelte";
   import { api, load } from "../lib/api";
   import { sourceText } from "../lib/format";
+  import { LINK_STATE_BADGES } from "../lib/presentation";
 
   const status = load(api.status());
   const systemPrompt = load(api.readSystemPrompt());
@@ -8,132 +26,89 @@
   const subagents = load(api.listSubagents());
 </script>
 
-<h1>Setup</h1>
-<p class="muted">What ponte links into each agent.</p>
+<Stack gap="large">
+  <PageHeader title="Setup" description="What ponte links into each agent." />
 
-<h2>Agents</h2>
-{#await status}
-  <p class="muted">Loading…</p>
-{:then current}
-  {#if current.mode === "global"}
-    <p class="muted">System prompt file: <code>{current.report.promptFile}</code></p>
-    <table>
-      <thead>
-        <tr><th>Agent</th><th>Enabled</th><th>Links</th><th>State</th></tr>
-      </thead>
-      <tbody>
-        {#each current.report.vendors as agent (agent.name)}
-          <tr>
-            <td>{agent.name}</td>
-            <td>{agent.enabled ? "yes" : "no"}</td>
-            <td>{agent.linkCount}</td>
-            <td class="state" data-state={agent.state}>{agent.state}</td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
-  {:else}
-    <p>
-      Repo mode: <code>{current.report.root}</code>, {current.report.linkCount} links,
-      <span class="state" data-state={current.report.state}>{current.report.state}</span>
-    </p>
-  {/if}
-{:catch error}
-  <p class="error">{error.message}</p>
-{/await}
+  <Section title="Agents" icon={Bot}>
+    {#await status}
+      <Loading label="Checking agent links…" />
+    {:then current}
+      {#if current.mode === "global"}
+        <Text tone="muted" size="small">
+          System prompt file: <Code>{current.report.promptFile}</Code>
+        </Text>
+        <Table columns={["Agent", "Enabled", "Links", "State"]}>
+          {#each current.report.vendors as agent (agent.name)}
+            {@const badge = LINK_STATE_BADGES[agent.state]}
+            <tr>
+              <td>{agent.name}</td>
+              <td>{agent.enabled ? "yes" : "no"}</td>
+              <td>{agent.linkCount}</td>
+              <td><Badge tone={badge.tone} icon={badge.icon}>{agent.state}</Badge></td>
+            </tr>
+          {/each}
+        </Table>
+      {:else}
+        {@const badge = LINK_STATE_BADGES[current.report.state]}
+        <Row justify="start">
+          <Text>Repo mode: <Code>{current.report.root}</Code>, {current.report.linkCount} links</Text>
+          <Badge tone={badge.tone} icon={badge.icon}>{current.report.state}</Badge>
+        </Row>
+      {/if}
+    {:catch error}
+      <Alert message={error.message} />
+    {/await}
+  </Section>
 
-<h2>System prompt</h2>
-{#await systemPrompt}
-  <p class="muted">Loading…</p>
-{:then prompt}
-  <details>
-    <summary>Show the prompt every agent gets ({prompt.split("\n").length} lines)</summary>
-    <pre>{prompt}</pre>
-  </details>
-{:catch error}
-  <p class="error">{error.message}</p>
-{/await}
+  <Section title="System prompt" icon={FileText}>
+    {#await systemPrompt}
+      <Loading label="Reading the system prompt…" />
+    {:then prompt}
+      <Disclosure summary={`Show the prompt every agent gets (${prompt.split("\n").length} lines)`}>
+        <CodeBlock text={prompt} />
+      </Disclosure>
+    {:catch error}
+      <Alert message={error.message} />
+    {/await}
+  </Section>
 
-<h2>Skills</h2>
-{#await skills}
-  <p class="muted">Loading…</p>
-{:then listing}
-  {#if listing.rows.length === 0}
-    <p class="muted">No skills configured.</p>
-  {:else}
-    <table>
-      <thead>
-        <tr><th>Name</th><th>Type</th><th>Source</th></tr>
-      </thead>
-      <tbody>
-        {#each listing.rows as row (sourceText(row.entry))}
-          <tr>
-            <td>{row.name ?? "—"}</td>
-            <td class="muted">{row.vendored ? "git" : "local"}</td>
-            <td>{sourceText(row.entry)}</td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
-  {/if}
-{:catch error}
-  <p class="error">{error.message}</p>
-{/await}
+  {#await skills}
+    <Section title="Skills" icon={WandSparkles}><Loading label="Listing skills…" /></Section>
+  {:then listing}
+    <Section title="Skills" icon={WandSparkles} count={listing.rows.length}>
+      {#if listing.rows.length === 0}
+        <EmptyState icon={WandSparkles}><Text>No skills configured.</Text></EmptyState>
+      {:else}
+        <Table columns={["Name", "Type", "Source"]}>
+          {#each listing.rows as row (sourceText(row.entry))}
+            <tr>
+              <td>{row.name ?? "—"}</td>
+              <td><Badge tone="neutral">{row.vendored ? "git" : "local"}</Badge></td>
+              <td>{sourceText(row.entry)}</td>
+            </tr>
+          {/each}
+        </Table>
+      {/if}
+    </Section>
+  {:catch error}
+    <Section title="Skills" icon={WandSparkles}><Alert message={error.message} /></Section>
+  {/await}
 
-<h2>Subagents</h2>
-{#await subagents}
-  <p class="muted">Loading…</p>
-{:then list}
-  {#if list.length === 0}
-    <p class="muted">No subagents configured.</p>
-  {:else}
-    <table>
-      <thead>
-        <tr><th>Source</th></tr>
-      </thead>
-      <tbody>
-        {#each list as entry (sourceText(entry))}
-          <tr><td>{sourceText(entry)}</td></tr>
-        {/each}
-      </tbody>
-    </table>
-  {/if}
-{:catch error}
-  <p class="error">{error.message}</p>
-{/await}
-
-<style>
-  details {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 10px 14px;
-  }
-
-  summary {
-    cursor: pointer;
-  }
-
-  pre {
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    max-height: 480px;
-    overflow: auto;
-  }
-
-  .state[data-state="in sync"] {
-    color: var(--accent);
-  }
-
-  .state[data-state="drifted"] {
-    color: var(--warning);
-  }
-
-  .state[data-state="not synced"] {
-    color: var(--danger);
-  }
-
-  .state[data-state="disabled"] {
-    color: var(--muted);
-  }
-</style>
+  {#await subagents}
+    <Section title="Subagents" icon={Users}><Loading label="Listing subagents…" /></Section>
+  {:then list}
+    <Section title="Subagents" icon={Users} count={list.length}>
+      {#if list.length === 0}
+        <EmptyState icon={Users}><Text>No subagents configured.</Text></EmptyState>
+      {:else}
+        <Table columns={["Source"]}>
+          {#each list as entry (sourceText(entry))}
+            <tr><td>{sourceText(entry)}</td></tr>
+          {/each}
+        </Table>
+      {/if}
+    </Section>
+  {:catch error}
+    <Section title="Subagents" icon={Users}><Alert message={error.message} /></Section>
+  {/await}
+</Stack>

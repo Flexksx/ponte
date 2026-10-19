@@ -45,7 +45,7 @@
         dontUseBunCheck = true;
         buildPhase = ''
           runHook preBuild
-          patchShebangs node_modules apps/ponte/node_modules apps/web/node_modules
+          patchShebangs node_modules apps/ponte/node_modules apps/web/node_modules libs/ui/node_modules
           bash ./scripts/lint.sh
           runHook postBuild
         '';

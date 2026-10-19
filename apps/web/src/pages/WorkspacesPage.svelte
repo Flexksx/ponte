@@ -1,79 +1,57 @@
 <script lang="ts">
+  import ArrowRight from "@lucide/svelte/icons/arrow-right";
+  import FolderGit2 from "@lucide/svelte/icons/folder-git-2";
+  import Inbox from "@lucide/svelte/icons/inbox";
+  import Link2 from "@lucide/svelte/icons/link-2";
+  import ListChecks from "@lucide/svelte/icons/list-checks";
+  import Alert from "@ponte/ui/Alert.svelte";
+  import Badge from "@ponte/ui/Badge.svelte";
+  import Callout from "@ponte/ui/Callout.svelte";
+  import Card from "@ponte/ui/Card.svelte";
+  import CardGrid from "@ponte/ui/CardGrid.svelte";
+  import Code from "@ponte/ui/Code.svelte";
+  import EmptyState from "@ponte/ui/EmptyState.svelte";
+  import Loading from "@ponte/ui/Loading.svelte";
+  import PageHeader from "@ponte/ui/PageHeader.svelte";
+  import Row from "@ponte/ui/Row.svelte";
+  import Stack from "@ponte/ui/Stack.svelte";
+  import Text from "@ponte/ui/Text.svelte";
   import { api, load } from "../lib/api";
   import { workspaceHref } from "../lib/route";
 
   const workspaces = load(api.workspaces.list());
 </script>
 
-<h1>Workspaces</h1>
-<p class="muted">One per effort. Agents keep them up to date.</p>
+<Stack gap="large">
+  <PageHeader title="Workspaces" description="One per effort. Agents keep them up to date." />
 
-{#await workspaces}
-  <p class="muted">Loading…</p>
-{:then list}
-  {#if list.length === 0}
-    <p class="muted">
-      No workspaces yet. An agent creates one with the
-      <code>workspace_create</code> tool or <code>ponte ws new</code>.
-    </p>
-  {:else}
-    <ul>
-      {#each list as workspace (workspace.name)}
-        <li>
-          <a class="card" href={workspaceHref(workspace.name)}>
-            <strong>{workspace.name}</strong>
-            <span>{workspace.goal}</span>
+  {#await workspaces}
+    <Loading label="Loading workspaces…" />
+  {:then list}
+    {#if list.length === 0}
+      <EmptyState icon={Inbox}>
+        <Text>
+          No workspaces yet. An agent creates one with <Code>workspace_create</Code> or
+          <Code>ponte ws new</Code>.
+        </Text>
+      </EmptyState>
+    {:else}
+      <CardGrid>
+        {#each list as workspace (workspace.name)}
+          <Card href={workspaceHref(workspace.name)} title={workspace.name} icon={FolderGit2}>
+            <Text tone="muted">{workspace.goal}</Text>
             {#if workspace.next !== ""}
-              <span class="next">Next: {workspace.next}</span>
+              <Callout icon={ArrowRight} label="Next">{workspace.next}</Callout>
             {/if}
-            <span class="muted meta">
-              {workspace.links.length} links · {workspace.decisions.length} decisions
-            </span>
-          </a>
-        </li>
-      {/each}
-    </ul>
-  {/if}
-{:catch error}
-  <p class="error">{error.message}</p>
-{/await}
-
-<style>
-  ul {
-    list-style: none;
-    padding: 0;
-    margin: 20px 0 0;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 12px;
-  }
-
-  .card {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    height: 100%;
-    padding: 16px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    color: var(--text);
-    text-decoration: none;
-  }
-
-  .card:hover {
-    border-color: var(--accent);
-  }
-
-  .next {
-    padding: 6px 8px;
-    border-radius: 6px;
-    background: var(--accent-soft);
-    font-size: 14px;
-  }
-
-  .meta {
-    margin-top: auto;
-    font-size: 13px;
-  }
-</style>
+            <Row justify="start">
+              <Badge tone="neutral" icon={Link2}>{workspace.links.length} links</Badge>
+              <Badge tone="neutral" icon={ListChecks}>{workspace.decisions.length} decisions</Badge>
+            </Row>
+          </Card>
+        {/each}
+      </CardGrid>
+    {/if}
+  {:catch error}
+    <Alert message={error.message} />
+  {/await}
+</Stack>
