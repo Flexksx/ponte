@@ -79,6 +79,8 @@ export {
   vendoredSkillPath,
 } from "./domain/repo";
 export type * from "./domain/repo/out.ports";
+export { parseGitHubRepository, type Repository } from "./domain/repository";
+export type * from "./domain/repository/out.ports";
 export type { AgentSession, SessionAgent } from "./domain/session";
 export type * from "./domain/session/out.ports";
 export { collect, err, ok, type Result } from "./domain/shared";
@@ -132,9 +134,11 @@ export {
   findSessionsForWorkspace,
   findWorkspacesForDirectory,
   newWorkspace,
+  resolveLocalPath,
   type Workspace,
   type WorkspaceEdit,
   type WorkspaceLink,
+  type WorkspaceOverview,
   type WorkspaceProblem,
 } from "./domain/workspace";
 export type * from "./domain/workspace/in.ports";

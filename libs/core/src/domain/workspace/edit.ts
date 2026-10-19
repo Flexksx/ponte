@@ -6,19 +6,18 @@ import type {
   WorkspaceProblem,
 } from "./types";
 
-const WORKSPACE_NAME = /^[a-z0-9][a-z0-9-]*$/;
+const SLUG = /^[a-z0-9][a-z0-9-]*$/;
 
 export const checkWorkspaceName = (
   name: string,
 ): Result<string, WorkspaceProblem> =>
-  WORKSPACE_NAME.test(name)
-    ? ok(name)
-    : err({ kind: "invalid-workspace-name", name });
+  SLUG.test(name) ? ok(name) : err({ kind: "invalid-workspace-name", name });
 
 export const newWorkspace = (name: string, goal: string): Workspace => ({
   name,
   goal,
   next: "",
+  tags: [],
   links: [],
   decisions: [],
 });
@@ -60,5 +59,20 @@ export const applyWorkspaceEdit = (
       });
     case "next":
       return ok({ ...workspace, next: edit.text });
+    case "tag":
+      if (!SLUG.test(edit.tag)) {
+        return err({ kind: "invalid-tag", tag: edit.tag });
+      }
+      return ok({
+        ...workspace,
+        tags: [...new Set([...workspace.tags, edit.tag])].sort(),
+      });
+    case "untag":
+      return workspace.tags.includes(edit.tag)
+        ? ok({
+            ...workspace,
+            tags: workspace.tags.filter(tag => tag !== edit.tag),
+          })
+        : err({ kind: "tag-not-found", tag: edit.tag });
   }
 };

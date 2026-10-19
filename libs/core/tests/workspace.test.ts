@@ -6,6 +6,7 @@ import {
   findSessionsForWorkspace,
   findWorkspacesForDirectory,
   newWorkspace,
+  parseGitHubRepository,
   type Workspace,
 } from "@ponte/core";
 
@@ -37,6 +38,53 @@ describe("applyWorkspaceEdit", () => {
       ok: false,
       error: { kind: "link-not-found", target: "https://x/1" },
     });
+  });
+});
+
+describe("tags", () => {
+  it("adds a tag once and keeps the tags sorted", () => {
+    const tagged = ["work", "extole", "work"].reduce<Workspace>(
+      (workspace, tag) => {
+        const edited = applyWorkspaceEdit(workspace, { kind: "tag", tag });
+        return edited.ok ? edited.value : workspace;
+      },
+      withLinks("w"),
+    );
+    expect(tagged.tags).toEqual(["extole", "work"]);
+  });
+
+  it("rejects a tag that is not a lowercase slug, and removing a missing tag", () => {
+    expect(
+      applyWorkspaceEdit(withLinks("w"), { kind: "tag", tag: "Work Stuff" }).ok,
+    ).toBe(false);
+    expect(
+      applyWorkspaceEdit(withLinks("w"), { kind: "untag", tag: "work" }),
+    ).toEqual({
+      ok: false,
+      error: { kind: "tag-not-found", tag: "work" },
+    });
+  });
+});
+
+describe("parseGitHubRepository", () => {
+  it("reads the owner and name from GitHub URLs and remotes", () => {
+    for (const url of [
+      "https://github.com/extole/tech/pull/2204",
+      "git@github.com:extole/tech.git",
+      "https://github.com/extole/tech.git\n",
+      "https://github.com/extole/tech",
+    ]) {
+      expect(parseGitHubRepository(url)).toEqual({
+        owner: "extole",
+        name: "tech",
+      });
+    }
+  });
+
+  it("ignores a URL that is not on GitHub", () => {
+    expect(
+      parseGitHubRepository("https://extole.atlassian.net/browse/ENG-1"),
+    ).toBeNull();
   });
 });
 

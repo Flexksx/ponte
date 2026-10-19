@@ -16,6 +16,9 @@ export const describeWorkspace = (workspace: Workspace): string =>
     "",
     `Goal: ${workspace.goal}`,
     `Next: ${workspace.next === "" ? NO_NEXT_STEP : workspace.next}`,
+    ...(workspace.tags.length === 0
+      ? []
+      : [`Tags: ${workspace.tags.join(", ")}`]),
     ...section(
       "Links",
       workspace.links.map(

@@ -2,6 +2,7 @@ export const NAME_PARAMETER = ":name";
 
 export const API_ROUTES = {
   workspaces: "/api/workspaces",
+  workspaceOverview: "/api/workspace-overview",
   workspace: `/api/workspaces/${NAME_PARAMETER}`,
   workspaceSessions: `/api/workspaces/${NAME_PARAMETER}/sessions`,
   workspacePullRequests: `/api/workspaces/${NAME_PARAMETER}/pull-requests`,

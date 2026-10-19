@@ -48,7 +48,9 @@ const WORKSPACE_USAGE = `Usage:
   ponte ws unlink <name> <target>        remove a link
   ponte ws decide <name> <text>          record a dated decision
   ponte ws next <name> <text>            replace the next step
-  ponte ws sessions <name>               list the agent sessions that ran in its folders`;
+  ponte ws sessions <name>               list the agent sessions that ran in its folders
+  ponte ws tag <name> <tag>...           add tags, for example work or personal
+  ponte ws untag <name> <tag>            remove a tag`;
 
 const HELP_FLAGS = new Set(["help", "--help", "-h"]);
 
@@ -314,7 +316,11 @@ const printWorkspaceList = (workspaces: readonly Workspace[]): void => {
   }
   const width = Math.max(...workspaces.map(workspace => workspace.name.length));
   for (const workspace of workspaces) {
-    write(`${workspace.name.padEnd(width)}  ${chalk.dim(workspace.goal)}\n`);
+    const tags =
+      workspace.tags.length === 0 ? "" : ` [${workspace.tags.join(", ")}]`;
+    write(
+      `${workspace.name.padEnd(width)}${chalk.cyan(tags)}  ${chalk.dim(workspace.goal)}\n`,
+    );
   }
 };
 
@@ -392,6 +398,19 @@ const runWorkspaceAction = async (
       );
       write(`${name}: next step: ${text}\n`);
       return;
+    case "tag":
+      requireArgument(first, "<tag>", subcommand);
+      for (const tag of rest) {
+        unwrap(await app.workspaces.tag(name, tag));
+      }
+      write(`${name}: tagged ${rest.join(", ")}\n`);
+      return;
+    case "untag": {
+      const tag = requireArgument(first, "<tag>", subcommand);
+      unwrap(await app.workspaces.untag(name, tag));
+      write(`${name}: untagged ${tag}\n`);
+      return;
+    }
     case "sessions":
       write(
         `${describeSessions(unwrap(await app.workspaces.sessions(name)))}\n`,

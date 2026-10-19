@@ -1,10 +1,13 @@
 import type { PullRequestLookup } from "../pull-request";
 import type { AgentSession } from "../session";
 import type { Result } from "../shared";
-import type { Workspace, WorkspaceProblem } from "./types";
+import type { Workspace, WorkspaceOverview, WorkspaceProblem } from "./types";
 
 export type Workspaces = {
   readonly list: () => Promise<Result<Workspace[], WorkspaceProblem>>;
+  readonly overview: () => Promise<
+    Result<WorkspaceOverview[], WorkspaceProblem>
+  >;
   readonly show: (name: string) => Promise<Result<Workspace, WorkspaceProblem>>;
   readonly forDirectory: (
     directory: string,
@@ -35,5 +38,13 @@ export type Workspaces = {
   readonly setNext: (
     name: string,
     text: string,
+  ) => Promise<Result<Workspace, WorkspaceProblem>>;
+  readonly tag: (
+    name: string,
+    tag: string,
+  ) => Promise<Result<Workspace, WorkspaceProblem>>;
+  readonly untag: (
+    name: string,
+    tag: string,
   ) => Promise<Result<Workspace, WorkspaceProblem>>;
 };

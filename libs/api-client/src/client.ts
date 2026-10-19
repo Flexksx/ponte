@@ -7,7 +7,7 @@ export type PonteClient = Pick<
 > & {
   readonly workspaces: Pick<
     Workspaces,
-    "list" | "show" | "sessions" | "pullRequests"
+    "list" | "overview" | "show" | "sessions" | "pullRequests"
   >;
 };
 
@@ -25,6 +25,7 @@ export const createPonteClient = (baseUrl = ""): PonteClient => {
     listSubagents: () => get(API_ROUTES.subagents),
     workspaces: {
       list: () => get(API_ROUTES.workspaces),
+      overview: () => get(API_ROUTES.workspaceOverview),
       show: name => get(withName(API_ROUTES.workspace, name)),
       sessions: name => get(withName(API_ROUTES.workspaceSessions, name)),
       pullRequests: name =>

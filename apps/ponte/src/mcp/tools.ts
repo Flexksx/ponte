@@ -139,6 +139,33 @@ export const createMcpServer = (app: App): McpServer => {
   );
 
   server.registerTool(
+    "workspace_tag",
+    {
+      description:
+        "Add a tag to a workspace, such as work, personal or a company name. Tags are lowercase words and hyphens.",
+      inputSchema: { name, tag: z.string() },
+    },
+    async args =>
+      reply(
+        await workspaces.tag(args.name, args.tag),
+        confirm(`${args.name}: tagged ${args.tag}`),
+      ),
+  );
+
+  server.registerTool(
+    "workspace_untag",
+    {
+      description: "Remove a tag from a workspace.",
+      inputSchema: { name, tag: z.string() },
+    },
+    async args =>
+      reply(
+        await workspaces.untag(args.name, args.tag),
+        confirm(`${args.name}: untagged ${args.tag}`),
+      ),
+  );
+
+  server.registerTool(
     "workspace_sessions",
     {
       description:

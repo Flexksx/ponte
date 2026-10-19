@@ -68,6 +68,10 @@ export const describeProblem = (problem: Problem): string => {
       return `no workspace named ${problem.name} - run ponte ws to list them`;
     case "link-not-found":
       return `the workspace has no link ${problem.target}`;
+    case "invalid-tag":
+      return `invalid tag "${problem.tag}" - use a-z, 0-9 and hyphens, starting with a letter or a digit`;
+    case "tag-not-found":
+      return `the workspace has no tag ${problem.tag}`;
     case "invalid-workspace-file":
       return `${problem.file}: ${problem.message}`;
   }

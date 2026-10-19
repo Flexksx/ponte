@@ -8,10 +8,15 @@ import {
   type ListAgentSessions,
   newWorkspace,
   ok,
+  parseGitHubRepository,
   type ReadPullRequest,
+  type ReadRepository,
+  type Repository,
   type Result,
+  resolveLocalPath,
   type Workspace,
   type WorkspaceEdit,
+  type WorkspaceOverview,
   type WorkspaceProblem,
   type WorkspaceStore,
   type Workspaces,
@@ -21,6 +26,7 @@ type WorkspacesDeps = {
   store: WorkspaceStore;
   listSessions: ListAgentSessions;
   readPullRequest: ReadPullRequest;
+  readRepository: ReadRepository;
   home: string;
   today: () => string;
 };
@@ -57,8 +63,41 @@ export const createWorkspaces = (deps: WorkspacesDeps): Workspaces => {
     return edited;
   };
 
+  const repositoryOf = async (target: string): Promise<Repository | null> => {
+    const path = resolveLocalPath(target, deps.home);
+    return path === null
+      ? parseGitHubRepository(target)
+      : deps.readRepository(path);
+  };
+
+  const describe = async (workspace: Workspace): Promise<WorkspaceOverview> => {
+    const found = await Promise.all(
+      workspace.links.map(link => repositoryOf(link.target)),
+    );
+    const unique = new Map(
+      found
+        .filter(repository => repository !== null)
+        .map(repository => [
+          `${repository.owner}/${repository.name}`,
+          repository,
+        ]),
+    );
+    return {
+      workspace,
+      repositories: [...unique.entries()]
+        .sort(([first], [second]) => first.localeCompare(second))
+        .map(([, repository]) => repository),
+    };
+  };
+
   return {
     list: deps.store.list,
+    overview: async () => {
+      const workspaces = await deps.store.list();
+      return workspaces.ok
+        ? ok(await Promise.all(workspaces.value.map(describe)))
+        : workspaces;
+    },
     show,
     forDirectory: async directory => {
       const workspaces = await deps.store.list();
@@ -105,5 +144,7 @@ export const createWorkspaces = (deps: WorkspacesDeps): Workspaces => {
     decide: (name, text) =>
       edit(name, { kind: "decide", date: deps.today(), text }),
     setNext: (name, text) => edit(name, { kind: "next", text }),
+    tag: (name, tag) => edit(name, { kind: "tag", tag }),
+    untag: (name, tag) => edit(name, { kind: "untag", tag }),
   };
 };

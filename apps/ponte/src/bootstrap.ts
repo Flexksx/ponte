@@ -32,6 +32,7 @@ import {
   pontePaths,
 } from "./infra/paths";
 import { repoFiles } from "./infra/repo-file";
+import { readRepository } from "./infra/repository";
 import { readVersionOutput } from "./infra/version";
 import { createWorkspaceStore } from "./infra/workspace-file";
 
@@ -117,6 +118,7 @@ export const bootstrap = (deps: BootstrapDeps): App => {
       store: createWorkspaceStore(directories.workspaces),
       listSessions: createListAgentSessions(homeDirectory(), platform),
       readPullRequest,
+      readRepository,
       home: homeDirectory(),
       today: () => new Date().toISOString().slice(0, ISO_DATE_LENGTH),
     }),

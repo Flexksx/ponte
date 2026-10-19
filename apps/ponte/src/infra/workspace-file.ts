@@ -19,6 +19,7 @@ const JSON_INDENT = 2;
 const WORKSPACE_SCHEMA = z.strictObject({
   goal: z.string(),
   next: z.string(),
+  tags: z.array(z.string()).default([]),
   links: z.array(z.strictObject({ target: z.string(), note: z.string() })),
   decisions: z.array(z.strictObject({ date: z.string(), text: z.string() })),
 });

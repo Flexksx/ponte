@@ -4,7 +4,10 @@ import type { Workspace } from "./types";
 
 const HOME_PREFIX = "~/";
 
-const localPath = (target: string, home: string): string | null => {
+export const resolveLocalPath = (
+  target: string,
+  home: string,
+): string | null => {
   if (target.startsWith(HOME_PREFIX)) {
     return join(home, target.slice(HOME_PREFIX.length));
   }
@@ -22,7 +25,7 @@ const ownsDirectory = (
   home: string,
 ): boolean =>
   workspace.links.some(link => {
-    const path = localPath(link.target, home);
+    const path = resolveLocalPath(link.target, home);
     return path !== null && isInside(path, directory);
   });
 
