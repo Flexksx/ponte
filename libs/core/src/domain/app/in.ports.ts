@@ -1,6 +1,7 @@
 import type { RepoUpdateReport } from "../repo";
 import type { Result } from "../shared";
 import type { SourceEntry } from "../source";
+import type { Workspace, WorkspaceEdit, WorkspaceProblem } from "../workspace";
 import type {
   Problem,
   SkillListing,
@@ -33,6 +34,22 @@ export type SetSystemPrompt = (
   fileOrLiteral: string,
 ) => Promise<Result<null, Problem>>;
 
+export type Workspaces = {
+  readonly list: () => Promise<Result<Workspace[], WorkspaceProblem>>;
+  readonly show: (name: string) => Promise<Result<Workspace, WorkspaceProblem>>;
+  readonly forCurrentDirectory: () => Promise<
+    Result<Workspace[], WorkspaceProblem>
+  >;
+  readonly create: (
+    name: string,
+    goal: string,
+  ) => Promise<Result<Workspace, WorkspaceProblem>>;
+  readonly edit: (
+    name: string,
+    edit: WorkspaceEdit,
+  ) => Promise<Result<Workspace, WorkspaceProblem>>;
+};
+
 export type App = {
   readonly sync: Sync;
   readonly status: Status;
@@ -41,4 +58,5 @@ export type App = {
   readonly updateSkills: UpdateSkills;
   readonly readSystemPrompt: ReadSystemPrompt;
   readonly setSystemPrompt: SetSystemPrompt;
+  readonly workspaces: Workspaces;
 };

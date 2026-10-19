@@ -1,4 +1,5 @@
 import type { App, Warn } from "@ponte/core";
+import { createApp } from "./app/app";
 import { createFindRepo } from "./app/find-repo";
 import {
   createFetchSkill,
@@ -17,7 +18,7 @@ import { createBuildVendorPlans } from "./app/vendor-resolve";
 import { createGetStatusReport } from "./app/vendor-status";
 import { createSyncVendors } from "./app/vendor-sync";
 import { createReadVendorVersions } from "./app/vendor-versions";
-import { createApp } from "./app/app";
+import { createWorkspaces } from "./app/workspaces";
 import { createConfigStore, createPromptStore } from "./infra/config-file";
 import { listFiles, readSkillFile, vendoredSkills } from "./infra/filesystem";
 import { createSources } from "./infra/git";
@@ -30,6 +31,7 @@ import {
 } from "./infra/paths";
 import { repoFiles } from "./infra/repo-file";
 import { readVersionOutput } from "./infra/version";
+import { createWorkspaceStore } from "./infra/workspace-file";
 
 type BootstrapDeps = {
   warn: Warn;
@@ -106,6 +108,11 @@ export const bootstrap = (deps: BootstrapDeps): App => {
       fetchSkill,
       vendorSkill,
       vendoredSkills,
+    }),
+    workspaces: createWorkspaces({
+      store: createWorkspaceStore(directories.workspaces),
+      cwd: currentDirectory(),
+      home: homeDirectory(),
     }),
   });
 };

@@ -14,8 +14,11 @@ import {
   type SourceEntry,
   type StatusReport,
   type SyncReport,
+  type Workspace,
+  type WorkspaceEdit,
 } from "@ponte/core";
 import chalk from "chalk";
+import { serveWeb } from "../web/server";
 import { formatShortCommit } from "./format";
 import manualText from "./manual.md" with { type: "text" };
 import { describeProblem } from "./problems";
@@ -32,6 +35,17 @@ const TYPE_COLUMN = 5;
 const KIND_COLUMN = 8;
 const COMMIT_COLUMN = 7;
 const NO_VALUE = "—";
+const ISO_DATE_LENGTH = 10;
+const DEFAULT_WEB_PORT = 4774;
+
+const WORKSPACE_USAGE = `Usage:
+  ponte ws                               list workspaces
+  ponte ws show [name]                   print a workspace, by default the one linked to this folder
+  ponte ws new <name> <goal>             create a workspace
+  ponte ws link <name> <target> [note]   add a URL or a path, or change its note
+  ponte ws unlink <name> <target>        remove a link
+  ponte ws decide <name> <text>          record a dated decision
+  ponte ws next <name> <text>            replace the next step`;
 
 const HELP_FLAGS = new Set(["help", "--help", "-h"]);
 
@@ -287,6 +301,168 @@ const runSyspromptCommand = async (app: App, args: string[]): Promise<void> => {
   write(unwrap(await app.readSystemPrompt()));
 };
 
+const today = (): string => new Date().toISOString().slice(0, ISO_DATE_LENGTH);
+
+const printWorkspace = (workspace: Workspace): void => {
+  write(`# Workspace: ${workspace.name}\n\n`);
+  write(`Goal: ${workspace.goal}\n`);
+  write(`Next: ${workspace.next === "" ? NO_VALUE : workspace.next}\n`);
+  if (workspace.links.length > 0) {
+    write("\n## Links\n");
+    for (const link of workspace.links) {
+      write(`- ${link.target}${link.note === "" ? "" : ` - ${link.note}`}\n`);
+    }
+  }
+  if (workspace.decisions.length > 0) {
+    write("\n## Decisions\n");
+    for (const decision of workspace.decisions) {
+      write(`- ${decision.date}: ${decision.text}\n`);
+    }
+  }
+  write(
+    `\nRecord changes with: ponte ws link|unlink|decide|next ${workspace.name} ...\n`,
+  );
+};
+
+const printWorkspaceNames = (
+  intro: string,
+  workspaces: readonly Workspace[],
+): void => {
+  const names = workspaces.map(workspace => workspace.name).join(", ");
+  write(`${intro}: ${names}. Load one with: ponte ws show <name>\n`);
+};
+
+const printWorkspaceList = (workspaces: readonly Workspace[]): void => {
+  if (workspaces.length === 0) {
+    write("No workspaces. Create one with: ponte ws new <name> <goal>\n");
+    return;
+  }
+  const width = Math.max(...workspaces.map(workspace => workspace.name.length));
+  for (const workspace of workspaces) {
+    write(`${workspace.name.padEnd(width)}  ${chalk.dim(workspace.goal)}\n`);
+  }
+};
+
+const showCurrentWorkspace = async (app: App): Promise<void> => {
+  const matches = unwrap(await app.workspaces.forCurrentDirectory());
+  const [only] = matches;
+  if (matches.length === 1 && only !== undefined) {
+    printWorkspace(only);
+    return;
+  }
+  if (matches.length > 1) {
+    printWorkspaceNames("Several workspaces link this folder", matches);
+    return;
+  }
+  const workspaces = unwrap(await app.workspaces.list());
+  if (workspaces.length > 0) {
+    printWorkspaceNames("Workspaces", workspaces);
+  }
+};
+
+const describeEdit = (edit: WorkspaceEdit): string => {
+  switch (edit.kind) {
+    case "link":
+      return `linked ${edit.target}`;
+    case "unlink":
+      return `unlinked ${edit.target}`;
+    case "decide":
+      return `recorded decision: ${edit.text}`;
+    case "next":
+      return `next step: ${edit.text}`;
+  }
+};
+
+const requireArgument = (
+  value: string | undefined,
+  what: string,
+  subcommand: string,
+): string => {
+  if (value === undefined || value === "") {
+    throw new Error(`missing ${what} for ws ${subcommand}\n${WORKSPACE_USAGE}`);
+  }
+  return value;
+};
+
+const parseWorkspaceEdit = (
+  subcommand: string,
+  rest: readonly string[],
+): WorkspaceEdit => {
+  const [first, ...more] = rest;
+  switch (subcommand) {
+    case "link":
+      return {
+        kind: "link",
+        target: requireArgument(first, "<target>", subcommand),
+        note: more.join(" "),
+      };
+    case "unlink":
+      return {
+        kind: "unlink",
+        target: requireArgument(first, "<target>", subcommand),
+      };
+    case "decide":
+      return {
+        kind: "decide",
+        date: today(),
+        text: requireArgument(rest.join(" "), "<text>", subcommand),
+      };
+    case "next":
+      return {
+        kind: "next",
+        text: requireArgument(rest.join(" "), "<text>", subcommand),
+      };
+    default:
+      throw new Error(
+        `unknown subcommand for ws: ${subcommand}\n${WORKSPACE_USAGE}`,
+      );
+  }
+};
+
+const runWorkspaceCommand = async (app: App, args: string[]): Promise<void> => {
+  const [subcommand, name, ...rest] = args;
+  if (subcommand === undefined || subcommand === "list") {
+    printWorkspaceList(unwrap(await app.workspaces.list()));
+    return;
+  }
+  if (subcommand === "show") {
+    if (name === undefined) {
+      await showCurrentWorkspace(app);
+      return;
+    }
+    printWorkspace(unwrap(await app.workspaces.show(name)));
+    return;
+  }
+  const workspaceName = requireArgument(name, "<name>", subcommand);
+  if (subcommand === "new") {
+    const goal = requireArgument(rest.join(" "), "<goal>", subcommand);
+    unwrap(await app.workspaces.create(workspaceName, goal));
+    write(`Created workspace ${workspaceName}.\n`);
+    return;
+  }
+  const edit = parseWorkspaceEdit(subcommand, rest);
+  unwrap(await app.workspaces.edit(workspaceName, edit));
+  write(`${workspaceName}: ${describeEdit(edit)}\n`);
+};
+
+const runWebCommand = async (app: App, args: string[]): Promise<void> => {
+  const { values, positionals } = parseArgs({
+    args,
+    options: { port: { type: "string", short: "p" } },
+    allowPositionals: true,
+  });
+  if (positionals.length > 0) {
+    throw new Error(`unexpected argument for web: ${positionals[0]}`);
+  }
+  const port =
+    typeof values.port === "string" ? Number(values.port) : DEFAULT_WEB_PORT;
+  if (!Number.isInteger(port)) {
+    throw new Error(`invalid port: ${values.port}`);
+  }
+  write(`ponte web: ${chalk.cyan(serveWeb(app, port))} - Ctrl-C stops it\n`);
+  await new Promise<never>(() => {});
+};
+
 const runManualCommand = async (): Promise<void> => {
   write(manualText);
 };
@@ -324,6 +500,16 @@ const commandTable = (app: App): readonly Command[] => [
     name: "sysprompt",
     summary: "Show or manage the global system prompt",
     run: args => runSyspromptCommand(app, args),
+  },
+  {
+    name: "ws",
+    summary: "List, show and update workspaces, the context agents share",
+    run: args => runWorkspaceCommand(app, args),
+  },
+  {
+    name: "web",
+    summary: "Serve a local page with workspaces, skills and subagents",
+    run: args => runWebCommand(app, args),
   },
   {
     name: "manual",

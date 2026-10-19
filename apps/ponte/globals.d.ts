@@ -18,6 +18,16 @@ declare namespace Bun {
     parse(text: string): Record<string, unknown>;
     stringify(value: unknown): string;
   };
+  function serve(options: {
+    hostname: string;
+    port: number;
+    routes: Record<string, unknown>;
+  }): { url: URL };
+}
+
+declare module "*.html" {
+  const bundle: unknown;
+  export default bundle;
 }
 
 interface BunFile {

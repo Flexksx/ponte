@@ -76,6 +76,7 @@ describe("buildPontePaths", () => {
         "instruction",
       ),
       sourceCache: join("/home/u", ".cache", "ponte", "sources"),
+      workspaces: join("/home/u", ".local", "share", "ponte", "workspaces"),
     });
   });
 

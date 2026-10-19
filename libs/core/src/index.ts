@@ -1,3 +1,12 @@
+export type {
+  ModeProblem,
+  Problem,
+  SkillListing,
+  StatusOutcome,
+  SyncOutcome,
+  SyncRequest,
+} from "./domain/app";
+export type * from "./domain/app/in.ports";
 export {
   buildConfig,
   buildPontePaths,
@@ -101,12 +110,15 @@ export {
   type VendorVersions,
 } from "./domain/vendor";
 export type * from "./domain/vendor/out.ports";
-export type {
-  Problem,
-  SkillListing,
-  StatusOutcome,
-  SyncOutcome,
-  SyncRequest,
-  ModeProblem,
-} from "./domain/app";
-export type * from "./domain/app/in.ports";
+export {
+  applyWorkspaceEdit,
+  checkWorkspaceName,
+  type Decision,
+  findWorkspacesForDirectory,
+  newWorkspace,
+  type Workspace,
+  type WorkspaceEdit,
+  type WorkspaceLink,
+  type WorkspaceProblem,
+} from "./domain/workspace";
+export type * from "./domain/workspace/out.ports";

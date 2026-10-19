@@ -9,6 +9,8 @@ const OVERRIDE_PROMPT_FILE = "instruction";
 
 const SOURCE_CACHE_DIRECTORY = "sources";
 
+const WORKSPACES_DIRECTORY = "workspaces";
+
 // An XDG variable counts only when it holds an absolute path.
 const baseDirectory = (xdg: string | undefined, fallback: string): string =>
   xdg !== undefined && isAbsolute(xdg) ? xdg : fallback;
@@ -31,5 +33,6 @@ export const buildPontePaths = (input: DirectoriesInput): PontePaths => {
     configFile: join(config, CONFIG_FILE),
     overridePrompt: join(data, OVERRIDE_PROMPT_FILE),
     sourceCache: join(cache, SOURCE_CACHE_DIRECTORY),
+    workspaces: join(data, WORKSPACES_DIRECTORY),
   };
 };

@@ -60,5 +60,15 @@ export const describeProblem = (problem: Problem): string => {
       return `no ${REPO_CONFIG_FILE} in this directory or any parent directory`;
     case "global-options-in-repo":
       return "-g and -a apply to a global sync only, and this directory is a repo";
+    case "invalid-workspace-name":
+      return `invalid workspace name "${problem.name}" - use a-z, 0-9 and hyphens, starting with a letter or a digit`;
+    case "workspace-exists":
+      return `workspace ${problem.name} already exists`;
+    case "workspace-not-found":
+      return `no workspace named ${problem.name} - run ponte ws to list them`;
+    case "link-not-found":
+      return `the workspace has no link ${problem.target}`;
+    case "invalid-workspace-file":
+      return `${problem.file}: ${problem.message}`;
   }
 };

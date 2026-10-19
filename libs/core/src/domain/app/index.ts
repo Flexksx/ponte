@@ -1,8 +1,8 @@
 export type {
+  ModeProblem,
   Problem,
   SkillListing,
   StatusOutcome,
   SyncOutcome,
   SyncRequest,
-  ModeProblem,
 } from "./types";

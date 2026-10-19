@@ -4,6 +4,7 @@ import type { RepoProblem, RepoStatusReport, RepoSyncReport } from "../repo";
 import type { SkillProblem, SkillRow } from "../skill";
 import type { SourceProblem } from "../source";
 import type { VendorProblem } from "../vendor";
+import type { WorkspaceProblem } from "../workspace";
 
 export type ModeProblem =
   | { readonly kind: "not-in-repo" }
@@ -16,7 +17,8 @@ export type Problem =
   | SkillProblem
   | SourceProblem
   | VendorProblem
-  | ModeProblem;
+  | ModeProblem
+  | WorkspaceProblem;
 
 export type SyncRequest = {
   readonly promptOverride: string | undefined;

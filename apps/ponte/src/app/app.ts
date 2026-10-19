@@ -14,6 +14,7 @@ import {
   type Status,
   type Sync,
   type UpdateSkills,
+  type Workspaces,
 } from "@ponte/core";
 import type { FindRepo } from "./find-repo";
 import type { ListConfigSkills, ListRepoSkills } from "./repo-skills";
@@ -34,6 +35,7 @@ type AppDeps = {
   listRepoSkills: ListRepoSkills;
   listConfigSkills: ListConfigSkills;
   runRepoUpdate: RunRepoUpdate;
+  workspaces: Workspaces;
 };
 
 // A repo directory, one that holds ponte.toml, selects repo mode.
@@ -148,5 +150,6 @@ export const createApp = (deps: AppDeps): App => {
     updateSkills,
     readSystemPrompt,
     setSystemPrompt,
+    workspaces: deps.workspaces,
   };
 };

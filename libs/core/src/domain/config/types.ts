@@ -51,4 +51,5 @@ export type PontePaths = {
   readonly configFile: string;
   readonly overridePrompt: string;
   readonly sourceCache: string;
+  readonly workspaces: string;
 };
