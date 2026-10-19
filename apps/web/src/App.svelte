@@ -7,13 +7,17 @@
 
   let hash = $state(location.hash);
   const route = $derived(parseRoute(hash));
+
+  $effect(() => {
+    const follow = () => (hash = location.hash);
+    window.addEventListener("hashchange", follow);
+    return () => window.removeEventListener("hashchange", follow);
+  });
   const nav = $derived([
     { href: HOME_HREF, label: "Workspaces", active: route.page !== "setup" },
     { href: SETUP_HREF, label: "Setup", active: route.page === "setup" },
   ]);
 </script>
-
-<svelte:window onhashchange={() => (hash = location.hash)} />
 
 <AppShell brand="ponte" homeHref={HOME_HREF} {nav}>
   {#if route.page === "workspace"}

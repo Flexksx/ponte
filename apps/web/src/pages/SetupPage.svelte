@@ -25,7 +25,7 @@
 <Stack gap="large">
   <PageHeader title="Setup" description="What ponte links into each agent." />
 
-  <Section title="Agents">
+  <Section title="Agents" icon="agents">
     {#await status}
       <Loading label="Checking agent links…" />
     {:then current}
@@ -54,7 +54,7 @@
     {/await}
   </Section>
 
-  <Section title="System prompt">
+  <Section title="System prompt" icon="prompt">
     {#await systemPrompt}
       <Loading label="Reading the system prompt…" />
     {:then prompt}
@@ -67,9 +67,9 @@
   </Section>
 
   {#await skills}
-    <Section title="Skills"><Loading label="Listing skills…" /></Section>
+    <Section title="Skills" icon="skills"><Loading label="Listing skills…" /></Section>
   {:then listing}
-    <Section title="Skills" count={listing.rows.length}>
+    <Section title="Skills" icon="skills" count={listing.rows.length}>
       {#if listing.rows.length === 0}
         <EmptyState><Text>No skills configured.</Text></EmptyState>
       {:else}
@@ -85,13 +85,13 @@
       {/if}
     </Section>
   {:catch error}
-    <Section title="Skills"><Alert message={error.message} /></Section>
+    <Section title="Skills" icon="skills"><Alert message={error.message} /></Section>
   {/await}
 
   {#await subagents}
-    <Section title="Subagents"><Loading label="Listing subagents…" /></Section>
+    <Section title="Subagents" icon="subagents"><Loading label="Listing subagents…" /></Section>
   {:then list}
-    <Section title="Subagents" count={list.length}>
+    <Section title="Subagents" icon="subagents" count={list.length}>
       {#if list.length === 0}
         <EmptyState><Text>No subagents configured.</Text></EmptyState>
       {:else}
@@ -103,6 +103,6 @@
       {/if}
     </Section>
   {:catch error}
-    <Section title="Subagents"><Alert message={error.message} /></Section>
+    <Section title="Subagents" icon="subagents"><Alert message={error.message} /></Section>
   {/await}
 </Stack>

@@ -1,16 +1,23 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
+  import Icon from "./Icon.svelte";
+  import type { IconName } from "./icons";
 
   type Tone = "neutral" | "accent" | "success" | "warning" | "danger";
 
-  let { tone, children }: { tone: Tone; children: Snippet } = $props();
+  let { tone, icon, children }: { tone: Tone; icon?: IconName; children: Snippet } = $props();
 </script>
 
-<span class={tone}>{@render children()}</span>
+<span class={tone}>
+  {#if icon}<Icon name={icon} size={13} />{/if}
+  {@render children()}
+</span>
 
 <style>
   span {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     padding: 0 6px;
     border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
     border-radius: 4px;
